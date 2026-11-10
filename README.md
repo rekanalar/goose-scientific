@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.8.0";
+import scientific from "rekanalar/goose-scientific@v0.9.0";
 ```
 
 ## API
@@ -41,6 +41,7 @@ import scientific from "rekanalar/goose-scientific@v0.8.0";
 | Eigenvalues | `eigvals`, `eig`, `eigvalsh`, `eigh` |
 | Singular values | `svd`, `svdvals`, `lstsq`, `matrix_rank`, `cond` |
 | Polynomials | `polyval`, `polyfit`, `roots` |
+| Transforms | `fft`, `ifft`, `fft2`, `fftfreq`, `fftshift`, `rfft`, `irfft` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -152,6 +153,23 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   lowest, as NumPy holds them.
 - `roots` uses the eigenvalues of the companion matrix. A root that
   holds a complex number is a fault.
+- The transform works on two arrays: one holds the real parts and one
+  holds the imaginary parts. The package holds no complex type.
+- `fft` takes every length. A power of two takes the radix-2 method.
+  Every other length takes the Bluestein method, so it allocates the
+  next power of two above twice the length.
+- `ifft` divides by the length, as NumPy does. `fft` and `ifft` of
+  the same parts give the signal back.
+- `fft2` takes a matrix and transforms both axes. It takes no shape
+  argument and no choice of axes.
+- `fftfreq` puts the positive frequencies first, then the negative
+  ones, as NumPy does. A step of zero is a fault.
+- `rfft` gives the positive half of the frequencies. The count of the
+  half is the length divided by two, plus one.
+- `irfft` takes the parts of that half and the length of the signal.
+  A count of the parts that does not hold the length is a fault.
+- `fftshift` moves the zero frequency to the middle. It holds a flat
+  array of frequencies, so it takes no axis.
 
 ## Security
 
@@ -185,6 +203,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   after a fault reads an array of length zero, not a torn one.
 - The package takes no text input and holds no parser. The attack
   surface is the shape and the values of the caller.
+- The transform checks the count of the elements and the count of the
+  parts before it allocates. A signal that reaches over
+  `MAX_ELEMENTS` is a fault, so a bad length cannot grow memory
+  without bound.
+- `irfft` refuses parts whose count does not hold the length. The
+  check runs before any element moves, so a bad length cannot write
+  outside its arrays.
+- The Bluestein method holds the work of the next power of two above
+  twice the length. A caller that transforms a large signal of a
+  length that is not a power of two holds that memory.
 
 ## License
 

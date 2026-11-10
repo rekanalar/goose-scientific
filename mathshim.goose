@@ -9,6 +9,8 @@ import math;
 fn root(x: f64) -> f64 { return sqrt(x); }
 fn power_e(x: f64) -> f64 { return exp(x); }
 fn ln(x: f64) -> f64 { return log(x); }
+fn cosine(x: f64) -> f64 { return cos(x); }
+fn sine(x: f64) -> f64 { return sin(x); }
 fn log2_of(x: f64) -> f64 { return log2(x); }
 fn log10_of(x: f64) -> f64 { return log10(x); }
 fn power(x: f64, y: f64) -> f64 { return pow(x, y); }
