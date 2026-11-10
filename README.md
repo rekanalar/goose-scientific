@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.44.0";
+import scientific from "rekanalar/goose-scientific@v0.45.0";
 ```
 
 ## API
@@ -76,6 +76,7 @@ import scientific from "rekanalar/goose-scientific@v0.44.0";
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `null_space`, `orth`, `expm` |
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
+| Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -106,6 +107,17 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- `cubic_spline` takes the conditions `not-a-knot`, `natural` and
+  `clamped`. `clamped` gives zero slope at both ends. The condition
+  `periodic` and given end values stay out. `spline_eval` takes the
+  derivative orders zero to three. A point outside the knots takes the
+  end cubic for `cubic_spline` and `pchip`. A spline of `akima` gives
+  NaN there, as SciPy does.
+- `interp1d` takes the kinds `linear`, `nearest`, `previous`, `next`
+  and `cubic`. The kinds `zero`, `slinear`, `quadratic` and the
+  argument `fill_value` stay out. A point outside the knots is a fault
+  unless `extrapolate` holds true. The older `spline` of the package
+  stays a natural spline with its own type.
 - The spatial functions follow `scipy.spatial`. `cosine` and `hamming`
   already name other functions here. The distances carry the names
   `cosine_distance` and `hamming_distance`.
