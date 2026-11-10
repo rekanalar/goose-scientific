@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.119.0";
+import scientific from "rekanalar/goose-scientific@v0.120.0";
 ```
 
 ## API
@@ -669,12 +669,22 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   zero. It holds the same result as `nonzero`.
 - `interpn` interpolates a regular grid at many points. It takes the
   grids in one flat list and the length of each axis. It takes the
-  values and the points. The methods are `linear` and `nearest`. A point
-  outside the grid is a fault, unless the caller turns the check off
-  and gives a fill value. A grid that does not rise strictly is a
-  fault.
-- `interpn` has no method of `cubic` and no extrapolation. It takes at
-  most eight axes.
+  values and the points. The methods are `linear`, `nearest`,
+  `slinear`, `cubic`, `quintic` and `pchip`.
+- A point outside the grid is a fault in `interpn`. The caller can turn
+  the check off and give a fill value. The caller can also set
+  `extrapolate`. Then the point takes the value of the end cell, as
+  `fill_value=None` does in SciPy.
+- A grid that does not rise strictly is a fault in `interpn`.
+- `interpn` takes at most eight axes. The spline methods take at most
+  512 points on an axis and need more points than the degree.
+- The methods `cubic` and `quintic` fold one axis at a time, like the
+  methods `cubic_legacy` and `quintic_legacy` of SciPy. SciPy gives
+  `cubic` and `quintic` by an iterative solve with a tolerance near
+  1e-6. Its values differ from the exact tensor product spline by
+  about 1e-5, and by more outside the grid. This package gives the
+  exact spline. A caller who needs the digits of SciPy must expect
+  that difference.
 - `meshgrid` takes two vectors and returns two arrays. The indexing
   `"xy"` gives the shape (len(y), len(x)). The indexing `"ij"` gives
   (len(x), len(y)). It takes two inputs, not more.
@@ -1256,6 +1266,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `bessel` and `bessel_sos` fault on an order outside one to 32. They
   also fault on a cut outside zero to one and on an unknown norm.
   The search for the 3 dB point stops after a fixed count of turns.
+- The spline methods of `interpn` fault on an axis of more than 512
+  points. The dense solve of each line would take too long.
 - `fht`, `ifht` and `fhtoffset` fault on a `dln` of zero and on a value
   that is not finite. They fault on a bias that makes the transform
   singular. The log gamma function uses a reflection and a short

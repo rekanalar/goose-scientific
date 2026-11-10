@@ -104,20 +104,71 @@ fn grid_cell(grids: f64[:], offset: i64, n: i64, x: f64) -> i64 {
     return lo;
 }
 
+// grid_spline_point gives the value of the spline method at one point.
+// It folds the axes from the last one to the first, as SciPy does: each
+// line along an axis becomes one number by a one-variable interpolation
+// of the degree k, or by pchip.
+fn grid_spline_point(grids: f64[:], offs: i64[:], lens: i64[:], data: f64[:], xs: f64[:], k: i64, use_pchip: bool) -> f64, Fault {
+    let nd = lens.len;
+    var cur: f64[>..] = copy_slice(data);
+    var d = nd - 1;
+    while d >= 0 {
+        var gd: f64[>..] = [];
+        var q: i64 = 0;
+        while q < lens[d] { gd.push(grids[offs[d] + q]); q += 1; }
+        var outer: i64 = 1;
+        q = 0;
+        while q < d { outer *= lens[q]; q += 1; }
+        var next: f64[>..] = [];
+        var o: i64 = 0;
+        while o < outer {
+            var y: f64[>..] = [];
+            q = 0;
+            while q < lens[d] { y.push(cur[o * lens[d] + q]); q += 1; }
+            if use_pchip {
+                let sp, sf = pchip(gd, y);
+                if sf.kind != F_NONE { return 0.0, sf; }
+                let v, vf = spline_eval(sp, [xs[d]], 0);
+                if vf.kind != F_NONE { return 0.0, vf; }
+                next.push(v.data[0]);
+            } else {
+                let sp, sf = make_interp_spline(gd, y, k);
+                if sf.kind != F_NONE { return 0.0, sf; }
+                let v, vf = bspline_eval(sp, [xs[d]], 0);
+                if vf.kind != F_NONE { return 0.0, vf; }
+                next.push(v.data[0]);
+            }
+            o += 1;
+        }
+        cur = copy(next);
+        d -= 1;
+    }
+    return cur[0], no_fault();
+}
+
 // interpn interpolates a regular grid of N dimensions at many points,
 // as scipy.interpolate.interpn and RegularGridInterpolator do. The
 // grids come in one flat list, one axis after the other, and lens holds
 // the length of each axis. The values hold one number for each grid
 // point. The points are a matrix with one row for each point and one
-// column for each axis. The method is "linear" or "nearest". A point
-// outside the grid is a fault when bounds_error holds, and gives
-// fill_value otherwise.
-fn interpn(grids: f64[:], lens: i64[:], values, xi, method: const u8[:] = "linear", bounds_error: bool = true, fill_value: f64 = 0.0 / 0.0) -> Arr, Fault {
+// column for each axis. The method is "linear", "nearest", "slinear",
+// "cubic", "quintic" or "pchip". A point outside the grid is a fault
+// when bounds_error holds, and gives fill_value otherwise. When
+// extrapolate holds, such a point takes the value of the end cell
+// instead.
+fn interpn(grids: f64[:], lens: i64[:], values, xi, method: const u8[:] = "linear", bounds_error: bool = true, fill_value: f64 = 0.0 / 0.0, extrapolate: bool = false) -> Arr, Fault {
     let nd = lens.len;
     if nd < 1 || nd > MAX_DIMS || values.ndim != nd {
         return empty_arr(), fault(F_SHAPE, "interpn", "the values do not hold one axis for each grid");
     }
-    if method != "linear" && method != "nearest" {
+    var k: i64 = 0;
+    var spline = true;
+    if method == "slinear" { k = 1; }
+    else if method == "cubic" { k = 3; }
+    else if method == "quintic" { k = 5; }
+    else if method == "pchip" { k = 3; }
+    else if method == "linear" || method == "nearest" { spline = false; }
+    else {
         return empty_arr(), fault(F_VALUE, "interpn", "the method holds an unknown name");
     }
     var offs: i64[>..] = [];
@@ -126,6 +177,12 @@ fn interpn(grids: f64[:], lens: i64[:], values, xi, method: const u8[:] = "linea
     while d < nd {
         if lens[d] < 2 || values.shape[d] != lens[d] {
             return empty_arr(), fault(F_SHAPE, "interpn", "a grid holds fewer than two points or does not fit the values");
+        }
+        if spline && lens[d] > 512 {
+            return empty_arr(), fault(F_LIMIT, "interpn", "a spline method takes at most 512 points on an axis");
+        }
+        if spline && lens[d] <= k {
+            return empty_arr(), fault(F_SHAPE, "interpn", "a grid holds too few points for the method");
         }
         offs.push(total);
         total += lens[d];
@@ -165,7 +222,7 @@ fn interpn(grids: f64[:], lens: i64[:], values, xi, method: const u8[:] = "linea
             let lo = grids[offs[d]];
             let hi = grids[offs[d] + lens[d] - 1];
             if x != x { inside = false; }
-            else if x < lo || x > hi {
+            else if (x < lo || x > hi) && !extrapolate {
                 if bounds_error { return empty_arr(), fault(F_RANGE, "interpn", "a point stands outside the grid"); }
                 inside = false;
             }
@@ -180,6 +237,16 @@ fn interpn(grids: f64[:], lens: i64[:], values, xi, method: const u8[:] = "linea
             d += 1;
         }
         if !inside { out.push(fill_value); p += 1; continue; }
+        if spline {
+            var xs: f64[>..] = [];
+            d = 0;
+            while d < nd { xs.push(xi.data[p * nd + d]); d += 1; }
+            let sv, sf = grid_spline_point(grids, offs, lens, values.data, xs, k, method == "pchip");
+            if sf.kind != F_NONE { return empty_arr(), sf; }
+            out.push(sv);
+            p += 1;
+            continue;
+        }
         var v: f64 = 0.0;
         if method == "nearest" {
             var at: i64 = 0;
