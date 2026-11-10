@@ -4420,7 +4420,28 @@ fn test_sosfreqz() {
     return;
 }
 
+fn rp_signal() -> f64[>..] {
+    var v: f64[>..] = [];
+    var i: i64 = 0;
+    while i < 20 { v.push(mathshim_sin(i * 0.3) + 0.1 * i); i += 1; }
+    return copy(v);
+}
+
+// resample_poly is pinned against SciPy.
+fn test_resample_poly() {
+    let x = rp_signal();
+    let a, f1 = scientific::resample_poly(x, 3, 2);
+    assert(f1.kind == scientific::F_NONE && a.data.len == 30);
+    assert(near(a.data[1], 0.2380285985652429) && near(a.data[5], 1.181436686153129) && near(a.data[15], 1.1418117248304391) && near(a.data[29], 0.9643440493764917));
+    let b, f2 = scientific::resample_poly(x, 1, 2);
+    assert(f2.kind == scientific::F_NONE && all_loose(b, [0.0642898273039825, 0.7568253702817194, 1.333241437659126, 1.5785041508482276, 1.4677133835228036, 1.1564010623373906, 0.7343325113364108, 0.5659863429365632, 0.5420691602674772, 1.15102267428965]));
+    let c, f3 = scientific::resample_poly(x, 0, 2);
+    assert(f3.kind == scientific::F_RANGE);
+    return;
+}
+
 fn main() {
+    test_resample_poly();
     test_sosfreqz();
     test_interp1d_kinds();
     test_matrix_trig();

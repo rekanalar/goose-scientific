@@ -682,3 +682,51 @@ fn sosfreqz(sos, n: i64 = 512, whole: bool = false) -> Arr, Arr, Arr, Fault {
     let hr, hi, f = sosfreqz_at(sos, w);
     return line_arr(copy(w)), hr, hi, f;
 }
+
+// resample_poly changes the rate of a signal by the ratio up over down.
+// The signal goes through a low pass filter of the window method with a
+// Kaiser window of beta 5, as SciPy does, and the edges hold zeros.
+fn resample_poly(x: f64[:], up0: i64, down0: i64) -> Arr, Fault {
+    if up0 < 1 || down0 < 1 {
+        return empty_arr(), fault(F_RANGE, "resample_poly", "up and down must be one or more");
+    }
+    if x.len < 1 || x.len > MAX_DSP_LENGTH {
+        return empty_arr(), fault(F_SHAPE, "resample_poly", "the signal holds no value or too many values");
+    }
+    var ga = up0;
+    var gb = down0;
+    while gb != 0 { let t = ga % gb; ga = gb; gb = t; }
+    let up = up0 / ga;
+    let down = down0 / ga;
+    if up == 1 && down == 1 { return line_arr(copy_slice(x)), no_fault(); }
+    var big = up;
+    if down > up { big = down; }
+    if big > 100000 || x.len * up > MAX_DSP_LENGTH {
+        return empty_arr(), fault(F_LIMIT, "resample_poly", "the ratio is too large");
+    }
+    let n_in = x.len;
+    let n_out = (n_in * up + down - 1) / down;
+    let half = 10 * big;
+    let h, hf = firwin(2 * half + 1, [1.0 / big], true, "kaiser", true, 2.0, 5.0);
+    if hf.kind != F_NONE { return empty_arr(), hf; }
+    let pre = down - half % down;
+    let remove = (half + pre) / down;
+    var y: f64[>..] = [];
+    var j: i64 = 0;
+    while j < n_out {
+        let n = j + remove;
+        var s: f64 = 0.0;
+        // The tap k holds h[k - pre] and meets the sample at n down - k.
+        var k: i64 = pre;
+        while k < pre + h.data.len {
+            let idx = n * down - k;
+            if idx >= 0 && idx % up == 0 && idx / up < n_in {
+                s += up * h.data[k - pre] * x[idx / up];
+            }
+            k += 1;
+        }
+        y.push(s);
+        j += 1;
+    }
+    return line_arr(copy(y)), no_fault();
+}
