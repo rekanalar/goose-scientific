@@ -4,7 +4,7 @@
 // fault instead of an abort. A fault result is an empty array.
 namespace scientific;
 
-import math;
+import mathshim;
 
 // zeros builds an array where every element holds 0.0.
 fn zeros(shape: i64[:]) -> Arr, Fault {
@@ -73,47 +73,139 @@ fn linspace(start: f64, stop: f64, count: i64) -> Arr, Fault {
     return Arr { ndim: 1, shape: s, data: d }, no_fault();
 }
 
-// eye builds the n by n identity matrix.
-fn eye(n: i64) -> Arr, Fault {
-    if n < 1 {
-        return empty_arr(), fault(F_VALUE, "eye", "the size holds a value below one");
+// eye builds the identity matrix. The count of the rows and the count
+// of the columns come from the caller. A count of columns of zero
+// means the count of the rows. The offset moves the diagonal, as
+// NumPy does.
+fn eye(n: i64, m: i64 = 0, k: i64 = 0) -> Arr, Fault {
+    var cols = m;
+    if cols == 0 { cols = n; }
+    if n < 1 || cols < 1 {
+        return empty_arr(), fault(F_VALUE, "eye", "a size holds a value below one");
     }
-    var shape: i64[>..] = [];
-    shape.push(n);
-    shape.push(n);
+    if n > MAX_ELEMENTS || cols > MAX_ELEMENTS {
+        return empty_arr(), fault(F_LIMIT, "eye", "a size holds more than the limit");
+    }
     var s2: i64[..8] = [];
     s2.push(n);
-    s2.push(n);
-    let total = n * n;
+    s2.push(cols);
+    let total = n * cols;
     if total > MAX_ELEMENTS {
         return empty_arr(), fault(F_LIMIT, "eye", "the matrix holds more elements than the limit");
     }
     var d: f64[>..] = [];
-    var i: i64 = 0;
-    while i < total {
-        if i % (n + 1) == 0 { d.push(1.0); } else { d.push(0.0); }
-        i += 1;
+    var row: i64 = 0;
+    while row < n {
+        var col: i64 = 0;
+        while col < cols {
+            if col - row == k { d.push(1.0); } else { d.push(0.0); }
+            col += 1;
+        }
+        row += 1;
     }
     return Arr { ndim: 2, shape: s2, data: d }, no_fault();
 }
 
-// diag builds the square matrix that holds values on its diagonal.
-fn diag(values: f64[:]) -> Arr, Fault {
+// identity builds the n by n matrix of the identity. It is the name
+// of NumPy for eye without an offset.
+fn identity(n: i64) -> Arr, Fault { return eye(n); }
+
+// array builds a one-dimensional array from a row of values. It is
+// the name of NumPy for from_values.
+fn array(values: f64[:]) -> Arr, Fault { return from_values(values); }
+
+// diagflat builds the square matrix that holds a row of values on a
+// diagonal of an offset, as NumPy does. The side of the matrix holds
+// the count of the values and the size of the offset.
+fn diagflat(values: f64[:], k: i64 = 0) -> Arr, Fault {
     let n = values.len;
-    let total = n * n;
+    if n < 1 {
+        return empty_arr(), fault(F_VALUE, "diagflat", "the row holds no value");
+    }
+    if n > MAX_ELEMENTS {
+        return empty_arr(), fault(F_LIMIT, "diagflat", "the row holds more values than the limit");
+    }
+    // The offset stands outside the size of the matrix, so it is a
+    // fault. The check keeps the size of the matrix inside the limit.
+    if k > MAX_ELEMENTS || k < -MAX_ELEMENTS {
+        return empty_arr(), fault(F_RANGE, "diagflat", "the offset stands outside the matrix");
+    }
+    let side = n + max_i(k, -k);
+    if side > MAX_ELEMENTS {
+        return empty_arr(), fault(F_LIMIT, "diagflat", "the matrix holds more elements than the limit");
+    }
+    let total = side * side;
     if total > MAX_ELEMENTS {
-        return empty_arr(), fault(F_LIMIT, "diag", "the matrix holds more elements than the limit");
+        return empty_arr(), fault(F_LIMIT, "diagflat", "the matrix holds more elements than the limit");
     }
     var s: i64[..8] = [];
-    s.push(n);
-    s.push(n);
+    s.push(side);
+    s.push(side);
     var d: f64[>..] = [];
-    var i: i64 = 0;
-    while i < total {
-        if i % (n + 1) == 0 { d.push(values[i / (n + 1)]); } else { d.push(0.0); }
-        i += 1;
+    var row: i64 = 0;
+    while row < side {
+        var col: i64 = 0;
+        while col < side {
+            var v: f64 = 0.0;
+            if col - row == k {
+                // The value sits at the smaller of the two places of
+                // the diagonal.
+                if row < col { v = values[row]; } else { v = values[col]; }
+            }
+            d.push(v);
+            col += 1;
+        }
+        row += 1;
     }
     return Arr { ndim: 2, shape: s, data: d }, no_fault();
+}
+
+// logspace builds count numbers on a scale of a power. The numbers
+// hold the power of the base, from the power of the start to the
+// power of the stop, as NumPy does.
+fn logspace(start: f64, stop: f64, count: i64, base: f64 = 10.0) -> Arr, Fault {
+    let line, f = linspace(start, stop, count);
+    if f.kind != F_NONE { return empty_arr(), f; }
+    var i: i64 = 0;
+    while i < line.data.len {
+        line.data[i] = mathshim::power(base, line.data[i]);
+        i += 1;
+    }
+    return line, no_fault();
+}
+
+// geomspace builds count numbers on a scale of a geometric sequence.
+// The sign of the start comes off the numbers and goes back at the
+// end, as NumPy does. A zero at the start or at the end is a fault.
+fn geomspace(start: f64, stop: f64, count: i64) -> Arr, Fault {
+    if count < 1 {
+        return empty_arr(), fault(F_VALUE, "geomspace", "the count holds a value below one");
+    }
+    if start == 0.0 || stop == 0.0 {
+        return empty_arr(), fault(F_VALUE, "geomspace", "a geometric sequence holds no zero");
+    }
+    var sign: f64 = 1.0;
+    if start < 0.0 { sign = -1.0; }
+    let line, f = logspace(mathshim::log10_of(start / sign), mathshim::log10_of(stop / sign), count, 10.0);
+    if f.kind != F_NONE { return empty_arr(), f; }
+    // The two ends hold the start and the stop, as NumPy does. The
+    // other numbers hold the power of the ten of the scale.
+    var i: i64 = 1;
+    while i < line.data.len - 1 {
+        line.data[i] = line.data[i] * sign;
+        i += 1;
+    }
+    line.data[0] = start;
+    if line.data.len > 1 { line.data[line.data.len - 1] = stop; }
+    return line, no_fault();
+}
+
+// diag builds the square matrix that holds values on its diagonal. It
+// is the same matrix that diagflat builds with no offset.
+fn diag(values: f64[:]) -> Arr, Fault {
+    let m, f = diagflat(values, 0);
+    if f.kind != F_NONE { return empty_arr(), fault(f.kind, "diag", f.detail); }
+    return m, no_fault();
 }
 
 // from_rows builds a rows by cols matrix from a flat row-major buffer.

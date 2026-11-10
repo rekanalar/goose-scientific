@@ -1228,6 +1228,228 @@ fn test_signal() {
     assert(fb5.kind == scientific::F_VALUE);
 }
 
+// The elementwise math holds the values of NumPy.
+fn test_elementwise_math() {
+    let a, f = scientific::from_values([0.25, 0.5, 1.0, 2.0]);
+    assert(f.kind == scientific::F_NONE);
+    let s, fs = scientific::sin(a);
+    assert(fs.kind == scientific::F_NONE);
+    assert(close(s.data[0], 0.24740395925452294) && close(s.data[1], 0.479425538604203));
+    assert(close(s.data[2], 0.8414709848078965) && close(s.data[3], 0.9092974268256817));
+    let c, fc = scientific::cos(a);
+    assert(fc.kind == scientific::F_NONE);
+    assert(close(c.data[0], 0.9689124217106447) && close(c.data[1], 0.8775825618903728));
+    assert(close(c.data[2], 0.5403023058681398) && close(c.data[3], -0.4161468365471424));
+    let t, ft = scientific::tan(a);
+    assert(ft.kind == scientific::F_NONE);
+    assert(close(t.data[0], 0.25534192122103627) && close(t.data[1], 0.5463024898437905));
+    assert(close(t.data[2], 1.5574077246549023) && close(t.data[3], -2.185039863261519));
+    let asin2, fas = scientific::arcsin(a);
+    assert(fas.kind == scientific::F_NONE);
+    assert(close(asin2.data[0], 0.25268025514207865) && close(asin2.data[1], 0.5235987755982989));
+    assert(close(asin2.data[2], 1.5707963267948966) && asin2.data[3] != asin2.data[3]);
+    let ac, fac = scientific::arccos(a);
+    assert(fac.kind == scientific::F_NONE);
+    assert(close(ac.data[0], 1.318116071652818) && close(ac.data[1], 1.0471975511965979));
+    assert(close(ac.data[2], 0.0) && ac.data[3] != ac.data[3]);
+    let at, fat = scientific::arctan(a);
+    assert(fat.kind == scientific::F_NONE);
+    assert(close(at.data[0], 0.24497866312686414) && close(at.data[1], 0.4636476090008061));
+    assert(close(at.data[2], 0.7853981633974483) && close(at.data[3], 1.1071487177940904));
+    // The angle of a point of the plane comes from two arrays.
+    let y, fy = scientific::from_values([1.0, -1.0, 0.0, 2.0]);
+    let x, fx = scientific::from_values([1.0, 1.0, -1.0, -2.0]);
+    let a2, fa2 = scientific::arctan2(y, x);
+    assert(fa2.kind == scientific::F_NONE);
+    assert(close(a2.data[0], 0.7853981633974483) && close(a2.data[1], -0.7853981633974483));
+    assert(close(a2.data[2], 3.141592653589793) && close(a2.data[3], 2.356194490192345));
+    // The hyperbolic functions hold the values of NumPy.
+    let h, fh = scientific::from_values([-1.0, -0.5, 0.0, 0.5, 1.0]);
+    assert(fh.kind == scientific::F_NONE);
+    let sh, fsh = scientific::sinh(h);
+    assert(fsh.kind == scientific::F_NONE);
+    assert(close(sh.data[0], -1.1752011936438014) && close(sh.data[1], -0.5210953054937474));
+    assert(close(sh.data[2], 0.0) && close(sh.data[3], 0.5210953054937474));
+    assert(close(sh.data[4], 1.1752011936438014));
+    let ch, fch = scientific::cosh(h);
+    assert(fch.kind == scientific::F_NONE);
+    assert(close(ch.data[0], 1.5430806348152437) && close(ch.data[1], 1.1276259652063807));
+    assert(close(ch.data[2], 1.0) && close(ch.data[3], 1.1276259652063807));
+    assert(close(ch.data[4], 1.5430806348152437));
+    let th, fth = scientific::tanh(h);
+    assert(fth.kind == scientific::F_NONE);
+    assert(close(th.data[0], -0.7615941559557649) && close(th.data[1], -0.46211715726000974));
+    assert(close(th.data[2], 0.0) && close(th.data[3], 0.46211715726000974));
+    assert(close(th.data[4], 0.7615941559557649));
+    let ash, fash = scientific::arcsinh(h);
+    assert(fash.kind == scientific::F_NONE);
+    assert(close(ash.data[0], -0.881373587019543) && close(ash.data[1], -0.48121182505960347));
+    assert(close(ash.data[2], 0.0) && close(ash.data[3], 0.48121182505960347));
+    assert(close(ash.data[4], 0.881373587019543));
+    // The arc of the hyperbolic cosine holds no value below one.
+    let ac2, fac2 = scientific::arccosh(scientific::from_values([2.0, 1.5, 1.0, 1.5, 2.0]));
+    assert(fac2.kind == scientific::F_NONE);
+    assert(close(ac2.data[0], 1.3169578969248168) && close(ac2.data[1], 0.9624236501192069));
+    assert(close(ac2.data[2], 0.0) && close(ac2.data[3], 0.9624236501192069));
+    assert(close(ac2.data[4], 1.3169578969248168));
+    let ac3, fac3 = scientific::arccosh(scientific::from_values([0.5]));
+    assert(fac3.kind == scientific::F_NONE && ac3.data[0] != ac3.data[0]);
+    let ath, fath = scientific::arctanh(scientific::from_values([-0.9, -0.5, 0.0, 0.5, 0.9]));
+    assert(fath.kind == scientific::F_NONE);
+    assert(close(ath.data[0], -1.4722194895832204) && close(ath.data[1], -0.5493061443340549));
+    assert(close(ath.data[2], 0.0) && close(ath.data[3], 0.5493061443340549));
+    assert(close(ath.data[4], 1.4722194895832204));
+    // The arc of the hyperbolic tangent holds an infinity at one.
+    let ath2, fath2 = scientific::arctanh(scientific::from_values([1.0, 2.0]));
+    assert(fath2.kind == scientific::F_NONE);
+    assert(ath2.data[0] > 1000000.0 && ath2.data[1] != ath2.data[1]);
+    // The power and the log of a small number hold more digits.
+    let e, fe = scientific::from_values([-0.25, 0.0, 0.25, 0.75]);
+    assert(fe.kind == scientific::F_NONE);
+    let em, fem = scientific::expm1(e);
+    assert(fem.kind == scientific::F_NONE);
+    assert(close(em.data[0], -0.22119921692859512) && close(em.data[1], 0.0));
+    assert(close(em.data[2], 0.2840254166877415) && close(em.data[3], 1.1170000166126748));
+    let lp, flp = scientific::log1p(e);
+    assert(flp.kind == scientific::F_NONE);
+    assert(close(lp.data[0], -0.2876820724517809) && close(lp.data[1], 0.0));
+    assert(close(lp.data[2], 0.22314355131420976) && close(lp.data[3], 0.5596157879354227));
+    // The reciprocal of a number gives the number that multiplies to one.
+    let r, fr = scientific::reciprocal(scientific::from_values([-2.0, 0.5, 4.0]));
+    assert(fr.kind == scientific::F_NONE);
+    assert(close(r.data[0], -0.5) && close(r.data[1], 2.0) && close(r.data[2], 0.25));
+    // The degrees and the radians follow each other.
+    let dr, fdr = scientific::deg2rad(scientific::from_values([0.0, 45.0, 90.0, 180.0]));
+    assert(fdr.kind == scientific::F_NONE);
+    assert(close(dr.data[0], 0.0) && close(dr.data[1], 0.7853981633974483));
+    assert(close(dr.data[2], 1.5707963267948966) && close(dr.data[3], 3.141592653589793));
+    let rd, frd = scientific::rad2deg(scientific::from_values([0.0, 0.7853981633974483, 1.5707963267948966, 3.141592653589793]));
+    assert(frd.kind == scientific::F_NONE);
+    assert(close(rd.data[0], 0.0) && close(rd.data[1], 45.0));
+    assert(close(rd.data[2], 90.0) && close(rd.data[3], 180.0));
+    // The sign of minus holds a zero of the negative side.
+    let sb, fsb = scientific::signbit(scientific::from_values([1.0, -1.0, 0.0, 0.0 * -1.0]));
+    assert(fsb.kind == scientific::F_NONE);
+    assert(sb.data.len == 4 && sb.data[0] == 0.0 && sb.data[1] == 1.0);
+    assert(sb.data[2] == 0.0 && sb.data[3] == 1.0);
+    // The infinities hold their side.
+    let inf = 1.0 / 0.0;
+    let ni, fni = scientific::isneginf(scientific::from_values([inf, -inf, 0.0]));
+    assert(fni.kind == scientific::F_NONE);
+    assert(ni.data[0] == 0.0 && ni.data[1] == 1.0 && ni.data[2] == 0.0);
+    let pi, fpi = scientific::isposinf(scientific::from_values([inf, -inf, 0.0]));
+    assert(fpi.kind == scientific::F_NONE);
+    assert(pi.data[0] == 1.0 && pi.data[1] == 0.0 && pi.data[2] == 0.0);
+    // A number of a huge size holds no infinity.
+    let ii, fii = scientific::isinf(scientific::from_values([1.0e300, 1.0]));
+    assert(fii.kind == scientific::F_NONE && ii.data[0] == 0.0 && ii.data[1] == 0.0);
+    let fi, ffi = scientific::isfinite(scientific::from_values([1.0e300, inf]));
+    assert(ffi.kind == scientific::F_NONE && fi.data[0] == 1.0 && fi.data[1] == 0.0);
+    // The quotient that rounds down follows the rule of NumPy.
+    let qa, fqa = scientific::from_values([7.0, -7.0, 7.5, 1.0]);
+    let qb, fqb = scientific::from_values([2.0, 2.0, 2.0, 0.1]);
+    let q, fq = scientific::floor_divide(qa, qb);
+    assert(fq.kind == scientific::F_NONE);
+    assert(close(q.data[0], 3.0) && close(q.data[1], -4.0));
+    assert(close(q.data[2], 3.0) && close(q.data[3], 9.0));
+    // A division by zero holds an infinity.
+    let q0, fq0 = scientific::floor_divide(scientific::from_values([1.0, -1.0, 0.0]),
+                                            scientific::from_values([0.0, 0.0, 0.0]));
+    assert(fq0.kind == scientific::F_NONE);
+    assert(q0.data[0] > 0.0 && q0.data[1] < 0.0 && q0.data[2] != q0.data[2]);
+    // Two shapes that hold no broadcast give a fault.
+    let qbad, fqbad = scientific::floor_divide(scientific::from_rows(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+                                                 scientific::from_values([1.0, 2.0]));
+    assert(fqbad.kind == scientific::F_SHAPE && qbad.data.len == 0);
+    // The names of NumPy give the same values.
+    let nv, fnv = scientific::from_values([-2.0, 0.0, 3.0]);
+    let sub2, fsub2 = scientific::subtract(nv, scientific::from_values([1.0, 1.0, 1.0]));
+    assert(fsub2.kind == scientific::F_NONE);
+    assert(close(sub2.data[0], -3.0) && close(sub2.data[1], -1.0) && close(sub2.data[2], 2.0));
+    let mul2, fmul2 = scientific::multiply(nv, scientific::from_values([2.0, 2.0, 2.0]));
+    assert(fmul2.kind == scientific::F_NONE);
+    assert(close(mul2.data[0], -4.0) && close(mul2.data[1], 0.0) && close(mul2.data[2], 6.0));
+    let div2, fdiv2 = scientific::divide(nv, scientific::from_values([2.0, 2.0, 2.0]));
+    assert(fdiv2.kind == scientific::F_NONE);
+    assert(close(div2.data[0], -1.0) && close(div2.data[1], 0.0) && close(div2.data[2], 1.5));
+    let td, ftd = scientific::true_divide(nv, scientific::from_values([2.0, 2.0, 2.0]));
+    assert(ftd.kind == scientific::F_NONE);
+    assert(close(td.data[0], -1.0) && close(td.data[1], 0.0) && close(td.data[2], 1.5));
+    let neg2, fneg2 = scientific::negative(nv);
+    assert(fneg2.kind == scientific::F_NONE);
+    assert(close(neg2.data[0], 2.0) && close(neg2.data[1], 0.0) && close(neg2.data[2], -3.0));
+    let pos2, fpos2 = scientific::positive(nv);
+    assert(fpos2.kind == scientific::F_NONE);
+    assert(close(pos2.data[0], -2.0) && close(pos2.data[1], 0.0) && close(pos2.data[2], 3.0));
+    let fab2, ffab2 = scientific::fabs(nv);
+    assert(ffab2.kind == scientific::F_NONE);
+    assert(close(fab2.data[0], 2.0) && close(fab2.data[1], 0.0) && close(fab2.data[2], 3.0));
+    let abs2, fabs2 = scientific::absolute(nv);
+    assert(fabs2.kind == scientific::F_NONE);
+    assert(close(abs2.data[0], 2.0) && close(abs2.data[1], 0.0) && close(abs2.data[2], 3.0));
+    // A half goes to the even neighbour, and the decimals give the
+    // place of the last digit.
+    let ar, far = scientific::around(scientific::from_values([0.125, 0.375, 2.675, -1.5]), 2);
+    assert(far.kind == scientific::F_NONE);
+    assert(close(ar.data[0], 0.12) && close(ar.data[1], 0.38));
+    assert(close(ar.data[2], 2.68) && close(ar.data[3], -1.5));
+    let ar2, far2 = scientific::around(scientific::from_values([1234.0, 1236.0]), -1);
+    assert(far2.kind == scientific::F_NONE);
+    assert(close(ar2.data[0], 1230.0) && close(ar2.data[1], 1240.0));
+    // The name of NumPy for an array of values gives the same array.
+    let arr, farr = scientific::array([1.0, 2.0, 3.0]);
+    assert(farr.kind == scientific::F_NONE && arr.data.len == 3 && arr.data[2] == 3.0);
+}
+
+// The scales of numbers hold the values of NumPy.
+fn test_scales() {
+    let id, fid = scientific::identity(3);
+    assert(fid.kind == scientific::F_NONE && id.data.len == 9);
+    assert(id.data[0] == 1.0 && id.data[4] == 1.0 && id.data[8] == 1.0 && id.data[1] == 0.0);
+    let vals, fvals = scientific::from_values([1.0, 2.0, 3.0]);
+    assert(fvals.kind == scientific::F_NONE);
+    let df, fdf = scientific::diagflat(vals.data, 1);
+    assert(fdf.kind == scientific::F_NONE && df.data.len == 16);
+    assert(df.data[1] == 1.0 && df.data[6] == 2.0 && df.data[11] == 3.0 && df.data[0] == 0.0);
+    let df0, fdf0 = scientific::diagflat(vals.data);
+    assert(fdf0.kind == scientific::F_NONE && df0.data.len == 9);
+    assert(df0.data[0] == 1.0 && df0.data[4] == 2.0 && df0.data[8] == 3.0);
+    // The matrix of the identity takes a count of columns and an
+    // offset of the diagonal.
+    let ey, fey = scientific::eye(3, 5, 1);
+    assert(fey.kind == scientific::F_NONE && ey.data.len == 15);
+    assert(ey.data[1] == 1.0 && ey.data[7] == 1.0 && ey.data[13] == 1.0 && ey.data[0] == 0.0);
+    let ey2, fey2 = scientific::eye(3, 0, -1);
+    assert(fey2.kind == scientific::F_NONE && ey2.data.len == 9);
+    assert(ey2.data[3] == 1.0 && ey2.data[7] == 1.0 && ey2.data[0] == 0.0);
+    // A size below one is a fault.
+    let eybad, feybad = scientific::eye(0);
+    assert(feybad.kind == scientific::F_VALUE && eybad.data.len == 0);
+    // The scale of a power holds the power of the base.
+    let ls, fls = scientific::logspace(0.0, 2.0, 3);
+    assert(fls.kind == scientific::F_NONE);
+    assert(close(ls.data[0], 1.0) && close(ls.data[1], 10.0) && close(ls.data[2], 100.0));
+    let ls2, fls2 = scientific::logspace(0.0, 3.0, 4, 2.0);
+    assert(fls2.kind == scientific::F_NONE);
+    assert(close(ls2.data[0], 1.0) && close(ls2.data[1], 2.0));
+    assert(close(ls2.data[2], 4.0) && close(ls2.data[3], 8.0));
+    // A count below one is a fault.
+    let lsbad, flsbad = scientific::logspace(0.0, 2.0, 0);
+    assert(flsbad.kind == scientific::F_VALUE && lsbad.data.len == 0);
+    // The scale of a geometric sequence rises by a factor.
+    let gs, fgs = scientific::geomspace(1.0, 100.0, 3);
+    assert(fgs.kind == scientific::F_NONE);
+    assert(close(gs.data[0], 1.0) && close(gs.data[1], 10.0) && close(gs.data[2], 100.0));
+    let gs2, fgs2 = scientific::geomspace(-1.0, -100.0, 3);
+    assert(fgs2.kind == scientific::F_NONE);
+    assert(close(gs2.data[0], -1.0) && close(gs2.data[1], -10.0) && close(gs2.data[2], -100.0));
+    // A zero holds no geometric sequence.
+    let gsbad, fgsbad = scientific::geomspace(0.0, 100.0, 3);
+    assert(fgsbad.kind == scientific::F_VALUE && gsbad.data.len == 0);
+    let gsbad2, fgsbad2 = scientific::geomspace(1.0, 0.0, 3);
+    assert(fgsbad2.kind == scientific::F_VALUE && gsbad2.data.len == 0);
+}
+
 fn main() {
     test_create();
     test_shape();
@@ -1235,6 +1457,8 @@ fn main() {
     test_reduce();
     test_axis_and_permute();
     test_logic_and_math();
+    test_elementwise_math();
+    test_scales();
     test_indexing();
     test_sort_and_search();
     test_linalg();

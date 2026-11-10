@@ -68,34 +68,34 @@ fn strides_of_at(s: i64[:], at: i64) -> i64 {
     return acc;
 }
 
+// bshape gives the shape that two arrays share under the broadcast
+// rule. The rule of NumPy holds: the lengths are equal, or one side
+// holds one, or one side has no position left.
+fn bshape(a, b) -> i64[..8], Fault {
+    let shape, f = broadcast_shapes(a.shape, b.shape);
+    if f.kind != F_NONE { return [], f; }
+    let total = numel(shape);
+    if total > MAX_ELEMENTS {
+        return [], fault(F_LIMIT, "broadcast", "the result holds more elements than the limit");
+    }
+    var s: i64[..8] = [];
+    var i: i64 = 0;
+    while i < shape.len { s.push(shape[i]); i += 1; }
+    return s, no_fault();
+}
+
 // bop applies one arithmetic rule to two arrays under the broadcast
 // rule. The rule picks the operation: 0 add, 1 sub, 2 mul, 3 div,
 // 4 maximum, 5 minimum.
 fn bop(a, b, rule: i32) -> Arr, Fault {
-    var s: i64[..8] = [];
-    let n = max_i(a.ndim, b.ndim);
-    var i: i64 = 0;
-    while i < n {
-        let x = at_or_one(a.shape, a.ndim - n + i);
-        let y = at_or_one(b.shape, b.ndim - n + i);
-        if x == y { s.push(x); }
-        else if x == 1 { s.push(y); }
-        else if y == 1 { s.push(x); }
-        else {
-            return empty_arr(), fault(F_SHAPE, "broadcast", "the shapes hold two lengths that are not equal and not one");
-        }
-        i += 1;
-    }
-    if s.len == 0 { s.push(1); }
+    let s, fs = bshape(a, b);
+    if fs.kind != F_NONE { return empty_arr(), fs; }
     let total = numel(s);
-    if total > MAX_ELEMENTS {
-        return empty_arr(), fault(F_LIMIT, "broadcast", "the result holds more elements than the limit");
-    }
     var ia: i64[>..] = [];
     var ib: i64[>..] = [];
     bcast_indices(s, a.shape, b.shape, ia, ib);
     var d: f64[>..] = [];
-    i = 0;
+    var i: i64 = 0;
     while i < total {
         let x = a.data[ia[i]];
         let y = b.data[ib[i]];
@@ -168,8 +168,8 @@ fn uop(a, rule: i32) -> Arr, Fault {
         else if rule == 11 { r = mathshim::log2_of(x); }
         else if rule == 12 { r = mathshim::log10_of(x); }
         else if rule == 13 { if x != x { r = 1.0; } }
-        else if rule == 14 { if x == x && x == x + 1.0 { r = 1.0; } }
-        else if rule == 15 { if x == x && x != x + 1.0 { r = 1.0; } }
+        else if rule == 14 { r = mathshim::is_infinite_of(x); }
+        else if rule == 15 { r = mathshim::is_finite_of(x); }
         else { if x == 0.0 { r = 1.0; } }
         d.push(r);
         i += 1;
@@ -188,7 +188,6 @@ fn log(a) -> Arr, Fault { return uop(a, 4); }
 fn sign(a) -> Arr, Fault { return uop(a, 5); }
 fn floor(a) -> Arr, Fault { return uop(a, 6); }
 fn ceil(a) -> Arr, Fault { return uop(a, 7); }
-fn round(a) -> Arr, Fault { return uop(a, 8); }
 fn trunc(a) -> Arr, Fault { return uop(a, 9); }
 fn square(a) -> Arr, Fault { return uop(a, 10); }
 fn log2(a) -> Arr, Fault { return uop(a, 11); }
@@ -197,6 +196,147 @@ fn isnan(a) -> Arr, Fault { return uop(a, 13); }
 fn isinf(a) -> Arr, Fault { return uop(a, 14); }
 fn isfinite(a) -> Arr, Fault { return uop(a, 15); }
 fn logical_not(a) -> Arr, Fault { return uop(a, 16); }
+
+// round sends every element to a whole number. The count of the
+// decimals gives the place of the last digit. A half goes to the even
+// neighbour, as NumPy does.
+fn round(a, decimals: i64 = 0) -> Arr, Fault {
+    if decimals == 0 { return uop(a, 8); }
+    var d: f64[>..] = [];
+    var i: i64 = 0;
+    if decimals > 0 {
+        let p = mathshim::power(10.0, decimals as f64);
+        while i < a.data.len { d.push(mathshim::round_of(a.data[i] * p) / p); i += 1; }
+    } else {
+        let p = mathshim::power(10.0, -(decimals as f64));
+        while i < a.data.len { d.push(mathshim::round_of(a.data[i] / p) * p); i += 1; }
+    }
+    return Arr { ndim: a.ndim, shape: same_shape(a), data: d }, no_fault();
+}
+
+// uapply applies one function to every element of an array. The
+// caller passes the function at the end of the call.
+fn uapply<F: fn(f64) -> f64>(a) -> Arr, Fault {
+    var d: f64[>..] = [];
+    var i: i64 = 0;
+    while i < a.data.len { d.push(F(a.data[i])); i += 1; }
+    return Arr { ndim: a.ndim, shape: same_shape(a), data: d }, no_fault();
+}
+
+// bapply applies one function to two arrays under the broadcast rule.
+// The caller passes the function at the end of the call.
+fn bapply<F: fn(f64, f64) -> f64>(a, b) -> Arr, Fault {
+    let s, fs = bshape(a, b);
+    if fs.kind != F_NONE { return empty_arr(), fs; }
+    let total = numel(s);
+    var ia: i64[>..] = [];
+    var ib: i64[>..] = [];
+    bcast_indices(s, a.shape, b.shape, ia, ib);
+    var d: f64[>..] = [];
+    var i: i64 = 0;
+    while i < total { d.push(F(a.data[ia[i]], b.data[ib[i]])); i += 1; }
+    return Arr { ndim: s.len, shape: s, data: d }, no_fault();
+}
+
+// sin gives the sine of every element.
+fn sin(a) -> Arr, Fault { return uapply(a, mathshim::sine); }
+
+// cos gives the cosine of every element.
+fn cos(a) -> Arr, Fault { return uapply(a, mathshim::cosine); }
+
+// tan gives the tangent of every element.
+fn tan(a) -> Arr, Fault { return uapply(a, mathshim::tan_of); }
+
+// arcsin gives the angle of the sine of every element.
+fn arcsin(a) -> Arr, Fault { return uapply(a, mathshim::arcsine_of); }
+
+// arccos gives the angle of the cosine of every element.
+fn arccos(a) -> Arr, Fault { return uapply(a, mathshim::arccosine_of); }
+
+// arctan gives the angle of the tangent of every element.
+fn arctan(a) -> Arr, Fault { return uapply(a, mathshim::arctangent_of); }
+
+// arctan2 gives the angle of every point of two arrays.
+fn arctan2(a, b) -> Arr, Fault { return bapply(a, b, mathshim::arctangent2_of); }
+
+// sinh gives the hyperbolic sine of every element.
+fn sinh(a) -> Arr, Fault { return uapply(a, mathshim::sinh_of); }
+
+// cosh gives the hyperbolic cosine of every element.
+fn cosh(a) -> Arr, Fault { return uapply(a, mathshim::cosh_of); }
+
+// tanh gives the hyperbolic tangent of every element.
+fn tanh(a) -> Arr, Fault { return uapply(a, mathshim::tanh_of); }
+
+// arcsinh gives the arc of the hyperbolic sine of every element.
+fn arcsinh(a) -> Arr, Fault { return uapply(a, mathshim::arcsinh_of); }
+
+// arccosh gives the arc of the hyperbolic cosine of every element.
+fn arccosh(a) -> Arr, Fault { return uapply(a, mathshim::arccosh_of); }
+
+// arctanh gives the arc of the hyperbolic tangent of every element.
+fn arctanh(a) -> Arr, Fault { return uapply(a, mathshim::arctanh_of); }
+
+// expm1 gives the power of every element less one.
+fn expm1(a) -> Arr, Fault { return uapply(a, mathshim::expm1_of); }
+
+// log1p gives the log of every element plus one.
+fn log1p(a) -> Arr, Fault { return uapply(a, mathshim::log1p_of); }
+
+// reciprocal gives the number that multiplies every element to one.
+fn reciprocal(a) -> Arr, Fault { return uapply(a, mathshim::reciprocal_of); }
+
+// deg2rad turns the degrees of every element into radians.
+fn deg2rad(a) -> Arr, Fault { return uapply(a, mathshim::deg2rad_of); }
+
+// rad2deg turns the radians of every element into degrees.
+fn rad2deg(a) -> Arr, Fault { return uapply(a, mathshim::rad2deg_of); }
+
+// signbit tells whether every element holds the sign of minus.
+fn signbit(a) -> Arr, Fault { return uapply(a, mathshim::signbit_of); }
+
+// isneginf tells whether every element holds the infinity below zero.
+fn isneginf(a) -> Arr, Fault { return uapply(a, mathshim::isneginf_of); }
+
+// isposinf tells whether every element holds the infinity above zero.
+fn isposinf(a) -> Arr, Fault { return uapply(a, mathshim::isposinf_of); }
+
+// floor_divide gives the quotient of two arrays that rounds down.
+fn floor_divide(a, b) -> Arr, Fault { return bapply(a, b, mathshim::floor_divide_of); }
+
+// subtract takes the difference of two arrays. It is the name of
+// NumPy for sub.
+fn subtract(a, b) -> Arr, Fault { return sub(a, b); }
+
+// multiply multiplies two arrays. It is the name of NumPy for mul.
+fn multiply(a, b) -> Arr, Fault { return mul(a, b); }
+
+// divide divides two arrays. It is the name of NumPy for div.
+fn divide(a, b) -> Arr, Fault { return div(a, b); }
+
+// true_divide divides two arrays. It is the name of NumPy for the
+// division of numbers that hold a fraction.
+fn true_divide(a, b) -> Arr, Fault { return div(a, b); }
+
+// negative turns the sign of every element around. It is the name of
+// NumPy for neg.
+fn negative(a) -> Arr, Fault { return neg(a); }
+
+// positive gives every element as it stands. It is the name of NumPy
+// for the sign that a number keeps.
+fn positive(a) -> Arr, Fault { return clone(a); }
+
+// fabs gives the size of every element away from zero. It is the name
+// of NumPy for abs.
+fn fabs(a) -> Arr, Fault { return abs(a); }
+
+// absolute gives the size of every element away from zero. It is the
+// name of NumPy for abs.
+fn absolute(a) -> Arr, Fault { return abs(a); }
+
+// around sends every element to a whole number. It is the name of
+// NumPy for round.
+fn around(a, decimals: i64 = 0) -> Arr, Fault { return round(a, decimals); }
 
 // scale multiplies every element by a number.
 fn scale(a, s: f64) -> Arr, Fault {

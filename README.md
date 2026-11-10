@@ -17,16 +17,17 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.16.0";
+import scientific from "rekanalar/goose-scientific@v0.17.0";
 ```
 
 ## API
 
 | Area | Functions |
 |---|---|
-| Creation | `zeros`, `ones`, `full`, `arange`, `linspace`, `eye`, `diag`, `from_rows`, `from_values`, `clone` |
+| Creation | `zeros`, `ones`, `full`, `arange`, `linspace`, `eye`, `identity`, `diag`, `diagflat`, `logspace`, `geomspace`, `from_rows`, `from_values`, `clone` |
 | Shape | `reshape`, `ravel`, `transpose`, `transpose_perm`, `squeeze`, `expand_dims`, `concatenate`, `stack`, `broadcast_shapes`, `index` |
-| Elementwise | `add`, `sub`, `mul`, `div`, `power`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `log2`, `log10`, `scale`, `clip`, `sign`, `floor`, `ceil`, `round`, `trunc`, `square` |
+| Elementwise | `add`, `sub`, `mul`, `div`, `power`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `log2`, `log10`, `scale`, `clip`, `sign`, `floor`, `ceil`, `round`, `trunc`, `square`, `sin`, `cos`, `tan`, `arcsin`, `arccos`, `arctan`, `arctan2`, `sinh`, `cosh`, `tanh`, `arcsinh`, `arccosh`, `arctanh`, `expm1`, `log1p`, `reciprocal`, `deg2rad`, `rad2deg`, `signbit`, `isneginf`, `isposinf`, `floor_divide` |
+| Names of NumPy | `array`, `subtract`, `multiply`, `divide`, `true_divide`, `negative`, `positive`, `fabs`, `absolute`, `around` |
 | Logic | `equal`, `not_equal`, `less`, `less_equal`, `greater`, `greater_equal`, `logical_and`, `logical_or`, `logical_xor`, `logical_not`, `isnan`, `isinf`, `isfinite`, `all`, `any`, `count_nonzero`, `where` |
 | Reductions | `sum`, `prod`, `min`, `max`, `mean`, `argmin`, `argmax` |
 | Reductions along an axis | `sum_axis`, `prod_axis`, `min_axis`, `max_axis`, `mean_axis`, `var_axis`, `std_axis` |
@@ -92,12 +93,37 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `keepdims` option. Use `expand_dims` on the result instead.
 - `argmin` and `argmax` give the flat position of the first extreme.
   They take no axis.
-- The elementwise math holds the functions of this table. The rest of
-  the scalar functions of NumPy stay out for now.
+- The elementwise math holds the functions of this table. The
+  functions of NumPy that work on another type stay out.
 - A comparison gives an array of 1.0 and 0.0. The array holds one
   element type, so a truth value has no type of its own.
 - `round` sends a half to the even neighbour, as NumPy does. `floor`,
   `ceil` and `trunc` send a value to a whole number.
+- `round` takes a count of decimals. The count of zero keeps the
+  whole number. `around` takes the same count.
+- `eye` takes a count of rows and a count of columns. A count of
+  columns of zero means the count of the rows. The package holds no
+  dimension of length zero. The offset moves the diagonal.
+- `identity` gives the square matrix of the identity. It takes no
+  offset.
+- `diagflat` holds a row of values on a diagonal of an offset. The
+  side of the matrix holds the count of the values and the size of the
+  offset.
+- `logspace` takes a count of numbers and a base. `geomspace` takes a
+  count of numbers and no base. A zero at the start or at the end of a
+  geometric sequence is a fault.
+- `array` builds a one-dimensional array from a row of values. It
+  holds no nested list, so a matrix comes from `from_rows`.
+- `floor_divide` follows the rule of NumPy. The remainder comes
+  first, so the quotient of one and a tenth is nine.
+- `isinf` and `isfinite` use the rule of the standard library. A
+  number of great size holds no infinity.
+- The hyperbolic functions and their arcs come from the formulas of
+  the package. The standard library holds no arc of a hyperbolic
+  function. They hold the digits of a double.
+- The names of NumPy that the package holds under another name are
+  these. `var` holds the name `variance`. `pad` holds the name
+  `pad_value`. `trapz` holds the name `trapezoid`.
 - `cumsum` and `cumprod` take an axis. `diff` and `flip` take an axis
   too, and `diff` drops one element of it.
 - `variance` and `std` take a divisor count. The divisor is the
@@ -296,6 +322,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   infinity. A log of a number below zero gives NaN. No fault comes
   from a value, only from a shape, a range or a limit. Check `is_nan`
   of the standard library when the input is hostile.
+- `eye` and `diagflat` check the size of the matrix before they build
+  it. A count that reaches over the limit is a fault, so a bad count
+  cannot grow the memory without bound.
+- The formulas of the hyperbolic functions take a power of the number.
+  A power that reaches over the size of a number gives an infinity,
+  as NumPy gives it. No fault comes from the value.
+- The arc of the hyperbolic cosine takes the root of a square that a
+  number below one makes negative. The root gives NaN, as NumPy gives
+  it. No fault comes from the value.
+- The quotient that rounds down divides by a zero divisor. The IEEE
+  rules hold, so the result holds an infinity. A caller that needs a
+  finite value checks the result.
 - A bad axis, or a permutation that repeats an axis, is a fault. The
   check runs before any element moves.
 - The sort of a large array takes a long time. A caller that sorts a
