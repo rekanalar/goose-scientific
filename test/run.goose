@@ -749,6 +749,12 @@ fn test_svd_and_poly() {
     assert(f22.kind == scientific::F_NONE && cr3.data.len == 2);
     assert(close(cr3.data[0], -0.75) && close(cr3.data[1], -0.75));
     assert((close(cri3.data[0], 1.3919410907075054) && close(cri3.data[1], -1.3919410907075054)) || (close(cri3.data[0], -1.3919410907075054) && close(cri3.data[1], 1.3919410907075054)));
+    // A degree above the limit is a fault, before any work starts.
+    var big: f64[>..] = [];
+    var bi: i64 = 0;
+    while bi < 300 { big.push(1.0); bi += 1; }
+    let bigr, bigi, f23 = scientific::roots(big);
+    assert(f23.kind == scientific::F_LIMIT);
     // A degree below zero is a fault.
     let bad2, f19 = scientific::polyfit(xs.data, ys.data, -1);
     assert(f19.kind == scientific::F_VALUE);
@@ -1867,6 +1873,64 @@ fn test_generators() {
     let badint = scientific::randint(r11, 5, 5);
 }
 
+fn close_row(a, at: i64, v: f64[:]) -> bool {
+    var i: i64 = 0;
+    while i < v.len {
+        let d = a.data[at + i] - v[i];
+        if d > 0.000000001 || d < -0.000000001 { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+fn test_sections() {
+    // The values come from SciPy 1.18.1.
+    let s3, f1 = scientific::butter_sos(3, [0.2], "lowpass");
+    assert(f1.kind == scientific::F_NONE && s3.ndim == 2 && s3.shape[0] == 2 && s3.shape[1] == 6);
+    assert(close_row(s3, 0, [0.018098933007514428, 0.036197866015028855, 0.018098933007514428, 1.0, -0.5095254494944288, 0.0]));
+    assert(close_row(s3, 6, [1.0, 1.0, 0.0, 1.0, -1.2505164308487402, 0.5457233155094579]));
+    let s2, f2 = scientific::butter_sos(2, [0.1, 0.4], "bandpass");
+    assert(f2.kind == scientific::F_NONE && s2.shape[0] == 2);
+    assert(close_row(s2, 0, [0.13110643991662602, 0.26221287983325203, 0.13110643991662602, 1.0, -0.578864087474264, 0.3841299062257851]));
+    assert(close_row(s2, 6, [1.0, -2.0, 1.0, 1.0, -1.6017937511285352, 0.7086533318887278]));
+    let s4, f3 = scientific::butter_sos(4, [0.2], "lowpass");
+    assert(f3.kind == scientific::F_NONE);
+    // The state and the zero phase filter of the sections.
+    let zi, f4 = scientific::sosfilt_zi(s4);
+    assert(f4.kind == scientific::F_NONE && zi.shape[0] == 2 && zi.shape[1] == 2);
+    assert(close_row(zi, 0, [0.07313199715874633, -0.018261675197028267, 0.9220436594835375, -0.5547824523688142]));
+    var x: f64[>..] = [];
+    var i: i64 = 0;
+    while i < 60 { x.push(mathshim::sine(0.3 * i) + 0.1 * i); i += 1; }
+    let y, f5 = scientific::sosfiltfilt(s4, x);
+    assert(f5.kind == scientific::F_NONE && y.data.len == 60);
+    assert(close(y.data[0], -8.176916419887215e-05) && close(y.data[5], 1.4954761292656586));
+    assert(close(y.data[30], 3.4110733197288363) && close(y.data[59], 4.994258219420487));
+    // The sections from the zeros, the poles and the gain.
+    let zs, f6 = scientific::zpk2sos([0.2, 0.2, -0.7, 0.4], [0.6, -0.6, 0.0, 0.0], [0.5, 0.5, -0.3, -0.3], [0.5, -0.5, 0.4, -0.4], 0.8);
+    assert(f6.kind == scientific::F_NONE && zs.shape[0] == 2);
+    assert(close_row(zs, 0, [0.8, 0.24, -0.224, 1.0, 0.6, 0.25]));
+    assert(close_row(zs, 6, [1.0, -0.4, 0.4, 1.0, -1.0, 0.5]));
+    // The sections from the numerator and the denominator.
+    let ts, f7 = scientific::tf2sos([0.8, -0.08, 0.0, 0.1856, -0.0896], [1.0, -0.4, 0.15, 0.05, 0.125]);
+    assert(f7.kind == scientific::F_NONE && ts.shape[0] == 2);
+    assert(close_row(ts, 0, [0.8, 0.24, -0.224, 1.0, 0.6, 0.25]));
+    assert(close_row(ts, 6, [1.0, -0.4, 0.4, 1.0, -1.0, 0.5]));
+    // The faults.
+    let e1, g1 = scientific::butter_sos(0, [0.2], "lowpass");
+    assert(g1.kind == scientific::F_VALUE);
+    let e2, g2 = scientific::butter_sos(2, [1.5], "lowpass");
+    assert(g2.kind == scientific::F_RANGE);
+    let e3, g3 = scientific::zpk2sos([0.2], [0.6], [0.5], [0.0], 1.0);
+    assert(g3.kind == scientific::F_VALUE);
+    let e4, g4 = scientific::zpk2sos([0.2], [], [0.5], [0.0], 1.0);
+    assert(g4.kind == scientific::F_SHAPE);
+    let e5, g5 = scientific::sosfiltfilt(s4, x[..5]);
+    assert(g5.kind == scientific::F_SHAPE);
+    let e6, g6 = scientific::tf2sos([1.0], [0.0, 1.0]);
+    assert(g6.kind == scientific::F_VALUE);
+}
+
 fn test_polynomial() {
     // The values come from numpy.polynomial.Polynomial.
     let p = scientific::polynomial([1.0, 2.0, 3.0]);
@@ -2586,6 +2650,7 @@ fn main() {
     test_constants();
     test_filters();
     test_polynomial();
+    test_sections();
     test_generators();
     test_indexing();
     test_sort_and_search();

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.35.0";
+import scientific from "rekanalar/goose-scientific@v0.36.0";
 ```
 
 ## API
@@ -68,6 +68,7 @@ import scientific from "rekanalar/goose-scientific@v0.35.0";
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
 | Filters | `butter`, `lfilter`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
+| Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -117,13 +118,21 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The state of the generator holds one word. The state of NumPy
   holds a key and a place. `get_state` and `set_state` carry one
   word. The numbers differ from the numbers of NumPy.
-- `butter` gives the numerator and the denominator of the filter. It
-  holds no `output='sos'` form and no `fs` argument: the cut is a
-  fraction of the Nyquist rate. The order stays between 1 and 32.
+- `butter` gives the numerator and the denominator of the filter.
+  `butter_sos` gives the sections. Neither holds an `fs` argument: the
+  cut is a fraction of the Nyquist rate. The order stays between 1 and 32.
   Write the coefficients with real arithmetic, so a high order with a
   cut near zero or near one loses digits. Use a low order there.
 - `sosfilt` takes a matrix of six columns. It refuses a section whose
-  first denominator coefficient differs from one.
+  first denominator coefficient differs from one, and so do
+  `sosfilt_zi` and `sosfiltfilt`. `sosfilt` takes no initial state.
+- `zpk2sos` takes the zeros and the poles as real parts and imaginary
+  parts in four arrays. It holds the pairing "nearest" of SciPy and
+  no other pairing. It refuses a complex number with no conjugate
+  partner and a filter of more than 64 poles or zeros.
+- `tf2sos` finds the roots with `roots`. A filter of a high order
+  with repeated zeros loses digits, as it does in SciPy. Use
+  `butter_sos` for a Butterworth filter.
 - `lfilter` takes no initial state and no axis. `filtfilt` takes the
   odd extension of SciPy. The pad holds three times the coefficient
   count. No other pad option exists.
@@ -393,6 +402,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   complex root a fault. The new form gives `re, im, fault`. The
   roots come in no fixed order, and a repeated root holds fewer
   digits.
+- `roots` takes a degree of 256 or below, because the cost grows with
+  the square of the degree. A larger degree is a fault.
 - The transform works on two arrays: one holds the real parts and one
   holds the imaginary parts. The package holds no complex type.
 - `fft` takes every length. A power of two takes the radix-2 method.

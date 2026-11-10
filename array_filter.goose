@@ -126,35 +126,51 @@ fn flt_digital(q: f64[:], out: f64[>..]&) {
     }
 }
 
+// flt_check_design checks the arguments of a design: the order, the
+// name of the type, the count of the cuts and the range of the cuts.
+fn flt_check_design(order: i64, wn: f64[:], btype: const u8[:], tag: const u8[:]) -> Fault {
+    if order < 1 || order > 32 {
+        return fault(F_VALUE, tag, "the order holds a value outside one to 32");
+    }
+    var band = false;
+    if btype == "bandpass" || btype == "bandstop" { band = true; }
+    else if btype != "lowpass" && btype != "highpass" {
+        return fault(F_VALUE, tag, "the type of the filter holds an unknown name");
+    }
+    var need: i64 = 1;
+    if band { need = 2; }
+    if wn.len != need {
+        return fault(F_SHAPE, tag, "the count of cuts does not fit the type");
+    }
+    var i: i64 = 0;
+    while i < need {
+        if !(wn[i] > 0.0 && wn[i] < 1.0) {
+            return fault(F_RANGE, tag, "a cut holds a value outside zero to one");
+        }
+        i += 1;
+    }
+    if band && !(wn[0] < wn[1]) {
+        return fault(F_RANGE, tag, "the low cut holds a value that is not below the high cut");
+    }
+    return no_fault();
+}
+
 // butter designs a digital Butterworth filter. The cut is a fraction
 // of the Nyquist rate, in the open range of zero to one. A band type
 // takes two cuts. The type is "lowpass", "highpass", "bandpass" or
 // "bandstop". The result holds the numerator and the denominator.
 fn butter(order: i64, wn: f64[:], btype: const u8[:]) -> Arr, Arr, Fault {
-    if order < 1 || order > 32 {
-        return empty_arr(), empty_arr(), fault(F_VALUE, "butter", "the order holds a value outside one to 32");
-    }
+    let chk = flt_check_design(order, wn, btype, "butter");
+    if chk.kind != F_NONE { return empty_arr(), empty_arr(), chk; }
     var band = false;
     if btype == "bandpass" || btype == "bandstop" { band = true; }
-    else if btype != "lowpass" && btype != "highpass" {
-        return empty_arr(), empty_arr(), fault(F_VALUE, "butter", "the type of the filter holds an unknown name");
-    }
     var need: i64 = 1;
     if band { need = 2; }
-    if wn.len != need {
-        return empty_arr(), empty_arr(), fault(F_SHAPE, "butter", "the count of cuts does not fit the type");
-    }
     var i: i64 = 0;
     var w: f64[>..] = [];
     while i < need {
-        if !(wn[i] > 0.0 && wn[i] < 1.0) {
-            return empty_arr(), empty_arr(), fault(F_RANGE, "butter", "a cut holds a value outside zero to one");
-        }
         w.push(4.0 * mathshim::tan_of(PI_VALUE * wn[i] / 2.0));
         i += 1;
-    }
-    if band && !(wn[0] < wn[1]) {
-        return empty_arr(), empty_arr(), fault(F_RANGE, "butter", "the low cut holds a value that is not below the high cut");
     }
     var p: f64[>..] = [];
     flt_proto(order, p);
@@ -355,6 +371,18 @@ fn lfilter_zi(b: f64[:], a: f64[:]) -> Arr, Fault {
     return flt_arr(copy(out)), no_fault();
 }
 
+// flt_odd builds the odd extension of a signal: each end reflects
+// about its end point. The caller checks that the signal is longer
+// than the edge.
+fn flt_odd(x: f64[:], edge: i64, ext: f64[>..]&) {
+    var i: i64 = 0;
+    while i < edge { ext.push(2.0 * x[0] - x[edge - i]); i += 1; }
+    i = 0;
+    while i < x.len { ext.push(x[i]); i += 1; }
+    i = 0;
+    while i < edge { ext.push(2.0 * x[x.len - 1] - x[x.len - 2 - i]); i += 1; }
+}
+
 // filtfilt filters a signal forward and backward, so the phase
 // shift is zero. The signal is extended at both ends with an odd
 // reflection of three times the length of the coefficients.
@@ -371,12 +399,8 @@ fn filtfilt(b: f64[:], a: f64[:], x: f64[:]) -> Arr, Fault {
     let g = flt_zi(pb, pa, zi);
     if g.kind != F_NONE { return empty_arr(), g; }
     var ext: f64[>..] = [];
+    flt_odd(x, edge, ext);
     var i: i64 = 0;
-    while i < edge { ext.push(2.0 * x[0] - x[edge - i]); i += 1; }
-    i = 0;
-    while i < x.len { ext.push(x[i]); i += 1; }
-    i = 0;
-    while i < edge { ext.push(2.0 * x[x.len - 1] - x[x.len - 2 - i]); i += 1; }
     var z: f64[>..] = [];
     i = 0;
     while i < zi.len { z.push(zi[i] * ext[0]); i += 1; }
@@ -396,31 +420,58 @@ fn filtfilt(b: f64[:], a: f64[:], x: f64[:]) -> Arr, Fault {
     return flt_arr(copy(out)), no_fault();
 }
 
-// sosfilt filters a signal with a cascade of second order sections.
-// Each row of the matrix holds b0, b1, b2, a0, a1 and a2. The first
-// denominator coefficient of each row must hold one.
-fn sosfilt(sos, x: f64[:]) -> Arr, Fault {
+// sos_check checks a matrix of sections: six columns and a first
+// denominator coefficient of one in each row.
+fn sos_check(sos, tag: const u8[:]) -> Fault {
     if sos.ndim != 2 || sos.shape[1] != 6 {
-        return empty_arr(), fault(F_SHAPE, "sosfilt", "the sections do not hold a matrix of six columns");
+        return fault(F_SHAPE, tag, "the sections do not hold a matrix of six columns");
     }
+    var s: i64 = 0;
+    while s < sos.shape[0] {
+        if sos.data[s * 6 + 3] != 1.0 {
+            return fault(F_VALUE, tag, "a section holds a first denominator coefficient that is not one");
+        }
+        s += 1;
+    }
+    return no_fault();
+}
+
+// sos_cascade runs a signal through the sections one after the other.
+// The list zi holds two state values per section, or no value for a
+// state of zero. The gain scales the state values. The caller checks
+// the sections.
+fn sos_cascade(sos, x: f64[:], zi: f64[:], gain: f64, out: f64[>..]&) {
     var cur: f64[>..] = [];
     var i: i64 = 0;
     while i < x.len { cur.push(x[i]); i += 1; }
     var s: i64 = 0;
     while s < sos.shape[0] {
         let r = s * 6;
-        if sos.data[r + 3] != 1.0 {
-            return empty_arr(), fault(F_VALUE, "sosfilt", "a section holds a first denominator coefficient that is not one");
-        }
         var pb: f64[>..] = [sos.data[r], sos.data[r + 1], sos.data[r + 2]];
         var pa: f64[>..] = [1.0, sos.data[r + 4], sos.data[r + 5]];
         var z: f64[>..] = [0.0, 0.0, 0.0];
+        if zi.len > 0 {
+            z[0] = zi[s * 2] * gain;
+            z[1] = zi[s * 2 + 1] * gain;
+        }
         var y: f64[>..] = [];
         flt_run(pb, pa, cur, z, y);
         cur = copy(y);
         s += 1;
     }
-    return flt_arr(copy(cur)), no_fault();
+    i = 0;
+    while i < cur.len { out.push(cur[i]); i += 1; }
+}
+
+// sosfilt filters a signal with a cascade of second order sections.
+// Each row of the matrix holds b0, b1, b2, a0, a1 and a2. The first
+// denominator coefficient of each row must hold one.
+fn sosfilt(sos, x: f64[:]) -> Arr, Fault {
+    let chk = sos_check(sos, "sosfilt");
+    if chk.kind != F_NONE { return empty_arr(), chk; }
+    var y: f64[>..] = [];
+    sos_cascade(sos, x, [], 0.0, y);
+    return flt_arr(copy(y)), no_fault();
 }
 
 // hilbert gives the analytic signal of a real signal. The result holds

@@ -8,6 +8,11 @@ namespace scientific;
 
 import mathshim;
 
+// The largest degree that roots takes. The cost of the method grows
+// with the square of the degree, so a larger degree could stall a
+// caller.
+const MAX_ROOTS_DEGREE: i64 = 256;
+
 // Cplx holds a complex number. The real part sits in re and the
 // imaginary part in im.
 struct Cplx { re: f64, im: f64 }
@@ -49,6 +54,20 @@ fn c_scale(a: Cplx, k: f64) -> Cplx {
     return Cplx { re: a.re * k, im: a.im * k };
 }
 
+// c_sqrt gives the principal square root of a complex number. The
+// root of a negative real number holds a positive imaginary part.
+fn c_sqrt(a: Cplx) -> Cplx {
+    let m = c_abs(a);
+    if a.re >= 0.0 {
+        let t = mathshim::root((m + a.re) / 2.0);
+        if t == 0.0 { return Cplx { re: 0.0, im: 0.0 }; }
+        return Cplx { re: t, im: a.im / (2.0 * t) };
+    }
+    var t = mathshim::root((m - a.re) / 2.0);
+    if a.im < 0.0 { t = -t; }
+    return Cplx { re: a.im / (2.0 * t), im: t };
+}
+
 // c_value gives the value of a polynomial with real coefficients at a
 // complex point. The method is the rule of Horner.
 fn c_value(c: f64[:], z: Cplx) -> Cplx {
@@ -85,6 +104,9 @@ fn roots(c: f64[:]) -> Arr, Arr, Fault {
     var j = i;
     while j < c.len { p.push(c[j]); j += 1; }
     let n = p.len - 1;
+    if n > MAX_ROOTS_DEGREE {
+        return empty_arr(), empty_arr(), fault(F_LIMIT, "roots", "the degree holds a value above the limit of the roots");
+    }
     var s: i64[..8] = [];
     s.push(n);
     if n == 0 {
