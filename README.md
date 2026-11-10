@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.41.0";
+import scientific from "rekanalar/goose-scientific@v0.42.0";
 ```
 
 ## API
@@ -73,6 +73,7 @@ import scientific from "rekanalar/goose-scientific@v0.41.0";
 | Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
 | Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
+| Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `null_space`, `orth`, `expm` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -103,15 +104,30 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- `lu_factor` and `lu` follow LAPACK. The row i swaps with the row
+  `piv[i]`. A singular matrix gives no fault there. `lu_solve` gives a
+  fault when it meets a zero on the diagonal. `solve` takes a matrix on the right side.
+- `block_diag` takes two arrays. Call it again for more. `toeplitz`
+  and `hankel` take an empty second row for the default of SciPy.
+- `null_space` and `orth` give a basis whose signs may differ from
+  SciPy. `null_space` of a matrix with no null vector is a fault,
+  because the package holds no empty array.
+- `expm` takes a matrix with a side up to 256. It uses the Pade degree
+  13 for every matrix. SciPy picks a lower degree for a small norm.
+  The last digits may differ.
+- `solve_banded` takes the band form of SciPy. It expands the band to
+  a full matrix. The cost grows with the cube of the side. The side
+  stops at 4096.
+- `schur`, `logm`, `sqrtm` and `eig_banded` stay out.
 - `vecdot` takes two arrays of one shape and does not broadcast.
   `matvec` and `vecmat` take one matrix and one row, with no batch axes.
   `tensordot_n` is `tensordot` with the count form of `axes`.
 - `einsum` takes two operands and `einsum1` takes one. The rule holds
   letters, a comma and an arrow, but no ellipsis. It holds at most 8
   distinct letters. A length of one broadcasts.
-- `get_window` knows 18 names. They are boxcar, triang, bartlett,
+- `get_window` knows 18 names. These are boxcar, triang, bartlett,
   hann, hamming, blackman, blackmanharris, nuttall, flattop, bohman,
-  barthann, cosine, lanczos, parzen, kaiser, gaussian, tukey and
+  barthann, cosine, lanczos, parzen, kaiser, gaussian, tukey,
   exponential. The windows chebwin, dpss, taylor, general_cosine and
   the others stay out.
   `kaiser` takes beta up to 700.

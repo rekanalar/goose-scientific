@@ -4,9 +4,9 @@
 // row is the row with the largest value in the column.
 namespace scientific;
 
-// lu_factor splits a square matrix into an upper and a lower part.
+// lu_core splits a square matrix into an upper and a lower part.
 // The pivot row of each column is in pivots. A zero pivot is a fault.
-fn lu_factor(a, m: i64, n: i64, lower: f64[>..]&, upper: f64[>..]&, pivots: i64[>..]&, sign: i64&) -> Fault {
+fn lu_core(a, m: i64, n: i64, lower: f64[>..]&, upper: f64[>..]&, pivots: i64[>..]&, sign: i64&) -> Fault {
     var i: i64 = 0;
     while i < m * n { lower.push(0.0); i += 1; }
     i = 0;
@@ -70,13 +70,19 @@ fn lu_factor(a, m: i64, n: i64, lower: f64[>..]&, upper: f64[>..]&, pivots: i64[
     return no_fault();
 }
 
-// solve gives the vector that solves a system of linear equations.
+// solve gives the vector or the matrix that solves a system of linear
+// equations. The right side holds one column or a matrix.
 fn solve(a, b) -> Arr, Fault {
     if a.ndim != 2 || a.shape[0] != a.shape[1] {
         return empty_arr(), fault(F_SHAPE, "solve", "the matrix is not square");
     }
     let m = a.shape[0];
     let n = a.shape[1];
+    if b.ndim == 2 && b.shape[0] == n {
+        let f, piv, g = lu_factor(a);
+        if g.kind != F_NONE { return empty_arr(), g; }
+        return lu_solve(f, piv, b, false);
+    }
     if b.ndim != 1 || b.data.len != n {
         return empty_arr(), fault(F_SHAPE, "solve", "the right side does not agree with the matrix");
     }
@@ -84,7 +90,7 @@ fn solve(a, b) -> Arr, Fault {
     var upper: f64[>..] = [];
     var pivots: i64[>..] = [];
     var sign: i64 = 1;
-    let f = lu_factor(a, m, n, lower, upper, pivots, sign);
+    let f = lu_core(a, m, n, lower, upper, pivots, sign);
     if f.kind != F_NONE { return empty_arr(), f; }
     // The right side follows the trade of the rows.
     var y: f64[>..] = [];
@@ -162,7 +168,7 @@ fn det(a) -> f64, Fault {
     var upper: f64[>..] = [];
     var pivots: i64[>..] = [];
     var sign: i64 = 1;
-    let f = lu_factor(a, m, n, lower, upper, pivots, sign);
+    let f = lu_core(a, m, n, lower, upper, pivots, sign);
     if f.kind != F_NONE { return 0.0, f; }
     var t: f64 = sign as f64;
     var i: i64 = 0;
@@ -185,7 +191,7 @@ fn slogdet(a) -> f64, f64, Fault {
     var upper: f64[>..] = [];
     var pivots: i64[>..] = [];
     var sign: i64 = 1;
-    let f = lu_factor(a, m, n, lower, upper, pivots, sign);
+    let f = lu_core(a, m, n, lower, upper, pivots, sign);
     if f.kind != F_NONE {
         // A matrix without a pivot has a determinant of zero.
         return 0.0, 0.0, no_fault();
