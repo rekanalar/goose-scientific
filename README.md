@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.84.0";
+import scientific from "rekanalar/goose-scientific@v0.85.0";
 ```
 
 ## API
@@ -79,7 +79,7 @@ import scientific from "rekanalar/goose-scientific@v0.84.0";
 | Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `odeint` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
-| Signal design and analysis | `firwin`, `firwin2`, `remez`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
+| Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `residue`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
@@ -464,11 +464,32 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `butter_sos` for a Butterworth filter.
 - `cheby1_sos` designs a Chebyshev filter of type I as sections. It
   takes the order, the ripple in decibels, the cuts and the type. It
-  gives no numerator and denominator form, no `fs` argument and no
-  analog filter. The order stays at 32 or below.
+  has no `fs` argument and no analog filter. The order stays at 32
+  or below.
 - `cheby2_sos` designs a Chebyshev filter of type II as sections. The
   cuts are the edges of the stop band. It has the same limits as
   `cheby1_sos`.
+- `cheby1`, `cheby2` and `ellip` give the numerator and the
+  denominator of a digital filter, as SciPy gives them. They take the
+  order, the ripples in decibels, the cuts and the type. `ellip`
+  takes the ripple of the pass band and the attenuation of the stop
+  band. They have no `fs` argument, no analog filter and no `output`
+  option. Use `zpk2sos` or the `_sos` forms for a high order.
+- `ellip` faults when the attenuation is not above the ripple.
+  SciPy gives NaN or zeros in that case.
+- `residue` takes real coefficients only. SciPy also takes complex
+  coefficients. It gives the residues as two arrays: the real parts
+  and the imaginary parts. It gives the poles the same way. The
+  direct terms stay real.
+- `residue` finds the poles with `roots`. A group of close poles
+  stands for one repeated pole. The default rule takes the mean of
+  the group. The package then moves that mean to the root of the
+  derivative of the group. A repeated pole so keeps its digits. The
+  rules `min` and `max` take a pole of the group as it stands.
+- Poles of one size, such as a complex pair, may come in the other
+  order than in SciPy. Each pole keeps its own residue.
+- `residue` takes at most 257 coefficients in a polynomial.
+- `bessel` and `residuez` stay missing.
 - `lfilter` takes no initial state and no axis. `filtfilt` takes the
   odd extension of SciPy. The pad holds three times the coefficient
   count. No other pad option exists.
@@ -1001,6 +1022,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `welch` takes the size of a part from the caller. A caller that
   wants the parts of SciPy gives the same size and the same count of
   parts. The parts of SciPy start at every half of the size too.
+- `residue` checks its input before it computes. It faults on a
+  coefficient that is not finite and on a negative `tol`. It also
+  faults on an unknown rule and on more than 257 coefficients. SciPy lets a
+  negative `tol` give an empty group and an error deep in the call.
+  The checks also bound the work of the root finder.
+- `cheby1`, `cheby2` and `ellip` fault on a ripple outside zero to
+  one million. They also fault on an order above 32. A large value
+  cannot make the design overflow into infinite coefficients.
 
 ## License
 

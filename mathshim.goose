@@ -171,22 +171,69 @@ fn arctanh_of(x: f64) -> f64 {
     return 0.5 * ln((1.0 + x) / (1.0 - x));
 }
 
-// expm1_of gives the power of a number less one. A series gives it
-// for a small number, where the power loses its digits.
+// expm1_of gives the power of a number less one. The method is the
+// classic libc reduction: a shift by whole steps of the natural log of
+// two, and a rational form for the short range that stays near the
+// result. The error stays under one unit in the last place.
 fn expm1_of(x: f64) -> f64 {
-    if x != x { return x - x; }
-    if abs_of(x) < 0.5 {
-        var term: f64 = x;
-        var s: f64 = x;
-        var k: f64 = 1.0;
-        while k < 30.0 {
-            term = term * x / (k + 1.0);
-            s += term;
-            k += 1.0;
-        }
-        return s;
+    if x != x { return x; }
+    let o_threshold: f64 = 7.09782712893383973096e+02;
+    let ln2_hi: f64 = 6.93147180369123816490e-01;
+    let ln2_lo: f64 = 1.90821492927058770002e-10;
+    let invln2: f64 = 1.44269504088896338700e+00;
+    let q1: f64 = -3.33333333333331316428e-02;
+    let q2: f64 = 1.58730158725481460165e-03;
+    let q3: f64 = -7.93650757867487942473e-05;
+    let q4: f64 = 4.00821782732936239552e-06;
+    let q5: f64 = -2.01099218183624371326e-07;
+    let t_big: f64 = 38.81622314453125;
+    let t_half: f64 = 0.3465733528137207;
+    let t_one: f64 = 1.0397205352783203;
+    let t_tiny: f64 = 5.551115123125783e-17;
+    let sign: bool = x < 0.0;
+    let ax = abs_of(x);
+    if ax >= t_big {
+        if sign { return -1.0; }
+        if x > o_threshold { return x * power(2.0, 1023.0); }
     }
-    return power_e(x) - 1.0;
+    var k: f64 = 0.0;
+    var hi: f64 = x;
+    var lo: f64 = 0.0;
+    var cc: f64 = 0.0;
+    var xr: f64 = x;
+    if ax > t_half {
+        if ax < t_one {
+            if !sign { hi = x - ln2_hi; lo = ln2_lo; k = 1.0; }
+            else { hi = x + ln2_hi; lo = -ln2_lo; k = -1.0; }
+        } else {
+            if sign { k = trunc_of(invln2 * x - 0.5); }
+            else { k = trunc_of(invln2 * x + 0.5); }
+            hi = x - k * ln2_hi;
+            lo = k * ln2_lo;
+        }
+        xr = hi - lo;
+        cc = (hi - xr) - lo;
+    } else if ax < t_tiny { return x; }
+    let hfx = 0.5 * xr;
+    let hxs = xr * hfx;
+    let r1 = 1.0 + hxs * (q1 + hxs * (q2 + hxs * (q3 + hxs * (q4 + hxs * q5))));
+    let t = 3.0 - r1 * hfx;
+    var ev = hxs * ((r1 - t) / (6.0 - xr * t));
+    if k == 0.0 { return xr - (xr * ev - hxs); }
+    ev = xr * (ev - cc) - cc;
+    ev -= hxs;
+    if k == -1.0 { return 0.5 * (xr - ev) - 0.5; }
+    if k == 1.0 {
+        if xr < -0.25 { return -2.0 * (ev - (xr + 0.5)); }
+        return 1.0 + 2.0 * (xr - ev);
+    }
+    let pk = power(2.0, k);
+    if k < 0.0 || k > 56.0 {
+        return (xr - ev + 1.0) * pk - 1.0;
+    }
+    let nm = power(2.0, -k);
+    if k < 20.0 { return (xr - ev + (1.0 - nm)) * pk; }
+    return (xr - (ev + nm) + 1.0) * pk;
 }
 
 // log1p_of gives the log of a number plus one. A series gives it for

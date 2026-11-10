@@ -56,6 +56,8 @@ import array_spatial;
 import array_interp;
 import array_quad;
 import array_nquad;
+import array_residue;
+import array_elliptic;
 import array_programs;
 import array_dsp;
 import array_sparse;
