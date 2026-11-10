@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.82.0";
+import scientific from "rekanalar/goose-scientific@v0.83.0";
 ```
 
 ## API
@@ -77,7 +77,7 @@ import scientific from "rekanalar/goose-scientific@v0.82.0";
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
 | Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
-| Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `solve_ivp`, `odeint` |
+| Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `odeint` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `firwin2`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
@@ -243,8 +243,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   the interval of the largest error. The ends may be infinite. The
   estimate of the error differs from QUADPACK, because the package
   holds no extrapolation. A hard integrand ends with the fault
-  `F_LIMIT` when the limit of intervals is reached. `tplquad`,
-  `nquad`, `quad_vec` and the weights of `quad` stay out.
+  `F_LIMIT` when the limit of intervals is reached. The weights of
+  `quad` stay out.
 - `odeint` runs the RK45 method of `solve_ivp` between the times and
   gives one row per time. SciPy runs LSODA, so values agree only to the
   tolerance. It holds no Jacobian, no stiff method, no `args` and no
@@ -259,6 +259,24 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   functions come last, in the order `g`, `h`, `q`, `r`. The functions
   `g` and `h` take x. The functions `q` and `r` take x and y.
   A limit that is not finite is a fault.
+
+- `nquad` takes the block `{ p => f }`, which takes the point as a
+  slice. The first value of the point belongs to the first pair of
+  the ranges. The ranges hold the pairs of the ends, and an end may
+  be infinite. The call gives the value and the error estimate of the
+  outermost integral.
+
+- The package holds no more than eight ranges for `nquad`. It holds
+  no more than twenty million evaluations of the function. A fault of
+  an inner integral stops the call.
+
+- `quad_vec` takes the block `{ x, out => out.push(a); }`. The block
+  fills a row with the values of the vector. Every point must give the
+  same count of values. The norm is `2` or `max`. The call gives the
+  vector and one error estimate.
+
+- The estimate of the error of `nquad` and `quad_vec` differs from
+  SciPy, because the package holds no extrapolation.
 
 - `fixed_quad` takes up to 512 points.
 - `solve_ivp` takes the methods `RK45` and `RK23`. The steps equal the

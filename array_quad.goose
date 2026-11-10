@@ -31,35 +31,20 @@ fn quad_eval<F: fn(f64) -> f64>(mode: i64, lo: f64, t: f64) -> f64 {
     return F(lo - u) / (t * t);
 }
 
-// quad_rule applies the rule of 21 points to [a, b]. It gives the
-// integral and the error estimate of QUADPACK.
-fn quad_rule<F: fn(f64) -> f64>(mode: i64, lo: f64, a: f64, b: f64) -> f64, f64 {
-    let center = 0.5 * (a + b);
-    let half = 0.5 * (b - a);
-    // One call site of quad_eval keeps the count of copies of F small.
-    var fv1: f64[>..] = [];
-    var fv2: f64[>..] = [];
-    var fc: f64 = 0.0;
-    var j: i64 = 0;
-    while j < 11 {
-        let dx = half * GK_NODES[j];
-        let f1 = quad_eval(mode, lo, center - dx) { x => F(x) };
-        if j == 10 { fc = f1; } else { fv1.push(f1); }
-        j += 1;
-    }
-    j = 0;
-    while j < 10 {
-        let dx = half * GK_NODES[j];
-        fv2.push(quad_eval(mode, lo, center + dx) { x => F(x) });
-        j += 1;
-    }
+// gk_combine rates the rule of 21 points from the values of the
+// integrand. The values fv[base] to fv[base + 10] hold the left nodes,
+// the last of them the center. The values fv[base + 11] to
+// fv[base + 20] hold the right nodes. It gives the integral and the
+// error estimate of QUADPACK.
+fn gk_combine(fv: f64[:], base: i64, half: f64) -> f64, f64 {
+    let fc = fv[base + 10];
     var resk = GK_WEIGHTS[10] * fc;
     var resg: f64 = 0.0;
     var resabs = mathshim::abs_of(resk);
-    j = 0;
+    var j: i64 = 0;
     while j < 10 {
-        let f1 = fv1[j];
-        let f2 = fv2[j];
+        let f1 = fv[base + j];
+        let f2 = fv[base + 11 + j];
         resk += GK_WEIGHTS[j] * (f1 + f2);
         resabs += GK_WEIGHTS[j] * (mathshim::abs_of(f1) + mathshim::abs_of(f2));
         if j % 2 == 1 { resg += GAUSS_WEIGHTS[j / 2] * (f1 + f2); }
@@ -69,7 +54,7 @@ fn quad_rule<F: fn(f64) -> f64>(mode: i64, lo: f64, a: f64, b: f64) -> f64, f64 
     var resasc = GK_WEIGHTS[10] * mathshim::abs_of(fc - reskh);
     j = 0;
     while j < 10 {
-        resasc += GK_WEIGHTS[j] * (mathshim::abs_of(fv1[j] - reskh) + mathshim::abs_of(fv2[j] - reskh));
+        resasc += GK_WEIGHTS[j] * (mathshim::abs_of(fv[base + j] - reskh) + mathshim::abs_of(fv[base + 11 + j] - reskh));
         j += 1;
     }
     let result = resk * half;
@@ -86,6 +71,26 @@ fn quad_rule<F: fn(f64) -> f64>(mode: i64, lo: f64, a: f64, b: f64) -> f64, f64 
         if floor > err { err = floor; }
     }
     return result, err;
+}
+
+// quad_rule applies the rule of 21 points to [a, b]. It gives the
+// integral and the error estimate of QUADPACK.
+fn quad_rule<F: fn(f64) -> f64>(mode: i64, lo: f64, a: f64, b: f64) -> f64, f64 {
+    let center = 0.5 * (a + b);
+    let half = 0.5 * (b - a);
+    // One call site of quad_eval keeps the count of copies of F small.
+    var fv: f64[>..] = [];
+    var j: i64 = 0;
+    while j < 11 {
+        fv.push(quad_eval(mode, lo, center - half * GK_NODES[j]) { x => F(x) });
+        j += 1;
+    }
+    j = 0;
+    while j < 10 {
+        fv.push(quad_eval(mode, lo, center + half * GK_NODES[j]) { x => F(x) });
+        j += 1;
+    }
+    return gk_combine(fv, 0, half);
 }
 
 // quad_run integrates one range by the bisection of the interval of
