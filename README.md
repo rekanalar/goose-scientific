@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.116.0";
+import scientific from "rekanalar/goose-scientific@v0.117.0";
 ```
 
 ## API
@@ -76,7 +76,7 @@ import scientific from "rekanalar/goose-scientific@v0.116.0";
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `null_space`, `orth`, `expm` |
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn`, `fht`, `ifht`, `fhtoffset` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
-| Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `splrep`, `splev`, `bspline_eval`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
+| Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splev`, `bspline_eval`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `residue`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
@@ -346,6 +346,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   twenty, three by default. The knots follow the not-a-knot rule of
   SciPy. `bspline` builds a spline from knots, coefficients and a
   degree. The spline is the type `BSpl`.
+- `make_interp_spline_bc` is the `bc_type` argument of SciPy. It takes
+  the orders and values of the left end, then of the right end. The two
+  counts add up to the degree minus one. The knots repeat the end
+  points. The clamped form is order 1 with value 0 at each end of a
+  cubic. The natural form is order 2 with value 0.
 - `bspline_eval` and `splev` give values and derivatives. A point
   outside the knots takes the end polynomial, as SciPy does. A
   derivative above the degree is zero.

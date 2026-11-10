@@ -230,6 +230,108 @@ fn make_interp_spline(x: f64[:], y: f64[:], k: i64 = 3) -> BSpl, Fault {
     return bs_make(k, t, sol.data), no_fault();
 }
 
+// bs_deriv_value gives the derivative of a spline at a point. A
+// derivative above the degree is zero.
+fn bs_deriv_value(t: f64[:], c: f64[:], k: i64, order: i64, x: f64) -> f64 {
+    var tt: f64[>..] = copy_slice(t);
+    var cc: f64[>..] = copy_slice(c);
+    var kk = k;
+    var o: i64 = 0;
+    while o < order && kk > 0 {
+        let nt, nc = bs_derivative(tt, cc, kk);
+        tt = copy_slice(nt);
+        cc = copy_slice(nc);
+        kk -= 1;
+        o += 1;
+    }
+    if o < order { return 0.0; }
+    return bs_value(tt, cc, kk, x);
+}
+
+// make_interp_spline_bc builds the B-spline of degree k that passes
+// through the points with derivatives at the ends. The lists hold the
+// orders and the values of the left end and of the right end. The two
+// counts add up to k minus one, as bc_type of SciPy needs. The knots
+// repeat the first and the last point k times.
+fn make_interp_spline_bc(x: f64[:], y: f64[:], k: i64, left_orders: i64[:], left_values: f64[:], right_orders: i64[:], right_values: f64[:]) -> BSpl, Fault {
+    if k < 1 || k > 20 {
+        return bspl_empty(), fault(F_RANGE, "make_interp_spline_bc", "the degree is outside one to twenty");
+    }
+    let n = x.len;
+    let kl = left_orders.len;
+    let kr = right_orders.len;
+    if left_values.len != kl || right_values.len != kr || kl + kr != k - 1 {
+        return bspl_empty(), fault(F_SHAPE, "make_interp_spline_bc", "the end derivatives must number the degree minus one, with one value each");
+    }
+    if x.len != y.len || n < 2 {
+        return bspl_empty(), fault(F_SHAPE, "make_interp_spline_bc", "the data need equal counts and at least two points");
+    }
+    var i: i64 = 0;
+    while i < n {
+        if !(x[i] - x[i] == 0.0) || !(y[i] - y[i] == 0.0) {
+            return bspl_empty(), fault(F_VALUE, "make_interp_spline_bc", "a point or a value is not finite");
+        }
+        if i > 0 && !(x[i] > x[i - 1]) {
+            return bspl_empty(), fault(F_VALUE, "make_interp_spline_bc", "the points do not rise strictly");
+        }
+        i += 1;
+    }
+    i = 0;
+    while i < kl {
+        if left_orders[i] < 1 || left_orders[i] > k || !(left_values[i] - left_values[i] == 0.0) {
+            return bspl_empty(), fault(F_VALUE, "make_interp_spline_bc", "an end order is outside one to the degree, or a value is not finite");
+        }
+        i += 1;
+    }
+    i = 0;
+    while i < kr {
+        if right_orders[i] < 1 || right_orders[i] > k || !(right_values[i] - right_values[i] == 0.0) {
+            return bspl_empty(), fault(F_VALUE, "make_interp_spline_bc", "an end order is outside one to the degree, or a value is not finite");
+        }
+        i += 1;
+    }
+    var t: f64[>..] = [];
+    i = 0;
+    while i < k { t.push(x[0]); i += 1; }
+    i = 0;
+    while i < n { t.push(x[i]); i += 1; }
+    i = 0;
+    while i < k { t.push(x[n - 1]); i += 1; }
+    let m = n + kl + kr;
+    var a: f64[>..] = [];
+    var b: f64[>..] = [];
+    i = 0;
+    while i < m * m { a.push(0.0); i += 1; }
+    var row: i64 = 0;
+    var r: i64 = 0;
+    while r < m {
+        var order: i64 = 0;
+        var at: f64 = 0.0;
+        if r < kl { order = left_orders[r]; at = x[0]; b.push(left_values[r]); }
+        else if r < kl + n { at = x[r - kl]; b.push(y[r - kl]); }
+        else { order = right_orders[r - kl - n]; at = x[n - 1]; b.push(right_values[r - kl - n]); }
+        var j: i64 = 0;
+        while j < m {
+            var unit: f64[>..] = [];
+            var q: i64 = 0;
+            while q < m { if q == j { unit.push(1.0); } else { unit.push(0.0); } q += 1; }
+            a[r * m + j] = bs_deriv_value(t, unit, k, order, at);
+            j += 1;
+        }
+        r += 1;
+    }
+    var sa: i64[..8] = [];
+    sa.push(m);
+    sa.push(m);
+    var sb: i64[..8] = [];
+    sb.push(m);
+    let sol, fs = solve(Arr { ndim: 2, shape: sa, data: copy(a) }, Arr { ndim: 1, shape: sb, data: copy(b) });
+    if fs.kind != F_NONE {
+        return bspl_empty(), fault(F_VALUE, "make_interp_spline_bc", "the collocation matrix holds no solution");
+    }
+    return bs_make(k, t, sol.data), no_fault();
+}
+
 // splrep builds the B-spline of the data. Only the interpolation
 // with s equal to zero holds. A smoothing factor above zero is a
 // fault.
