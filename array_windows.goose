@@ -285,25 +285,74 @@ fn dp_solve(d: f64[:], e: f64[:], lam: f64, b: f64[:]) -> f64[>..] {
 // Slepian. The value nw is the product of the time and the half
 // bandwidth. A kmax of zero gives the first window as a vector. A
 // positive kmax gives the first kmax windows as rows. The norm is
-// "approximate", "2" or "" for the default of SciPy. The eigenvalue
-// problem is tridiagonal, solved by bisection and inverse iteration.
+// "approximate", "subsample", "2" or "" for the default of SciPy. The
+// eigenvalue problem is tridiagonal, solved by bisection and inverse
+// iteration.
 fn dpss(m: i64, nw: f64, kmax: i64 = 0, sym: bool = true, norm: const u8[:] = "") -> Arr, Fault {
-    let f = ww_check(m, "dpss");
-    if f.kind != F_NONE { return empty_arr(), f; }
-    if m > 100000 {
-        return empty_arr(), fault(F_LIMIT, "dpss", "the length stands above 100000");
+    let w, r, f = dp_run(m, nw, kmax, sym, norm, false);
+    return w, f;
+}
+
+// dpss_ratios gives the windows of dpss and the concentration ratios of
+// the windows. The ratios are a vector of kmax numbers, or an array of
+// no dimension when kmax is zero.
+fn dpss_ratios(m: i64, nw: f64, kmax: i64 = 0, sym: bool = true, norm: const u8[:] = "") -> Arr, Arr, Fault {
+    return dp_run(m, nw, kmax, sym, norm, true);
+}
+
+// dp_ratio gives the share of the energy of one window inside the band.
+// It sums the autocorrelation of the window times the kernel of the
+// band. The FFT gives the autocorrelation.
+fn dp_ratio(v: f64[:], w: f64) -> f64, Fault {
+    let n = v.len;
+    var size: i64 = 1;
+    while size < 2 * n - 1 { size = size * 2; }
+    var re: f64[>..] = [];
+    var im: f64[>..] = [];
+    var i: i64 = 0;
+    while i < size {
+        if i < n { re.push(v[i]); } else { re.push(0.0); }
+        im.push(0.0);
+        i += 1;
     }
-    if norm != "" && norm != "approximate" && norm != "2" {
-        return empty_arr(), fault(F_VALUE, "dpss", "the norm must be approximate or 2");
+    let xr, xi, f1 = fft_parts(re, im);
+    if f1.kind != F_NONE { return 0.0, f1; }
+    var pw: f64[>..] = [];
+    var zero: f64[>..] = [];
+    i = 0;
+    while i < size {
+        pw.push(xr.data[i] * xr.data[i] + xi.data[i] * xi.data[i]);
+        zero.push(0.0);
+        i += 1;
+    }
+    let cr, ci, f2 = fft_parts(pw, zero);
+    if f2.kind != F_NONE { return 0.0, f2; }
+    var t: f64 = 2.0 * w * cr.data[0] / size;
+    i = 1;
+    while i < n {
+        t += 4.0 * w * mathshim::sinc_of(2.0 * w * i) * cr.data[i] / size;
+        i += 1;
+    }
+    return t, no_fault();
+}
+
+fn dp_run(m: i64, nw: f64, kmax: i64, sym: bool, norm: const u8[:], want: bool) -> Arr, Arr, Fault {
+    let f = ww_check(m, "dpss");
+    if f.kind != F_NONE { return empty_arr(), empty_arr(), f; }
+    if m > 100000 {
+        return empty_arr(), empty_arr(), fault(F_LIMIT, "dpss", "the length stands above 100000");
+    }
+    if norm != "" && norm != "approximate" && norm != "subsample" && norm != "2" {
+        return empty_arr(), empty_arr(), fault(F_VALUE, "dpss", "the norm must be approximate, subsample or 2");
     }
     if !(nw > 0.0) || !(nw < m / 2.0) {
-        return empty_arr(), fault(F_RANGE, "dpss", "nw must lie above zero and below half the length");
+        return empty_arr(), empty_arr(), fault(F_RANGE, "dpss", "nw must lie above zero and below half the length");
     }
     var single = false;
     var k = kmax;
     if k == 0 { single = true; k = 1; }
     if k < 0 || k > m {
-        return empty_arr(), fault(F_RANGE, "dpss", "kmax must lie from one to the length");
+        return empty_arr(), empty_arr(), fault(F_RANGE, "dpss", "kmax must lie from one to the length");
     }
     var len = m;
     if !sym { len = m + 1; }
@@ -321,7 +370,10 @@ fn dpss(m: i64, nw: f64, kmax: i64 = 0, sym: bool = true, norm: const u8[:] = ""
     }
     if len == 1 {
         var one: f64[>..] = [1.0];
-        return line_arr(copy(one)), no_fault();
+        var ro: f64[>..] = [1.0];
+        var rsh: i64[..8] = [];
+        if !single { rsh.push(1); }
+        return line_arr(copy(one)), Arr { ndim: rsh.len, shape: rsh, data: ro }, no_fault();
     }
     // The bounds of Gershgorin.
     var lo0: f64 = d[0];
@@ -392,16 +444,48 @@ fn dpss(m: i64, nw: f64, kmax: i64 = 0, sym: bool = true, norm: const u8[:] = ""
         while i < len { rows.push(v[i]); i += 1; }
         kk += 1;
     }
+    var ratios: f64[>..] = [];
+    if want {
+        kk = 0;
+        while kk < k {
+            var row: f64[>..] = [];
+            i = 0;
+            while i < len { row.push(rows[kk * len + i]); i += 1; }
+            let rt, fr = dp_ratio(row, w);
+            if fr.kind != F_NONE { return empty_arr(), empty_arr(), fr; }
+            ratios.push(rt);
+            kk += 1;
+        }
+    }
+    var rshape: i64[..8] = [];
+    if !single { rshape.push(k); }
     var nrm_mode = norm;
     if nrm_mode == "" {
         if single { nrm_mode = "approximate"; } else { nrm_mode = "2"; }
     }
-    if nrm_mode == "approximate" {
+    if nrm_mode != "2" {
         var mx = rows[0];
         i = 1;
         while i < rows.len { if rows[i] > mx { mx = rows[i]; } i += 1; }
         var corr: f64 = 1.0 / mx;
-        if len % 2 == 0 { corr = corr * len * len / (len * len + nw); }
+        if len % 2 == 0 && nrm_mode == "approximate" { corr = corr * len * len / (len * len + nw); }
+        if len % 2 == 0 && nrm_mode == "subsample" {
+            // The first window shifted by a fraction of a sample.
+            var pr: f64[>..] = [];
+            var pz: f64[>..] = [];
+            i = 0;
+            while i < len { pr.push(rows[i] * corr); pz.push(0.0); i += 1; }
+            let sr, si, fs = fft_parts(pr, pz);
+            if fs.kind != F_NONE { return empty_arr(), empty_arr(), fs; }
+            var tot: f64 = sr.data[0];
+            var q: i64 = 1;
+            while q <= len / 2 {
+                let ang = 3.141592653589793 * (1.0 - 1.0 / len) * q;
+                tot += 2.0 * (sr.data[q] * mathshim::cosine(ang) - si.data[q] * mathshim::sine(ang));
+                q += 1;
+            }
+            corr = corr * len / tot;
+        }
         i = 0;
         while i < rows.len { rows[i] = rows[i] * corr; i += 1; }
     }
@@ -412,9 +496,10 @@ fn dpss(m: i64, nw: f64, kmax: i64 = 0, sym: bool = true, norm: const u8[:] = ""
         while i < m { out.push(rows[kk * len + i]); i += 1; }
         kk += 1;
     }
-    if single { return ww_arr(out), no_fault(); }
+    let rarr = Arr { ndim: rshape.len, shape: rshape, data: copy(ratios) };
+    if single { return ww_arr(out), rarr, no_fault(); }
     var sh: i64[..8] = [];
     sh.push(k);
     sh.push(m);
-    return Arr { ndim: 2, shape: sh, data: out }, no_fault();
+    return Arr { ndim: 2, shape: sh, data: out }, rarr, no_fault();
 }
