@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.38.0";
+import scientific from "rekanalar/goose-scientific@v0.39.0";
 ```
 
 ## API
@@ -70,6 +70,7 @@ import scientific from "rekanalar/goose-scientific@v0.38.0";
 | Filters | `butter`, `lfilter`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
 | Covariance and NaN statistics | `cov`, `cov_with`, `corrcoef`, `corrcoef_with`, `nanmedian`, `nanpercentile`, `nanquantile`, `nanargmax`, `nanargmin`, `nancumsum`, `nancumprod`, `cumulative_sum`, `cumulative_prod`, `ediff1d`, `histogram_bin_edges` |
 | The rest of the elementwise math | `fmax`, `fmin`, `heaviside`, `logaddexp`, `logaddexp2`, `ldexp`, `frexp`, `modf`, `sinc`, `i0`, `gcd`, `lcm`, `bitwise_and`, `bitwise_or`, `bitwise_xor`, `invert`, `left_shift`, `right_shift`, `bitwise_count`, `unwrap`, and the names `float_power`, `pow`, `remainder`, `radians`, `degrees`, `acos`, `asin`, `atan`, `atan2`, `acosh`, `asinh`, `atanh`, `bitwise_not`, `bitwise_invert`, `bitwise_left_shift`, `bitwise_right_shift`, `concat`, `amax`, `amin`, `ndim` |
+| Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -100,6 +101,21 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- `pad` and `block` are keywords of Goose, so NumPy `pad` is `pad_modes`
+  and NumPy `block` is `block_grid`. `pad_modes` takes one count per axis
+  in two lists and the modes `constant`, `edge`, `reflect`, `symmetric`
+  and `wrap`. The modes `linear_ramp`, `maximum`, `minimum`, `mean` and
+  `median` give a fault.
+- `append` and `delete` flatten the array, as NumPy does with no axis.
+  `append_axis` and `delete_axis` take an axis. A `delete` result with no
+  element is a fault, because the package holds no empty array.
+- `tril_indices`, `triu_indices`, `diag_indices`, `unravel_index` and
+  `indices` give one array: each row holds the places of one axis. A
+  triangle with no place is a fault. `ix_` takes two lists.
+  `block_grid` takes a grid of two rows and two columns.
+- `unstack` gives pieces that `unstack_part` reads with the axis
+  dropped. A piece of an array of one dimension keeps an axis of length
+  one.
 - These functions work on whole numbers: `gcd`, `lcm`, `invert`, the
   shifts, `bitwise_count` and the other `bitwise_*` functions. The shift
   count of `ldexp` follows the same rule. A whole number of at most 2^53
