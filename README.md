@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.4.0";
+import scientific from "rekanalar/goose-scientific@v0.5.0";
 ```
 
 ## API
@@ -32,6 +32,9 @@ import scientific from "rekanalar/goose-scientific@v0.4.0";
 | Reductions along an axis | `sum_axis`, `prod_axis`, `min_axis`, `max_axis`, `mean_axis`, `var_axis`, `std_axis` |
 | Running and spread | `cumsum`, `cumprod`, `diff`, `flip`, `variance`, `std`, `ptp` |
 | Indexing | `slice_axis`, `take`, `put`, `nonzero`, `mask`, `take_along_axis`, `repeat`, `tile`, `flatten`, `partition` |
+| Sorting | `sort`, `argsort`, `sort_axis`, `unique`, `unique_sorted`, `roll` |
+| Search | `searchsorted`, `histogram`, `histogram_edges`, `bincount`, `digitize` |
+| Order statistics | `median`, `percentile` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -92,6 +95,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   element of the other axes.
 - `mask` keeps the elements of one array that hold true in a second
   array of the same length.
+- The sort is stable and gives a copy. Two equal elements keep the
+  order of their positions.
+- The sort is an insertion sort. It holds a small or a middle array
+  well. A large array takes a long time.
+- `unique` gives the values in the order of their first appearance.
+  `unique_sorted` gives them in the order of their value.
+- `searchsorted` takes a sorted array and gives the place before the
+  equal elements. It does not check that the array holds a sorted
+  order.
+- The histogram holds equal bins between the smallest and the largest
+  value. An array of one value is a fault, because it holds no bin.
+- `median` and `percentile` sort a copy of the array.
 
 ## Security
 
@@ -110,6 +125,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   of the standard library when the input is hostile.
 - A bad axis, or a permutation that repeats an axis, is a fault. The
   check runs before any element moves.
+- The sort of a large array takes a long time. A caller that sorts a
+  large array waits.
 - A position outside the array is a fault in `take` and in `put`. The
   check of `put` runs over every position before the first write.
   A bad index leaves the array as it was.
