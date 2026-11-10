@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.42.0";
+import scientific from "rekanalar/goose-scientific@v0.43.0";
 ```
 
 ## API
@@ -74,6 +74,7 @@ import scientific from "rekanalar/goose-scientific@v0.42.0";
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
 | Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `null_space`, `orth`, `expm` |
+| Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -104,6 +105,17 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- `dct`, `idct`, `dst` and `idst` take one row and the types one to
+  four. They take the norms `backward`, `ortho` and `forward`. The
+  names `dctn`, `dstn` and the `axis` argument stay out. Type one of
+  the cosine needs two points.
+- `hfft` and `ihfft` take and give the parts as two rows. `rfft2`,
+  `rfftn`, `irfft2` and `irfftn` take the parts as two arrays. `irfftn`
+  takes the length of the last axis, because it cannot tell an even
+  length from an odd one.
+- `next_fast_len` follows SciPy. A complex transform takes the factors
+  up to 11. A real one takes 2, 3 and 5. The Fast Hankel transform
+  `fht` stays out.
 - `lu_factor` and `lu` follow LAPACK. The row i swaps with the row
   `piv[i]`. A singular matrix gives no fault there. `lu_solve` gives a
   fault when it meets a zero on the diagonal. `solve` takes a matrix on the right side.
