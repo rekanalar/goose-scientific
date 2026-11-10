@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.75.0";
+import scientific from "rekanalar/goose-scientific@v0.76.0";
 ```
 
 ## API
@@ -249,7 +249,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   end cubic for `cubic_spline` and `pchip`. A spline of `akima` gives
   NaN there, as SciPy does.
 - `interp1d` takes the kinds `linear`, `slinear`, `nearest`, `previous`,
-  `zero`, `next` and `cubic`. The kind `quadratic` stays out. A point
+  `zero`, `next`, `quadratic` and `cubic`. The kind `quadratic` takes
+  three to 512 points and solves a dense system. A point
   outside the knots is a fault unless `extrapolate` holds true. The
   argument `fill` with `fill_low` and `fill_high` gives the values of
   SciPy `fill_value` for such a point. The older `spline` of the

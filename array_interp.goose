@@ -303,9 +303,67 @@ fn spline_integrate_up(s, a: f64, b: f64) -> f64 {
     return total;
 }
 
+// qspline_basis gives the three B-spline values of degree two that do
+// not vanish at the point v, for the knots t. It gives the index of the
+// first one. A point outside the knots uses the end piece.
+fn qspline_basis(t: f64[:], v: f64, b: f64[>..]&) -> i64 {
+    let m = t.len;
+    var s: i64 = 2;
+    while s < m - 4 && v >= t[s + 1] { s += 1; }
+    var left: f64[3] = [0.0, 0.0, 0.0];
+    var right: f64[3] = [0.0, 0.0, 0.0];
+    var n: f64[3] = [1.0, 0.0, 0.0];
+    var j: i64 = 1;
+    while j <= 2 {
+        left[j] = v - t[s + 1 - j];
+        right[j] = t[s + j] - v;
+        var saved: f64 = 0.0;
+        var r: i64 = 0;
+        while r < j {
+            let tmp = n[r] / (right[r + 1] + left[j - r]);
+            n[r] = saved + right[r + 1] * tmp;
+            saved = left[j - r] * tmp;
+            r += 1;
+        }
+        n[j] = saved;
+        j += 1;
+    }
+    b.push(n[0]);
+    b.push(n[1]);
+    b.push(n[2]);
+    return s - 2;
+}
+
+// qspline_fit gives the knots and the coefficients of the quadratic
+// spline through the points, with the knots at the middles of the data
+// points, as SciPy builds it. The count of points stays at 512 or below.
+fn qspline_fit(x: f64[:], y: f64[:], knots: f64[>..]&) -> Arr, Fault {
+    let n = x.len;
+    if n < 3 || n > 512 {
+        return empty_arr(), fault(F_RANGE, "interp1d", "the quadratic kind needs three to 512 points");
+    }
+    knots.push(x[0]); knots.push(x[0]); knots.push(x[0]);
+    var i: i64 = 1;
+    while i < n - 2 { knots.push(0.5 * (x[i] + x[i + 1])); i += 1; }
+    knots.push(x[n - 1]); knots.push(x[n - 1]); knots.push(x[n - 1]);
+    var d: f64[>..] = [];
+    i = 0;
+    while i < n * n { d.push(0.0); i += 1; }
+    i = 0;
+    while i < n {
+        var b: f64[>..] = [];
+        var first = qspline_basis(knots, x[i], b);
+        if i == n - 1 { first = n - 3; b = []; b.push(0.0); b.push(0.0); b.push(1.0); }
+        var j: i64 = 0;
+        while j < 3 { d[i * n + first + j] = b[j]; j += 1; }
+        i += 1;
+    }
+    return solve(mat2(copy(d), n, n), line_arr(copy_slice(y)));
+}
+
 // interp1d interpolates the values y at the knots x for the points xs.
-// The kind is "linear", "slinear", "nearest", "previous", "zero", "next"
-// or "cubic". With fill, a point outside the knots takes fill_low below
+// The kind is "linear", "slinear", "nearest", "previous", "zero", "next",
+// "quadratic" or "cubic". With fill, a point outside the knots takes fill_low below
 // them and fill_high above them, as fill_value does in SciPy. The
 // kind "nearest" takes the lower knot at a tie. A point outside the
 // knots is a fault unless extrapolate holds true. Then "linear" and
@@ -318,7 +376,7 @@ fn interp1d(x: f64[:], y: f64[:], xs: f64[:], kind0: const u8[:] = "linear", ext
     if kind0 == "zero" { kind = "previous"; }
     let f = spline_knots(x, y, "interp1d");
     if f.kind != F_NONE { return empty_arr(), f; }
-    if kind != "linear" && kind != "nearest" && kind != "previous" && kind != "next" && kind != "cubic" {
+    if kind != "linear" && kind != "nearest" && kind != "previous" && kind != "next" && kind != "cubic" && kind != "quadratic" {
         return empty_arr(), fault(F_VALUE, "interp1d", "the kind holds an unknown name");
     }
     if xs.len < 1 {
@@ -331,6 +389,24 @@ fn interp1d(x: f64[:], y: f64[:], xs: f64[:], kind0: const u8[:] = "linear", ext
             return empty_arr(), fault(F_RANGE, "interp1d", "a point lies outside the knots");
         }
         k += 1;
+    }
+    if kind == "quadratic" {
+        var kn: f64[>..] = [];
+        let c, ce = qspline_fit(x, y, kn);
+        if ce.kind != F_NONE { return empty_arr(), ce; }
+        var qo: f64[>..] = [];
+        var q: i64 = 0;
+        while q < xs.len {
+            let v = xs[q];
+            if v != v { qo.push(v); q += 1; continue; }
+            if fill && !extrapolate && v < x[0] { qo.push(fill_low); q += 1; continue; }
+            if fill && !extrapolate && v > x[x.len - 1] { qo.push(fill_high); q += 1; continue; }
+            var b: f64[>..] = [];
+            let first = qspline_basis(kn, v, b);
+            qo.push(b[0] * c.data[first] + b[1] * c.data[first + 1] + b[2] * c.data[first + 2]);
+            q += 1;
+        }
+        return line_arr(copy(qo)), no_fault();
     }
     if kind == "cubic" {
         let sp, e = cubic_spline(x, y);

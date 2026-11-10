@@ -4394,6 +4394,10 @@ fn test_interp1d_kinds() {
     assert(f3.kind == scientific::F_NONE && all_near(a, [-7.0, -8.0]));
     let b, f4 = scientific::interp1d(x, y, out, "zero", true);
     assert(f4.kind == scientific::F_NONE && all_near(b, [1.0, 4.0]));
+    let qq, fq = scientific::interp1d(x, y, xs, "quadratic");
+    assert(fq.kind == scientific::F_NONE && all_loose(qq, [1.0, 2.32643741, 3.0, 1.78974782, 2.0, 4.44104539, 6.7114718, 4.0]));
+    let qe, fqe = scientific::interp1d(x, y, out, "quadratic", true);
+    assert(fqe.kind == scientific::F_NONE && all_loose(qe, [-5.38697845, -0.2434663]));
     let c, f5 = scientific::interp1d(x, y, out, "linear");
     assert(f5.kind == scientific::F_RANGE);
     return;
