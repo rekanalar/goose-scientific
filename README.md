@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.105.0";
+import scientific from "rekanalar/goose-scientific@v0.106.0";
 ```
 
 ## API
@@ -63,7 +63,7 @@ import scientific from "rekanalar/goose-scientific@v0.105.0";
 | Triangles | `tril`, `triu` |
 | Between the points | `interp`, `gradient`, `pad_value` |
 | Root finding | `brentq`, `brenth`, `newton`, `halley`, `secant`, `toms748`, `fsolve`, `root`, `root_scalar` |
-| Minimization | `minimize_scalar`, `minimize`, `minimize_grad`, `differential_evolution`, `dual_annealing`, `basinhopping`, `least_squares`, `curve_fit` |
+| Minimization | `minimize_scalar`, `minimize`, `minimize_grad`, `minimize_constrained`, `differential_evolution`, `dual_annealing`, `basinhopping`, `least_squares`, `curve_fit` |
 | Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `cumulative_simpson`, `cumulative_simpson_dx`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
@@ -973,6 +973,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   value first and the gradient after it. The methods are `bfgs`,
   `cg`, `lbfgsb` and `newton-cg`. The bounds hold one value per variable. The
   start that lies outside the bounds moves to the border.
+- `minimize_constrained` takes one block. It gives the value, the
+  gradient and then the constraints. The first `neq` constraints equal
+  zero. The others stay zero or above. Bounds are optional.
+- `minimize_constrained` covers the problems of the SciPy methods
+  `SLSQP` and `trust-constr`. It does not use their algorithms. It uses
+  the method of the multipliers with L-BFGS-B, so the path differs. The
+  optimum matches to about six digits. The gradients of the constraints
+  come from central differences.
 - `newton-cg` gets the product of the Hessian and a vector from a
   small difference of two gradients. SciPy does the same without `hess`. It
   takes no bounds, and a call with bounds is a fault. Its `xtol` is

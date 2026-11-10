@@ -5853,6 +5853,17 @@ fn test_partial_fractions() {
 // SciPy. The blocks give the value and the gradient of the function of
 // Rosenbrock and of a quadratic.
 fn test_minimize_grad() {
+    // The constrained minimization.
+    let mx, mv, mf = scientific::minimize_constrained([2.0, 2.0], 1) { p => [p[0] * p[0] + p[1] * p[1], 2.0 * p[0], 2.0 * p[1], p[0] + p[1] - 1.0] };
+    assert(mf.kind == scientific::F_NONE && rel_close(mx, [0.5, 0.5], 1.0e-6) && mathshim_abs(mv.data[0] - 0.5) < 1.0e-6);
+    let my, myv, myf = scientific::minimize_constrained([2.0, 2.0], 0) { p => [(p[0] - 1.0) * (p[0] - 1.0) + (p[1] - 2.5) * (p[1] - 2.5), 2.0 * (p[0] - 1.0), 2.0 * (p[1] - 2.5), p[0] - 2.0 * p[1] + 2.0, -p[0] - 2.0 * p[1] + 6.0, -p[0] + 2.0 * p[1] + 2.0] };
+    assert(myf.kind == scientific::F_NONE && rel_close(my, [1.4, 1.7], 1.0e-6) && mathshim_abs(myv.data[0] - 0.8) < 1.0e-6);
+    let mz, mzv, mzf = scientific::minimize_constrained([1.0, 0.0], 1, [0.8, -5.0], [5.0, 5.0]) { p => [p[0] * p[0] + p[1] * p[1], 2.0 * p[0], 2.0 * p[1], p[0] + p[1] - 1.0] };
+    assert(mzf.kind == scientific::F_NONE && rel_close(mz, [0.8, 0.2], 1.0e-6));
+    let mb, mbv, mbf = scientific::minimize_constrained([1.0, 0.0], 3) { p => [p[0] * p[0], 2.0 * p[0], 0.0, p[1]] };
+    assert(mbf.kind == scientific::F_SHAPE);
+    let mc, mcv, mcf = scientific::minimize_constrained([1.0, 0.0], 0, [0.0], [1.0]) { p => [p[0] * p[0], 2.0 * p[0], 0.0] };
+    assert(mcf.kind == scientific::F_SHAPE);
     // The method newton-cg.
     let nc, ncv, ncf = scientific::minimize_grad([-1.2, 1.0, 0.8], "newton-cg", false, [], [], 1.0e-8, 1.0e-8, 1.0e-8, 200) { v =>
         var s: f64 = 0.0;
