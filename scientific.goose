@@ -34,6 +34,7 @@ import array_decomp;
 import array_eig;
 import array_svd;
 import array_poly;
+import array_polynomial;
 import array_fft;
 import array_random;
 import array_optimize;

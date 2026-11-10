@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.33.0";
+import scientific from "rekanalar/goose-scientific@v0.34.0";
 ```
 
 ## API
@@ -52,6 +52,7 @@ import scientific from "rekanalar/goose-scientific@v0.33.0";
 | Eigenvalues | `eigvals`, `eig`, `eigvalsh`, `eigh` |
 | Singular values | `svd`, `svdvals`, `lstsq`, `matrix_rank`, `cond`, `pinv(a, rtol=-1)` |
 | Polynomials | `polyval`, `polyfit`, `roots` |
+| Polynomial type | `polynomial`, `polynomial_call`, `polynomial_degree`, `polynomial_add`, `polynomial_sub`, `polynomial_mul`, `polynomial_pow`, `polynomial_divmod`, `polynomial_der`, `polynomial_integ`, `polynomial_roots`, `polynomial_fromroots`, `polynomial_fit`, `polynomial_cutdeg`, `polynomial_linspace` |
 | Transforms | `fft`, `ifft`, `fft2`, `fft2c`, `ifft2`, `fftn`, `ifftn`, `fftfreq`, `rfftfreq`, `fftshift`, `ifftshift`, `rfft`, `irfft` |
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
 | Names of NumPy | `seed`, `shuffle`, `random_sample`, `rand`, `randn`, `randint`, `bytes`, `get_state`, `set_state` |
@@ -95,6 +96,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- The type `Polynomial` holds the coefficients from the lowest
+  power. The functions carry the name of the type, because the
+  namespace holds no methods. The functions of array_poly keep the
+  names of NumPy and the order from the highest power.
+- `polynomial_pow` takes a power of zero to 16. `polynomial_integ`
+  holds the constant of zero and takes no count of turns. The
+  integral and the derivative hold no domain and no window, as the
+  class of NumPy holds none by default.
+- `polynomial_linspace` takes the range and the count. The linspace
+  of NumPy takes them from the domain with a count of 100.
+- `polynomial_roots` gives the roots of a polynomial with real
+  coefficients. A double root holds few digits.
 - The names of NumPy take the generator as the first argument,
   because the package holds no global state. `seed` returns a
   generator. `bytes` fills a buffer of the caller and returns no
