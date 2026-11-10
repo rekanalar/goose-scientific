@@ -4527,6 +4527,18 @@ fn loose(a: f64, b: f64) -> bool {
 fn test_curve_fit() {
     let x = [0.0, 0.36363636363636365, 0.7272727272727273, 1.0909090909090908, 1.4545454545454546, 1.8181818181818183, 2.1818181818181817, 2.5454545454545454, 2.909090909090909, 3.272727272727273, 3.6363636363636367, 4.0];
     let y = [3.02, 2.0282500972972257, 1.4812573462907253, 1.1453847417432672, 0.8573363330894807, 0.7651937511001847, 0.6365962742142248, 0.6113734634230907, 0.5169530833077661, 0.5454988590422815, 0.5521264402226302, 0.49379141105190194];
+    // Bounds on the parameters.
+    let bx = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+    let by = [1.0, 2.7, 7.4, 20.1, 54.6, 148.4];
+    let pb, cb, fb = scientific::curve_fit(bx, by, [1.0, 0.5], 200, [], [0.0, 0.0], [1.5, 0.9]) { t, q => q[0] * mathshim_exp(q[1] * t) };
+    assert(fb.kind == scientific::F_NONE && mathshim_abs(pb.data[0] - 1.5) < 1.0e-6 && mathshim_abs(pb.data[1] - 0.9) < 1.0e-6);
+    assert(mathshim_abs(cb.data[0] - 0.47668620363771635) < 1.0e-2 && mathshim_abs(cb.data[3] - 0.009094064870893112) < 1.0e-3);
+    let pc, cc, fc = scientific::curve_fit(bx, by, [1.0, 0.5], 200, [], [0.5, 0.0], [1.0e308 * 10.0, 0.95]) { t, q => q[0] * mathshim_exp(q[1] * t) };
+    assert(fc.kind == scientific::F_NONE && mathshim_abs(pc.data[0] - 1.273035098317418) < 1.0e-5 && mathshim_abs(pc.data[1] - 0.95) < 1.0e-8);
+    let pd, cd, fd = scientific::curve_fit(bx, by, [1.0, 0.5], 200, [], [2.0, 0.0], [3.0, 1.0]) { t, q => q[0] * mathshim_exp(q[1] * t) };
+    assert(fd.kind == scientific::F_VALUE);
+    let pe, ce, fe = scientific::curve_fit(bx, by, [1.0, 0.5], 200, [], [0.0], [3.0, 1.0]) { t, q => q[0] * mathshim_exp(q[1] * t) };
+    assert(fe.kind == scientific::F_SHAPE);
     let p, c, f = scientific::curve_fit(x, y, [1.0, 1.0, 0.0]) { t, q => q[0] * mathshim_exp(-q[1] * t) + q[2] };
     assert(f.kind == scientific::F_NONE);
     assert(loose(p.data[0], 2.504842778143317) && loose(p.data[1], 1.2966838932208153) && loose(p.data[2], 0.501188851174762));

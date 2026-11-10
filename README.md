@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.103.0";
+import scientific from "rekanalar/goose-scientific@v0.104.0";
 ```
 
 ## API
@@ -989,8 +989,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   covariance uses the scale of SciPy for the default setting. The
   fifth argument `sigma` takes one value, one value per point or the
   full covariance matrix of the points. A matrix that is not positive
-  definite, a value of zero and a wrong count are faults. It has no
-  `bounds` and no `method`.
+  definite, a value of zero and a wrong count are faults.
+- The sixth and seventh arguments of `curve_fit` are `lower` and `upper`.
+  They bound the parameters. An empty
+  array means no bound, and a bound of infinity leaves one side open.
+  A start outside the bounds is a fault. It has no `method`.
+- `least_squares` takes the same `lower` and `upper` arrays. A parameter
+  on a bound stays there while the step points outward. SciPy uses the
+  trust region method there. The fit reaches the same minimum.
 - `curve_fit` parameters match SciPy to about five digits. The
   covariance matches to about three digits, because SciPy takes it
   from a rough difference of the derivatives.

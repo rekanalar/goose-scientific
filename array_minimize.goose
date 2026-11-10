@@ -337,8 +337,27 @@ fn point_at(points: f64[:], index: i64, n: i64) -> f64[>..] {
 // least_squares finds the point where the sum of the squares of the
 // values of a function is at its smallest. The method is the method
 // of Levenberg and Marquardt. The matrix of the derivatives comes
-// from a small difference.
-fn least_squares<F: fn(f64[:]) -> f64[:]>(x0: f64[:], xtol: f64, turns: i64) -> Arr, Fault {
+// from a small difference. The arrays lower and upper bound the
+// variables. An empty array means no bound on that side, and a bound of
+// plus or minus infinity leaves one variable free. A variable on its
+// bound stays there while the step points outward.
+fn least_squares<F: fn(f64[:]) -> f64[:]>(x0: f64[:], xtol: f64, turns: i64, lower: f64[:] = [], upper: f64[:] = []) -> Arr, Fault {
+    if (lower.len != 0 && lower.len != x0.len) || (upper.len != 0 && upper.len != x0.len) {
+        return empty_arr(), fault(F_SHAPE, "least_squares", "a bound holds a wrong count of values");
+    }
+    {
+        var k: i64 = 0;
+        while k < x0.len {
+            var lo = -1.0e308 * 10.0;
+            var hi = 1.0e308 * 10.0;
+            if lower.len > 0 { lo = lower[k]; }
+            if upper.len > 0 { hi = upper[k]; }
+            if !(lo < hi) || !(x0[k] >= lo) || !(x0[k] <= hi) {
+                return empty_arr(), fault(F_VALUE, "least_squares", "a bound is not ordered or the start stands outside the bounds");
+            }
+            k += 1;
+        }
+    }
     if xtol <= 0.0 {
         return empty_arr(), fault(F_VALUE, "least_squares", "the tolerance holds a value of zero or below");
     }
@@ -419,6 +438,24 @@ fn least_squares<F: fn(f64[:]) -> f64[:]>(x0: f64[:], xtol: f64, turns: i64) -> 
             rhs.push(-t);
             a += 1;
         }
+        // A variable on a bound that the step would leave stays fixed.
+        a = 0;
+        while a < n {
+            var fixed = false;
+            if lower.len > 0 && x[a] <= lower[a] && rhs[a] < 0.0 { fixed = true; }
+            if upper.len > 0 && x[a] >= upper[a] && rhs[a] > 0.0 { fixed = true; }
+            if fixed {
+                var b: i64 = 0;
+                while b < n {
+                    normal[a * n + b] = 0.0;
+                    normal[b * n + a] = 0.0;
+                    b += 1;
+                }
+                normal[a * n + a] = 1.0;
+                rhs[a] = 0.0;
+            }
+            a += 1;
+        }
         // The step comes from the solving of the normal equations.
         let first, fstep = lsq_step(normal, rhs, n, damping);
         if fstep.kind != F_NONE {
@@ -433,7 +470,13 @@ fn least_squares<F: fn(f64[:]) -> f64[:]>(x0: f64[:], xtol: f64, turns: i64) -> 
         while tries < 30 {
             var trial: f64[>..] = [];
             i = 0;
-            while i < n { trial.push(x[i] + factor * step.data[i]); i += 1; }
+            while i < n {
+                var tv = x[i] + factor * step.data[i];
+                if lower.len > 0 && tv < lower[i] { tv = lower[i]; }
+                if upper.len > 0 && tv > upper[i] { tv = upper[i]; }
+                trial.push(tv);
+                i += 1;
+            }
             let rt = F(copy(trial));
             var size2: f64 = 0.0;
             i = 0;
@@ -486,7 +529,7 @@ fn lsq_step(normal: f64[:], rhs: f64[:], n: i64, damping: f64) -> Arr, Fault {
 // the normal matrix, scaled by the residual variance, as SciPy scales
 // it with the default setting. The call needs more points than
 // parameters. A singular normal matrix is a fault.
-fn curve_fit<F: fn(f64, f64[:]) -> f64>(xdata: f64[:], ydata: f64[:], p0: f64[:], turns: i64 = 200, sigma: f64[:] = []) -> Arr, Arr, Fault {
+fn curve_fit<F: fn(f64, f64[:]) -> f64>(xdata: f64[:], ydata: f64[:], p0: f64[:], turns: i64 = 200, sigma: f64[:] = [], lower: f64[:] = [], upper: f64[:] = []) -> Arr, Arr, Fault {
     let m = xdata.len;
     let n = p0.len;
     if n < 1 || m != ydata.len {
@@ -541,7 +584,7 @@ fn curve_fit<F: fn(f64, f64[:]) -> f64>(xdata: f64[:], ydata: f64[:], p0: f64[:]
         }
         lo = copy(l);
     }
-    let best, f = least_squares(p0, 1.0e-14, turns) { p =>
+    let best, f = least_squares(p0, 1.0e-14, turns, lower, upper) { p =>
         var r: f64[>..] = [];
         var k: i64 = 0;
         while k < m {
