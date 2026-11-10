@@ -556,3 +556,103 @@ fn curve_fit<F: fn(f64, f64[:]) -> f64>(xdata: f64[:], ydata: f64[:], p0: f64[:]
     while i < n * n { cov.push(covu.data[i] * s2); i += 1; }
     return best, Arr { ndim: 2, shape: [n, n], data: cov }, no_fault();
 }
+
+// differential_evolution finds the global minimum of a function of
+// several variables inside the bounds, by the strategy best1bin of
+// Storn and Price. The population holds popsize times the count of
+// variables. The mutation takes a random factor between 0.5 and 1 for
+// each generation. The run stops when the spread of the values of the
+// population falls below tol times the mean, or after maxiter
+// generations. The seed fixes the random numbers, so equal seeds give
+// equal results, but the numbers differ from those of SciPy. The
+// function gives the point, the value, and the fault. The result holds
+// the point followed by its value as the last element. The method has
+// no local polish step.
+fn differential_evolution<F: fn(f64[:]) -> f64>(lower: f64[:], upper: f64[:], seed: i64 = 1, maxiter: i64 = 1000, popsize: i64 = 15, tol: f64 = 0.01, recombination: f64 = 0.7) -> Arr, Fault {
+    let n = lower.len;
+    if n < 1 || n != upper.len || n > 1000 {
+        return empty_arr(), fault(F_SHAPE, "differential_evolution", "the bounds must hold one to 1000 variables, and the two lists must agree");
+    }
+    if popsize < 4 || popsize > 1000 || maxiter < 1 || maxiter > 1000000 || !(tol >= 0.0) || !(recombination >= 0.0) || !(recombination <= 1.0) {
+        return empty_arr(), fault(F_RANGE, "differential_evolution", "popsize, maxiter, tol or recombination stands outside its range");
+    }
+    var i: i64 = 0;
+    while i < n {
+        if !(lower[i] - lower[i] == 0.0) || !(upper[i] - upper[i] == 0.0) || !(lower[i] <= upper[i]) {
+            return empty_arr(), fault(F_VALUE, "differential_evolution", "a bound is not finite, or a lower bound lies above its upper bound");
+        }
+        i += 1;
+    }
+    let np = popsize * n;
+    var r = default_rng(seed);
+    var pop: f64[>..] = [];
+    var val: f64[>..] = [];
+    var p: i64 = 0;
+    while p < np {
+        var cand: f64[>..] = [];
+        i = 0;
+        while i < n { cand.push(lower[i] + random_uniform(r) * (upper[i] - lower[i])); i += 1; }
+        let v = F(copy(cand));
+        if !(v - v == 0.0) {
+            return empty_arr(), fault(F_VALUE, "differential_evolution", "the function gave a value that is not finite");
+        }
+        i = 0;
+        while i < n { pop.push(cand[i]); i += 1; }
+        val.push(v);
+        p += 1;
+    }
+    var gen: i64 = 0;
+    while gen < maxiter {
+        var best: i64 = 0;
+        p = 1;
+        while p < np { if val[p] < val[best] { best = p; } p += 1; }
+        let mutation = 0.5 + 0.5 * random_uniform(r);
+        p = 0;
+        while p < np {
+            var r1 = integers(r, 0, np);
+            var r2 = integers(r, 0, np);
+            while r1 == p { r1 = integers(r, 0, np); }
+            while r2 == p || r2 == r1 { r2 = integers(r, 0, np); }
+            let jr = integers(r, 0, n);
+            var trial: f64[>..] = [];
+            i = 0;
+            while i < n {
+                var xi = pop[p * n + i];
+                if random_uniform(r) < recombination || i == jr {
+                    xi = pop[best * n + i] + mutation * (pop[r1 * n + i] - pop[r2 * n + i]);
+                    if xi < lower[i] || xi > upper[i] { xi = lower[i] + random_uniform(r) * (upper[i] - lower[i]); }
+                }
+                trial.push(xi);
+                i += 1;
+            }
+            let tv = F(copy(trial));
+            if !(tv - tv == 0.0) {
+                return empty_arr(), fault(F_VALUE, "differential_evolution", "the function gave a value that is not finite");
+            }
+            if tv < val[p] {
+                i = 0;
+                while i < n { pop[p * n + i] = trial[i]; i += 1; }
+                val[p] = tv;
+            }
+            p += 1;
+        }
+        gen += 1;
+        var mean: f64 = 0.0;
+        p = 0;
+        while p < np { mean += val[p]; p += 1; }
+        mean = mean / np;
+        var sq: f64 = 0.0;
+        p = 0;
+        while p < np { sq += (val[p] - mean) * (val[p] - mean); p += 1; }
+        let spread = mathshim::root(sq / np);
+        if spread <= 1.0e-300 || spread <= tol * mathshim::abs_of(mean) { break; }
+    }
+    var best: i64 = 0;
+    p = 1;
+    while p < np { if val[p] < val[best] { best = p; } p += 1; }
+    var out: f64[>..] = [];
+    i = 0;
+    while i < n { out.push(pop[best * n + i]); i += 1; }
+    out.push(val[best]);
+    return line_arr(copy(out)), no_fault();
+}
