@@ -72,8 +72,8 @@ fn jacobi(a, n: i64) -> Arr, Arr, Fault {
         while k < n {
             let vkp = v[k * n + p];
             let vkq = v[k * n + q];
-            v[k * n + p] = c2 * vkp + s2 * vkq;
-            v[k * n + q] = -s2 * vkp + c2 * vkq;
+            v[k * n + p] = c2 * vkp - s2 * vkq;
+            v[k * n + q] = s2 * vkp + c2 * vkq;
             k += 1;
         }
         sweep += 1;
@@ -99,11 +99,13 @@ fn jacobi(a, n: i64) -> Arr, Arr, Fault {
     var vals: f64[>..] = [];
     var vecs: f64[>..] = [];
     i = 0;
+    while i < n * n { vecs.push(0.0); i += 1; }
+    i = 0;
     while i < n {
         vals.push(m[order[i] * n + order[i]]);
         var r2: i64 = 0;
         while r2 < n {
-            vecs.push(v[r2 * n + order[i]]);
+            vecs[r2 * n + i] = v[r2 * n + order[i]];
             r2 += 1;
         }
         i += 1;
