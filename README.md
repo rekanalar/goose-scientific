@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.55.0";
+import scientific from "rekanalar/goose-scientific@v0.56.0";
 ```
 
 ## API
@@ -26,7 +26,7 @@ import scientific from "rekanalar/goose-scientific@v0.55.0";
 |---|---|
 | Creation | `zeros`, `ones`, `full`, `arange`, `linspace`, `eye`, `identity`, `diag`, `diagflat`, `logspace`, `geomspace`, `from_rows`, `from_values`, `clone` |
 | Stacks | `vstack`, `hstack`, `dstack`, `column_stack` |
-| Grids | `meshgrid(x, y, indexing="xy", sparse=false)`, `cross` |
+| Grids | `meshgrid(x, y, indexing="xy", sparse=false)`, `cross`, `interpn` |
 | Constants | `constants::pi`, `constants::c`, `constants::h` and the rest of the module of SciPy, `value`, `unit`, `precision`, `find`, `convert_temperature`, `lambda2nu`, `nu2lambda` |
 | Moves | `moveaxis`, `moveaxis_many`, `flipud`, `fliplr`, `rot90(a, k=1, axis0=0, axis1=1)`, `broadcast_to`, `broadcast_arrays`, `select`, `apply_along_axis`, `apply_along_axis_scalar` |
 | Positions | `argwhere`, `flatnonzero` |
@@ -428,6 +428,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   broadcast, as NumPy does not.
 - `flatnonzero` gives the flat positions of the elements that are not
   zero. It holds the same result as `nonzero`.
+- `interpn` interpolates a regular grid at many points. It takes the
+  grids in one flat list and the length of each axis. It takes the
+  values and the points. The methods are `linear` and `nearest`. A point
+  outside the grid is a fault, unless the caller turns the check off
+  and gives a fill value. A grid that does not rise strictly is a
+  fault.
+- `interpn` has no method of `cubic` and no extrapolation. It takes at
+  most eight axes.
 - `meshgrid` takes two vectors and returns two arrays. The indexing
   `"xy"` gives the shape (len(y), len(x)). The indexing `"ij"` gives
   (len(x), len(y)). It takes two inputs, not more.

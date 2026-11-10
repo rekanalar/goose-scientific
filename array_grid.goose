@@ -90,3 +90,124 @@ fn cross(a, b) -> Arr, Fault {
     s.push(3);
     return Arr { ndim: s.len, shape: s, data: d }, no_fault();
 }
+
+// grid_cell finds the cell of a point along one grid axis. The grid
+// starts at offset in the flat buffer and holds n values. The cell index
+// stays within 0 to n - 2, so a point outside the grid uses the end cell.
+fn grid_cell(grids: f64[:], offset: i64, n: i64, x: f64) -> i64 {
+    var lo: i64 = 0;
+    var hi: i64 = n - 1;
+    while hi - lo > 1 {
+        let mid = (lo + hi) / 2;
+        if grids[offset + mid] <= x { lo = mid; } else { hi = mid; }
+    }
+    return lo;
+}
+
+// interpn interpolates a regular grid of N dimensions at many points,
+// as scipy.interpolate.interpn and RegularGridInterpolator do. The
+// grids come in one flat list, one axis after the other, and lens holds
+// the length of each axis. The values hold one number for each grid
+// point. The points are a matrix with one row for each point and one
+// column for each axis. The method is "linear" or "nearest". A point
+// outside the grid is a fault when bounds_error holds, and gives
+// fill_value otherwise.
+fn interpn(grids: f64[:], lens: i64[:], values, xi, method: const u8[:] = "linear", bounds_error: bool = true, fill_value: f64 = 0.0 / 0.0) -> Arr, Fault {
+    let nd = lens.len;
+    if nd < 1 || nd > MAX_DIMS || values.ndim != nd {
+        return empty_arr(), fault(F_SHAPE, "interpn", "the values do not hold one axis for each grid");
+    }
+    if method != "linear" && method != "nearest" {
+        return empty_arr(), fault(F_VALUE, "interpn", "the method holds an unknown name");
+    }
+    var offs: i64[>..] = [];
+    var total: i64 = 0;
+    var d: i64 = 0;
+    while d < nd {
+        if lens[d] < 2 || values.shape[d] != lens[d] {
+            return empty_arr(), fault(F_SHAPE, "interpn", "a grid holds fewer than two points or does not fit the values");
+        }
+        offs.push(total);
+        total += lens[d];
+        d += 1;
+    }
+    if grids.len != total {
+        return empty_arr(), fault(F_SHAPE, "interpn", "the grids do not hold the lengths in lens");
+    }
+    d = 0;
+    while d < nd {
+        var k: i64 = 0;
+        while k < lens[d] {
+            let g = grids[offs[d] + k];
+            if !(g - g == 0.0) { return empty_arr(), fault(F_VALUE, "interpn", "a grid holds a value that is not finite"); }
+            if k > 0 && !(g > grids[offs[d] + k - 1]) {
+                return empty_arr(), fault(F_VALUE, "interpn", "a grid does not rise strictly");
+            }
+            k += 1;
+        }
+        d += 1;
+    }
+    var strides: i64[>..] = [];
+    strides_of(values.shape, strides);
+    var np: i64 = 0;
+    if xi.ndim == 2 && xi.shape[1] == nd { np = xi.shape[0]; }
+    else if xi.ndim == 1 && nd == xi.shape[0] { np = 1; }
+    else { return empty_arr(), fault(F_SHAPE, "interpn", "the points do not hold one column for each axis"); }
+    var out: f64[>..] = [];
+    var p: i64 = 0;
+    while p < np {
+        var inside = true;
+        var idx: i64[>..] = [];
+        var frac: f64[>..] = [];
+        d = 0;
+        while d < nd {
+            let x = xi.data[p * nd + d];
+            let lo = grids[offs[d]];
+            let hi = grids[offs[d] + lens[d] - 1];
+            if x != x { inside = false; }
+            else if x < lo || x > hi {
+                if bounds_error { return empty_arr(), fault(F_RANGE, "interpn", "a point stands outside the grid"); }
+                inside = false;
+            }
+            var c: i64 = 0;
+            var t: f64 = 0.0;
+            if x == x {
+                c = grid_cell(grids, offs[d], lens[d], x);
+                t = (x - grids[offs[d] + c]) / (grids[offs[d] + c + 1] - grids[offs[d] + c]);
+            }
+            idx.push(c);
+            frac.push(t);
+            d += 1;
+        }
+        if !inside { out.push(fill_value); p += 1; continue; }
+        var v: f64 = 0.0;
+        if method == "nearest" {
+            var at: i64 = 0;
+            d = 0;
+            while d < nd {
+                var c = idx[d];
+                if frac[d] > 0.5 { c += 1; }
+                at += c * strides[d];
+                d += 1;
+            }
+            v = values.data[at];
+        } else {
+            var corner: i64 = 0;
+            while corner < (1 << nd) {
+                var w: f64 = 1.0;
+                var at: i64 = 0;
+                d = 0;
+                while d < nd {
+                    if (corner >> d) % 2 == 1 { w *= frac[d]; at += (idx[d] + 1) * strides[d]; }
+                    else { w *= 1.0 - frac[d]; at += idx[d] * strides[d]; }
+                    d += 1;
+                }
+                if w != 0.0 { v += w * values.data[at]; }
+                corner += 1;
+            }
+        }
+        out.push(v);
+        p += 1;
+    }
+    return line_arr(copy(out)), no_fault();
+}
