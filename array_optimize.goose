@@ -343,3 +343,16 @@ fn fsolve<F: fn(f64[:]) -> f64[:]>(x0: f64[:], xtol: f64, turns: i64) -> Arr, Fa
     }
     return empty_arr(), fault(F_LIMIT, "fsolve", "the method did not reach the tolerance in the count of turns");
 }
+
+// root_scalar finds a root of a function in the bracket [a, b] by the
+// method named: "brentq", "brenth", "bisect" or "ridder". The function
+// takes the number as a block. The names and the tolerance follow
+// scipy.optimize.root_scalar for a bracket. A method that needs a
+// derivative stays with newton.
+fn root_scalar<F: fn(f64) -> f64>(a: f64, b: f64, method: const u8[:] = "brentq", xtol: f64 = 2.0e-12, maxiter: i64 = 100) -> f64, Fault {
+    if method == "brentq" { return brentq(a, b, xtol, maxiter) { x => F(x) }; }
+    if method == "brenth" { return brenth(a, b, xtol, maxiter) { x => F(x) }; }
+    if method == "bisect" { return bisect(a, b, xtol, maxiter) { x => F(x) }; }
+    if method == "ridder" { return ridder(a, b, xtol, maxiter) { x => F(x) }; }
+    return 0.0, fault(F_VALUE, "root_scalar", "the method holds an unknown name");
+}

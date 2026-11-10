@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.61.0";
+import scientific from "rekanalar/goose-scientific@v0.62.0";
 ```
 
 ## API
@@ -62,7 +62,7 @@ import scientific from "rekanalar/goose-scientific@v0.61.0";
 | Cuts | `split`, `array_split`, `hsplit`, `vsplit`, `part` |
 | Triangles | `tril`, `triu` |
 | Between the points | `interp`, `gradient`, `pad_value` |
-| Root finding | `brentq`, `brenth`, `newton`, `fsolve` |
+| Root finding | `brentq`, `brenth`, `newton`, `fsolve`, `root_scalar` |
 | Minimization | `minimize_scalar`, `minimize`, `least_squares`, `curve_fit` |
 | Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
@@ -721,6 +721,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   its sign. The two points that hold no change of sign are a fault.
 - `brenth` finds the same root with the step of the false position.
   The step holds the root between the two points at every turn.
+- `root_scalar` takes a bracket and the method `brentq`, `brenth`,
+  `bisect` or `ridder`. It gives no result object. The methods that
+  need a derivative stay with `newton`. A call with a start point and
+  no bracket is a fault.
 - `newton` takes the derivative of the function as a named function.
   A derivative of zero is a fault.
 - `fsolve` finds the point where several equations hold zero. The
