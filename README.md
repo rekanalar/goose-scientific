@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.36.0";
+import scientific from "rekanalar/goose-scientific@v0.37.0";
 ```
 
 ## API
@@ -68,6 +68,7 @@ import scientific from "rekanalar/goose-scientific@v0.36.0";
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
 | Filters | `butter`, `lfilter`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
+| Covariance and NaN statistics | `cov`, `cov_with`, `corrcoef`, `corrcoef_with`, `nanmedian`, `nanpercentile`, `nanquantile`, `nanargmax`, `nanargmin`, `nancumsum`, `nancumprod`, `cumulative_sum`, `cumulative_prod`, `ediff1d`, `histogram_bin_edges` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -98,6 +99,17 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- `cov` takes `ddof` in place of `bias`: `bias=true` equals `ddof=0`.
+  It takes no weights yet. The second array of NumPy goes through
+  `cov_with` and `corrcoef_with`. A vector gives a matrix of one row
+  and one column, because the package holds no array of zero
+  dimensions.
+- The NaN order statistics work on the whole array and give NaN for
+  an array of only NaN. `nanargmax` and `nanargmin` refuse such an
+  array with a fault, as NumPy raises an error.
+- `cumulative_sum` and `cumulative_prod` take an axis. They take no
+  flat form. `histogram_bin_edges` takes a count of bins and no rule
+  by name.
 - The type `Polynomial` holds the coefficients from the lowest
   power. The functions carry the name of the type, because the
   namespace holds no methods. The functions of array_poly keep the
