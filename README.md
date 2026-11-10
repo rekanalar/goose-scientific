@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.51.0";
+import scientific from "rekanalar/goose-scientific@v0.52.0";
 ```
 
 ## API
@@ -270,10 +270,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `lexsort` takes the keys as the rows of a matrix. The last row is the
   main key.
 - `pad` and `block` are keywords of Goose, so NumPy `pad` is `pad_modes`
-  and NumPy `block` is `block_grid`. `pad_modes` takes one count per axis
-  in two lists and the modes `constant`, `edge`, `reflect`, `symmetric`
-  and `wrap`. The modes `linear_ramp`, `maximum`, `minimum`, `mean` and
-  `median` give a fault.
+  and NumPy `block` is `block_grid`. `pad_modes` takes one count per
+  axis in two lists. The modes are `constant`, `edge`, `reflect`,
+  `symmetric`, `wrap`, `linear_ramp`, `maximum`, `minimum`, `mean` and
+  `median`.
+  `value` is the end value of `linear_ramp`. `stat_length` is one count
+  for every axis; NumPy also takes one pair per axis. A count above the
+  width of an axis is a fault.
 - `append` and `delete` flatten the array, as NumPy does with no axis.
   `append_axis` and `delete_axis` take an axis. A `delete` result with no
   element is a fault, because the package holds no empty array.

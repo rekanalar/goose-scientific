@@ -2895,7 +2895,7 @@ fn test_assemble() {
     assert(g18.kind == scientific::F_NONE && same_vals(pe, [9], [1.0, 1.0, 1.0, 2.0, 3.0, 4.0, 4.0, 4.0, 4.0]));
     let pc, g19 = scientific::pad_modes(av([1.0, 2.0]), [1], [2], "constant", 9.0);
     assert(g19.kind == scientific::F_NONE && same_vals(pc, [5], [9.0, 1.0, 2.0, 9.0, 9.0]));
-    let pm, g20 = scientific::pad_modes(q, [1], [1], "mean");
+    let pm, g20 = scientific::pad_modes(q, [1], [1], "unknown");
     assert(g20.kind == scientific::F_VALUE && pm.data.len == 0);
     let pn, g21 = scientific::pad_modes(q, [-1], [1]);
     assert(g21.kind == scientific::F_VALUE && pn.data.len == 0);
@@ -3894,6 +3894,31 @@ fn test_carray() {
     return;
 }
 
+// The statistic modes of pad_modes, pinned against NumPy.
+fn test_pad_stats() {
+    let q = av([3.0, 1.0, 4.0, 1.0, 5.0]);
+    let m = mx(2, 3, [1.0, 2.0, 3.0, 4.0, 8.0, 6.0]);
+    let r1, f1 = scientific::pad_modes(q, [3], [4], "linear_ramp", 7.0);
+    assert(f1.kind == scientific::F_NONE && all_near(r1, [7.0, 5.666666666666667, 4.333333333333334, 3.0, 1.0, 4.0, 1.0, 5.0, 5.5, 6.0, 6.5, 7.0]));
+    let r2, f2 = scientific::pad_modes(q, [3], [4], "maximum");
+    assert(f2.kind == scientific::F_NONE && all_near(r2, [5.0, 5.0, 5.0, 3.0, 1.0, 4.0, 1.0, 5.0, 5.0, 5.0, 5.0, 5.0]));
+    let r3, f3 = scientific::pad_modes(q, [3], [4], "minimum", 0.0, 3);
+    assert(f3.kind == scientific::F_NONE && all_near(r3, [1.0, 1.0, 1.0, 3.0, 1.0, 4.0, 1.0, 5.0, 1.0, 1.0, 1.0, 1.0]));
+    let r4, f4 = scientific::pad_modes(q, [3], [4], "mean", 0.0, 2);
+    assert(f4.kind == scientific::F_NONE && all_near(r4, [2.0, 2.0, 2.0, 3.0, 1.0, 4.0, 1.0, 5.0, 3.0, 3.0, 3.0, 3.0]));
+    let r5, f5 = scientific::pad_modes(q, [3], [4], "median");
+    assert(f5.kind == scientific::F_NONE && all_near(r5, [3.0, 3.0, 3.0, 3.0, 1.0, 4.0, 1.0, 5.0, 3.0, 3.0, 3.0, 3.0]));
+    let r6, f6 = scientific::pad_modes(m, [1, 2], [2, 1], "mean");
+    assert(f6.kind == scientific::F_NONE && all_near(r6, [4.0, 4.0, 2.5, 5.0, 4.5, 4.0, 2.0, 2.0, 1.0, 2.0, 3.0, 2.0, 6.0, 6.0, 4.0, 8.0, 6.0, 6.0, 4.0, 4.0, 2.5, 5.0, 4.5, 4.0, 4.0, 4.0, 2.5, 5.0, 4.5, 4.0]));
+    let r7, f7 = scientific::pad_modes(m, [2, 1], [1, 2], "linear_ramp", -1.0);
+    assert(f7.kind == scientific::F_NONE && all_near(r7, [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, 0.5, 1.0, 0.0, -1.0, -1.0, 1.0, 2.0, 3.0, 1.0, -1.0, -1.0, 4.0, 8.0, 6.0, 2.5, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]));
+    let r8, f8 = scientific::pad_modes(m, [1, 1], [1, 1], "median", 0.0, 2);
+    assert(f8.kind == scientific::F_NONE && all_near(r8, [3.75, 2.5, 5.0, 4.5, 4.75, 1.5, 1.0, 2.0, 3.0, 2.5, 6.0, 4.0, 8.0, 6.0, 7.0, 3.75, 2.5, 5.0, 4.5, 4.75]));
+    let r9, f9 = scientific::pad_modes(q, [1], [1], "mean", 0.0, -1);
+    assert(f9.kind == scientific::F_VALUE);
+    return;
+}
+
 fn test_matfun() {
     let eg, egf = scientific::from_rows(3, 3, [4.0, 1.0, 0.0, 1.0, 3.0, 0.5, 0.0, 0.5, 2.0]);
     let ew, ev, evf = scientific::eigh(eg);
@@ -3996,6 +4021,7 @@ fn main() {
     test_sparse();
     test_matfun();
     test_carray();
+    test_pad_stats();
     test_generators();
     test_indexing();
     test_sort_and_search();

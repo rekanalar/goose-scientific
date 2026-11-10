@@ -153,7 +153,7 @@ fn resize(a, shape: i64[:]) -> Arr, Fault {
 // along one axis. The value -1 means the constant value.
 fn pad_source(k: i64, n: i64, mode: const u8[:]) -> i64 {
     if k >= 0 && k < n { return k; }
-    if mode == "constant" { return -1; }
+    if mode == "constant" || pad_is_stat(mode) { return -1; }
     if mode == "edge" {
         if k < 0 { return 0; }
         return n - 1;
@@ -172,8 +172,65 @@ fn pad_source(k: i64, n: i64, mode: const u8[:]) -> i64 {
     return r;
 }
 
+// pad_is_stat tells whether a mode fills the pad from the line itself.
+fn pad_is_stat(mode: const u8[:]) -> bool {
+    return mode == "linear_ramp" || mode == "maximum" || mode == "minimum" || mode == "mean" || mode == "median";
+}
+
+// pad_stat gives the value of one pad place of the statistic modes. The
+// position p lies outside the line: below zero before the line, and at
+// the width or above after it. The statistic takes the len values
+// nearest to that end of the line. The value is the end value of the
+// ramp for linear_ramp.
+fn pad_stat(a, base: i64, width: i64, inner: i64, p: i64, before: i64, after: i64, mode: const u8[:], end: f64, len: i64) -> f64 {
+    let low = p < 0;
+    var edge: f64 = 0.0;
+    if low { edge = a.data[base]; } else { edge = a.data[base + (width - 1) * inner]; }
+    if mode == "linear_ramp" {
+        if low { return end + (edge - end) * (before + p) / before; }
+        let q = p - width;
+        return end + (edge - end) * (after - 1 - q) / after;
+    }
+    var cnt = width;
+    if len > 0 { cnt = len; }
+    var vals: f64[>..] = [];
+    var i: i64 = 0;
+    while i < cnt {
+        if low { vals.push(a.data[base + i * inner]); }
+        else { vals.push(a.data[base + (width - cnt + i) * inner]); }
+        i += 1;
+    }
+    if mode == "maximum" || mode == "minimum" {
+        var best = vals[0];
+        i = 1;
+        while i < cnt {
+            if mode == "maximum" && vals[i] > best { best = vals[i]; }
+            if mode == "minimum" && vals[i] < best { best = vals[i]; }
+            i += 1;
+        }
+        return best;
+    }
+    if mode == "mean" {
+        var t: f64 = 0.0;
+        i = 0;
+        while i < cnt { t += vals[i]; i += 1; }
+        return t / cnt;
+    }
+    // The median sorts a copy by insertion.
+    i = 1;
+    while i < cnt {
+        let v = vals[i];
+        var j = i - 1;
+        while j >= 0 && vals[j] > v { vals[j + 1] = vals[j]; j -= 1; }
+        vals[j + 1] = v;
+        i += 1;
+    }
+    if cnt % 2 == 1 { return vals[cnt / 2]; }
+    return (vals[cnt / 2 - 1] + vals[cnt / 2]) / 2.0;
+}
+
 // pad_one grows one axis by the counts before and after.
-fn pad_one(a, axis: i64, before: i64, after: i64, mode: const u8[:], value: f64) -> Arr, Fault {
+fn pad_one(a, axis: i64, before: i64, after: i64, mode: const u8[:], value: f64, len: i64) -> Arr, Fault {
     let width = a.shape[axis];
     let inner = product_after_of(a.shape, axis);
     let outer = product_before_of(a.shape, axis);
@@ -189,7 +246,10 @@ fn pad_one(a, axis: i64, before: i64, after: i64, mode: const u8[:], value: f64)
             let src = pad_source(k - before, width, mode);
             var j: i64 = 0;
             while j < inner {
-                if src < 0 { d.push(value); }
+                if src < 0 && pad_is_stat(mode) {
+                    d.push(pad_stat(a, o * width * inner + j, width, inner, k - before, before, after, mode, value, len));
+                }
+                else if src < 0 { d.push(value); }
                 else { d.push(a.data[o * width * inner + src * inner + j]); }
                 j += 1;
             }
@@ -206,14 +266,29 @@ fn pad_one(a, axis: i64, before: i64, after: i64, mode: const u8[:], value: f64)
 
 // pad_modes grows every axis (the name pad is a keyword of Goose). The lists before and after hold one count per
 // axis. The mode is "constant", "edge", "reflect", "symmetric" or
-// "wrap". The value fills a constant pad. A count below zero is a
+// "wrap", or one of "linear_ramp", "maximum", "minimum", "mean" and
+// "median". The value fills a constant pad and is the end value of a
+// ramp. The statistic modes take the stat_length values nearest the
+// edge, or the whole line when it is zero. The value fills a constant pad. A count below zero is a
 // fault.
-fn pad_modes(a, before: i64[:], after: i64[:], mode: const u8[:] = "constant", value: f64 = 0.0) -> Arr, Fault {
+fn pad_modes(a, before: i64[:], after: i64[:], mode: const u8[:] = "constant", value: f64 = 0.0, stat_length: i64 = 0) -> Arr, Fault {
     if before.len != a.ndim || after.len != a.ndim {
         return empty_arr(), fault(F_SHAPE, "pad", "the counts do not hold one value per axis");
     }
-    if mode != "constant" && mode != "edge" && mode != "reflect" && mode != "symmetric" && mode != "wrap" {
+    if mode != "constant" && mode != "edge" && mode != "reflect" && mode != "symmetric" && mode != "wrap" && !pad_is_stat(mode) {
         return empty_arr(), fault(F_VALUE, "pad", "the mode holds an unknown name");
+    }
+    if stat_length < 0 {
+        return empty_arr(), fault(F_VALUE, "pad", "the statistic length holds a value below zero");
+    }
+    if stat_length > 0 {
+        var ax = 0;
+        while ax < a.ndim {
+            if stat_length > a.shape[ax] {
+                return empty_arr(), fault(F_VALUE, "pad", "the statistic length is above the width of an axis");
+            }
+            ax += 1;
+        }
     }
     var cur = clone_of(a);
     var ax: i64 = 0;
@@ -221,7 +296,7 @@ fn pad_modes(a, before: i64[:], after: i64[:], mode: const u8[:] = "constant", v
         if before[ax] < 0 || after[ax] < 0 {
             return empty_arr(), fault(F_VALUE, "pad", "a count of growth holds a value below zero");
         }
-        let r, f = pad_one(cur, ax, before[ax], after[ax], mode, value);
+        let r, f = pad_one(cur, ax, before[ax], after[ax], mode, value, stat_length);
         if f.kind != F_NONE { return empty_arr(), f; }
         cur = copy(r);
         ax += 1;
