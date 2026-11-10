@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.12.0";
+import scientific from "rekanalar/goose-scientific@v0.13.0";
 ```
 
 ## API
@@ -49,6 +49,7 @@ import scientific from "rekanalar/goose-scientific@v0.12.0";
 | Triangles | `tril`, `triu` |
 | Between the points | `interp`, `gradient`, `pad_value` |
 | Root finding | `brentq`, `brenth`, `newton`, `fsolve` |
+| Minimization | `minimize_scalar`, `minimize`, `least_squares` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -236,6 +237,17 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - Every solver takes a tolerance and a count of turns. A tolerance
   of zero and a count below one are faults. A method that does not
   reach the tolerance in the count of turns is a fault.
+- `minimize_scalar` finds the smallest point between two points. The
+  method cuts the bracket by the golden section, and it fits a
+  parabola at the end. The two points must hold a minimum between
+  them, else the method ends at one of them.
+- `minimize` finds the smallest point of a function of several
+  variables. The method of Nelder and Mead holds a simplex. A start
+  far from the point of the smallest value can end at a local point.
+- `least_squares` fits a function to values. The method of Levenberg
+  and Marquardt takes the matrix of the derivatives by a small
+  difference. So the fit holds fewer digits than a fit that takes the
+  derivatives from the caller.
 
 ## Security
 
@@ -301,6 +313,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The count of the turns bounds the work of a solver. A function that
   needs many turns holds a long time. A caller that sets the count
   low gets a fault instead of a wrong root.
+- A function whose values are close near its smallest point holds no
+  difference that the method can read. The method then stops at a
+  distance of about the size of the root of the machine. SciPy stops
+  at the same distance.
 
 ## License
 
