@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.77.0";
+import scientific from "rekanalar/goose-scientific@v0.78.0";
 ```
 
 ## API
@@ -80,7 +80,7 @@ import scientific from "rekanalar/goose-scientific@v0.77.0";
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `solve_ivp`, `odeint` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `firwin2`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
-| Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `spsolve`, `cg`, `bicgstab`, `gmres` |
+| Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
@@ -145,7 +145,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   preconditioner, no start vector and no callback. The path of the
   iteration may differ from SciPy, so only the solution matches.
 - `csr_hstack` and `csr_vstack` join two matrices, not a list. Call them
-  again for more. `csr_kron` takes two matrices.
+  again for more. `csr_kron` and `csr_block_diag` take two matrices.
+- `csr_slice` takes the row and column ranges with the end excluded and
+  no step. `csr_tril` and `csr_triu` take the diagonal `k`.
+  `csr_multiply` takes two matrices of one shape and does not broadcast.
 - The sparse type holds compressed rows only, in the type `Csr`. The
   types `csc_array`, `coo_array`, `lil_array`, `dok_array`, `dia_array`
   and `bsr_array` stay out. Build a matrix from a list of entries with

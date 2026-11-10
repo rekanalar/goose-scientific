@@ -4574,7 +4574,40 @@ fn test_differential_evolution() {
     return;
 }
 
+// The structure functions of sparse matrices are pinned against SciPy.
+fn test_sparse_structure() {
+    let a, fa = scientific::csr_from_dense(mx(3, 4, [1.0, 0.0, 2.0, 0.0, 0.0, 3.0, 0.0, 4.0, 5.0, 0.0, 6.0, 0.0]));
+    let b, fb = scientific::csr_from_dense(mx(2, 2, [0.0, 7.0, 8.0, 0.0]));
+    let s, fs = scientific::csr_from_dense(mx(3, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]));
+    let c, fc = scientific::csr_from_dense(mx(3, 4, [1.0, 0.0, 3.0, 0.0, 0.0, 2.0, 0.0, 4.0, 5.0, 0.0, 0.0, 0.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE && fs.kind == scientific::F_NONE && fc.kind == scientific::F_NONE);
+    let bd, f1 = scientific::csr_block_diag(a, b);
+    let bdd, f1d = scientific::csr_to_dense(bd);
+    assert(f1.kind == scientific::F_NONE && bd.rows == 5 && bd.cols == 6 && all_near(bdd, [1.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 4.0, 0.0, 0.0, 5.0, 0.0, 6.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 7.0, 0.0, 0.0, 0.0, 0.0, 8.0, 0.0]));
+    let lo, f2 = scientific::csr_tril(s, -1);
+    let lod, f2d = scientific::csr_to_dense(lo);
+    assert(f2.kind == scientific::F_NONE && all_near(lod, [0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 7.0, 8.0, 0.0]));
+    let up, f3 = scientific::csr_triu(s, 1);
+    let upd, f3d = scientific::csr_to_dense(up);
+    assert(f3.kind == scientific::F_NONE && all_near(upd, [0.0, 2.0, 3.0, 0.0, 0.0, 6.0, 0.0, 0.0, 0.0]));
+    let lo0, f4 = scientific::csr_tril(s);
+    let lo0d, f4d = scientific::csr_to_dense(lo0);
+    assert(f4.kind == scientific::F_NONE && all_near(lo0d, [1.0, 0.0, 0.0, 4.0, 5.0, 0.0, 7.0, 8.0, 9.0]));
+    let m, f5 = scientific::csr_multiply(a, c);
+    let md, f5d = scientific::csr_to_dense(m);
+    assert(f5.kind == scientific::F_NONE && all_near(md, [1.0, 0.0, 6.0, 0.0, 0.0, 6.0, 0.0, 16.0, 25.0, 0.0, 0.0, 0.0]));
+    let sl, f6 = scientific::csr_slice(a, 1, 3, 1, 4);
+    let sld, f6d = scientific::csr_to_dense(sl);
+    assert(f6.kind == scientific::F_NONE && sl.rows == 2 && sl.cols == 3 && all_near(sld, [3.0, 0.0, 4.0, 0.0, 6.0, 0.0]));
+    let bad, f7 = scientific::csr_multiply(a, b);
+    assert(f7.kind == scientific::F_SHAPE);
+    let bad2, f8 = scientific::csr_slice(a, 2, 2, 0, 1);
+    assert(f8.kind == scientific::F_RANGE);
+    return;
+}
+
 fn main() {
+    test_sparse_structure();
     test_differential_evolution();
     test_istft();
     test_stft();

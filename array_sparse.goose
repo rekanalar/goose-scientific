@@ -744,3 +744,115 @@ fn gmres(s, b: f64[:], rtol: f64 = 1.0e-5, restart: i64 = 20, maxiter: i64 = 0) 
     if krylov_norm(rr) <= rtol * bn { return line_arr(copy(x)), 0, no_fault(); }
     return line_arr(copy(x)), cycle, no_fault();
 }
+
+// csr_block_diag places two sparse matrices on the diagonal of a larger
+// one, as block_diag of SciPy does.
+fn csr_block_diag(a, b) -> Csr, Fault {
+    var ri: f64[>..] = [];
+    var ci: f64[>..] = [];
+    var v: f64[>..] = [];
+    var i: i64 = 0;
+    while i < a.rows + b.rows {
+        var p: i64 = 0;
+        var end: i64 = 0;
+        if i < a.rows { p = csr_ptr(a, i); end = csr_ptr(a, i + 1); }
+        else { p = csr_ptr(b, i - a.rows); end = csr_ptr(b, i - a.rows + 1); }
+        while p < end {
+            ri.push(i as f64);
+            if i < a.rows { ci.push(csr_col(a, p) as f64); v.push(csr_val(a, p)); }
+            else { ci.push((a.cols + csr_col(b, p)) as f64); v.push(csr_val(b, p)); }
+            p += 1;
+        }
+        i += 1;
+    }
+    return csr_from_triplets(a.rows + b.rows, a.cols + b.cols, ri, ci, v);
+}
+
+// csr_part keeps the stored values of the lower part (lower true) or
+// the upper part, from the diagonal k. The diagonal k holds the values
+// with column minus row equal to k.
+fn csr_part(a, k: i64, lower: bool) -> Csr, Fault {
+    var ri: f64[>..] = [];
+    var ci: f64[>..] = [];
+    var v: f64[>..] = [];
+    var i: i64 = 0;
+    while i < a.rows {
+        var p = csr_ptr(a, i);
+        while p < csr_ptr(a, i + 1) {
+            let j = csr_col(a, p);
+            if (lower && j - i <= k) || (!lower && j - i >= k) {
+                ri.push(i as f64);
+                ci.push(j as f64);
+                v.push(csr_val(a, p));
+            }
+            p += 1;
+        }
+        i += 1;
+    }
+    return csr_from_triplets(a.rows, a.cols, ri, ci, v);
+}
+
+// csr_tril gives the lower triangle of a sparse matrix up to the
+// diagonal k, as tril of SciPy does.
+fn csr_tril(a, k: i64 = 0) -> Csr, Fault { return csr_part(a, k, true); }
+
+// csr_triu gives the upper triangle of a sparse matrix from the
+// diagonal k, as triu of SciPy does.
+fn csr_triu(a, k: i64 = 0) -> Csr, Fault { return csr_part(a, k, false); }
+
+// csr_multiply gives the product of two sparse matrices of one shape,
+// value by value, as multiply of SciPy does.
+fn csr_multiply(a, b) -> Csr, Fault {
+    if a.rows != b.rows || a.cols != b.cols {
+        return csr_empty(), fault(F_SHAPE, "csr_multiply", "the matrices differ in shape");
+    }
+    var ri: f64[>..] = [];
+    var ci: f64[>..] = [];
+    var v: f64[>..] = [];
+    var i: i64 = 0;
+    while i < a.rows {
+        var p = csr_ptr(a, i);
+        var q = csr_ptr(b, i);
+        let pe = csr_ptr(a, i + 1);
+        let qe = csr_ptr(b, i + 1);
+        while p < pe && q < qe {
+            let ja = csr_col(a, p);
+            let jb = csr_col(b, q);
+            if ja == jb {
+                ri.push(i as f64);
+                ci.push(ja as f64);
+                v.push(csr_val(a, p) * csr_val(b, q));
+                p += 1;
+                q += 1;
+            } else if ja < jb { p += 1; } else { q += 1; }
+        }
+        i += 1;
+    }
+    return csr_from_triplets(a.rows, a.cols, ri, ci, v);
+}
+
+// csr_slice gives the block of rows r0 to r1 and columns c0 to c1, with
+// the end excluded, as the slice a[r0:r1, c0:c1] of SciPy does.
+fn csr_slice(a, r0: i64, r1: i64, c0: i64, c1: i64) -> Csr, Fault {
+    if r0 < 0 || c0 < 0 || r1 > a.rows || c1 > a.cols || r0 >= r1 || c0 >= c1 {
+        return csr_empty(), fault(F_RANGE, "csr_slice", "the slice stands outside the matrix or holds no element");
+    }
+    var ri: f64[>..] = [];
+    var ci: f64[>..] = [];
+    var v: f64[>..] = [];
+    var i: i64 = r0;
+    while i < r1 {
+        var p = csr_ptr(a, i);
+        while p < csr_ptr(a, i + 1) {
+            let j = csr_col(a, p);
+            if j >= c0 && j < c1 {
+                ri.push((i - r0) as f64);
+                ci.push((j - c0) as f64);
+                v.push(csr_val(a, p));
+            }
+            p += 1;
+        }
+        i += 1;
+    }
+    return csr_from_triplets(r1 - r0, c1 - c0, ri, ci, v);
+}
