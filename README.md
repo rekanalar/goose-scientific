@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.30.0";
+import scientific from "rekanalar/goose-scientific@v0.31.0";
 ```
 
 ## API
@@ -27,6 +27,7 @@ import scientific from "rekanalar/goose-scientific@v0.30.0";
 | Creation | `zeros`, `ones`, `full`, `arange`, `linspace`, `eye`, `identity`, `diag`, `diagflat`, `logspace`, `geomspace`, `from_rows`, `from_values`, `clone` |
 | Stacks | `vstack`, `hstack`, `dstack`, `column_stack` |
 | Grids | `meshgrid(x, y, indexing="xy", sparse=false)`, `cross` |
+| Constants | `constants::pi`, `constants::c`, `constants::h` and the rest of the module of SciPy, `value`, `unit`, `precision`, `find`, `convert_temperature`, `lambda2nu`, `nu2lambda` |
 | Moves | `moveaxis`, `moveaxis_many`, `flipud`, `fliplr`, `rot90(a, k=1, axis0=0, axis1=1)`, `broadcast_to`, `broadcast_arrays`, `select`, `apply_along_axis`, `apply_along_axis_scalar` |
 | Positions | `argwhere`, `flatnonzero` |
 | Histograms of two dimensions | `histogram2d(x, y, xbins=10, ybins=10)`, `histogramdd(points, bins=10)` |
@@ -100,6 +101,30 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   under one another. `hstack` joins the rows beside each other.
   `dstack` joins them in a third dimension. `column_stack` joins them
   as columns.
+- The constants of `scipy.constants` live in the namespace
+  `constants`. Examples are `constants::c`, `constants::pi`,
+  `constants::inch` and `constants::kilo`. The module holds 155 numbers
+  under the names of SciPy. The values come from SciPy 1.18, which
+  holds CODATA 2022. A program that has its own `constants` namespace
+  must rename one of the two.
+- `value`, `unit` and `precision` read the table of 445 physical
+  constants by name. The name must match in case, as the keys of SciPy
+  do. A name that the table lacks is a fault, where SciPy raises an
+  error. The table holds the entries that CODATA 2022 replaced, as SciPy
+  holds them. SciPy warns when it reads one of those names. This package
+  does not warn.
+- `precision` divides the uncertainty by the value and keeps the sign,
+  as SciPy does. A constant below zero gives a result below zero.
+- `find` gives the matching names as one text, one name per line, in
+  sorted order. SciPy gives a list of names. The text of `find` is the
+  same names in the same order.
+- The package holds no `physical_constants` dictionary. The table sits
+  in `constants::NAMES`, `constants::UNITS`, `constants::VALUES` and
+  `constants::UNCERTAINTIES`, in the order of the names.
+- `convert_temperature` takes Celsius, Kelvin, Fahrenheit and Rankine.
+  The name is the long name or C, K, F or R, in any case. The steps follow
+  SciPy, so the digits agree. `lambda2nu` and `nu2lambda` divide the
+  speed of light by each element.
 - `moveaxis` takes one axis. `moveaxis_many` takes lists of axes, as
   NumPy does. A negative axis counts from the end.
 - `rot90` takes the two axes as `axis0` and `axis1`. A negative `k`
