@@ -7,14 +7,15 @@ namespace scientific;
 
 // trapezoid takes the integral of the values of a signal by the rule
 // of the trapezoid. The spacing comes from the caller. A spacing of
-// zero is a fault.
+// zero is a fault. A signal of fewer than two values gives zero, as
+// SciPy does.
 fn trapezoid(y: f64[:], dx: f64) -> f64, Fault {
     if dx == 0.0 {
         return 0.0, fault(F_VALUE, "trapezoid", "the spacing holds zero");
     }
     let n = y.len;
     if n < 2 {
-        return 0.0, fault(F_VALUE, "trapezoid", "the signal holds fewer than two values");
+        return 0.0, no_fault();
     }
     var t: f64 = 0.0;
     var i: i64 = 1;
@@ -25,22 +26,45 @@ fn trapezoid(y: f64[:], dx: f64) -> f64, Fault {
     return t * dx, no_fault();
 }
 
+// trapezoid_axis takes the integral of the values of an array along one
+// axis by the rule of the trapezoid. The axis drops from the shape, as
+// SciPy does.
+fn trapezoid_axis(y, axis: i64 = -1, dx: f64 = 1.0) -> Arr, Fault {
+    let ax = fix_axis(axis, y.ndim);
+    if ax < 0 {
+        return empty_arr(), fault(F_RANGE, "trapezoid", "the axis stands outside the shape");
+    }
+    if dx == 0.0 {
+        return empty_arr(), fault(F_VALUE, "trapezoid", "the spacing holds zero");
+    }
+    var out: f64[>..] = [];
+    let r = integrate_lanes(y, ax, dx, 0, out);
+    if r.kind != F_NONE { return empty_arr(), r; }
+    return integrate_result(y, ax, out);
+}
+
 // simpson takes the integral of the values of a signal by the rule of
-// Simpson. A signal of an even count of parts holds no middle point
-// of the last part, and the rule of the trapezoid takes that part, as
-// NumPy does.
+// Simpson. A signal of an even count of values takes the correction of
+// Cartwright on the last part, as SciPy does. A signal of two values
+// takes the rule of the trapezoid.
 fn simpson(y: f64[:], dx: f64) -> f64, Fault {
     if dx == 0.0 {
         return 0.0, fault(F_VALUE, "simpson", "the spacing holds zero");
     }
     let n = y.len;
-    if n < 3 {
-        return 0.0, fault(F_VALUE, "simpson", "the signal holds fewer than three values");
+    if n < 1 {
+        return 0.0, fault(F_VALUE, "simpson", "the signal holds no value");
     }
-    // The parts of the signal. A part is the space between two
-    // values.
-    let parts = n - 1;
-    let pairs = parts / 2;
+    if n < 2 {
+        return 0.0, no_fault();
+    }
+    if n == 2 {
+        return (y[0] + y[1]) / 2.0 * dx, no_fault();
+    }
+    // The count of the pairs of parts that the rule of Simpson covers.
+    // A signal of an even count of values leaves one part out.
+    var pairs: i64 = 0;
+    if n % 2 == 1 { pairs = (n - 1) / 2; } else { pairs = (n - 2) / 2; }
     var t: f64 = 0.0;
     var i: i64 = 0;
     while i < pairs {
@@ -49,11 +73,129 @@ fn simpson(y: f64[:], dx: f64) -> f64, Fault {
         i += 1;
     }
     t = t * dx / 3.0;
-    // The last part of an even count takes the rule of the trapezoid.
-    if parts % 2 == 1 {
-        t += (y[n - 2] + y[n - 1]) / 2.0 * dx;
+    // The last part of a signal of an even count of values takes the
+    // correction of Cartwright.
+    if n % 2 == 0 {
+        t += 5.0 * dx / 12.0 * y[n - 1] + 2.0 * dx / 3.0 * y[n - 2] - dx / 12.0 * y[n - 3];
     }
     return t, no_fault();
+}
+
+// simpson_axis takes the integral of the values of an array along one
+// axis by the rule of Simpson. The axis drops from the shape, as SciPy
+// does.
+fn simpson_axis(y, axis: i64 = -1, dx: f64 = 1.0) -> Arr, Fault {
+    let ax = fix_axis(axis, y.ndim);
+    if ax < 0 {
+        return empty_arr(), fault(F_RANGE, "simpson", "the axis stands outside the shape");
+    }
+    if dx == 0.0 {
+        return empty_arr(), fault(F_VALUE, "simpson", "the spacing holds zero");
+    }
+    var out: f64[>..] = [];
+    let r = integrate_lanes(y, ax, dx, 1, out);
+    if r.kind != F_NONE { return empty_arr(), r; }
+    return integrate_result(y, ax, out);
+}
+
+// cumulative_trapezoid_axis takes the integral of the values of an
+// array up to every point along one axis by the rule of the trapezoid.
+// The axis holds one value less, as SciPy does.
+fn cumulative_trapezoid_axis(y, axis: i64 = -1, dx: f64 = 1.0) -> Arr, Fault {
+    let ax = fix_axis(axis, y.ndim);
+    if ax < 0 {
+        return empty_arr(), fault(F_RANGE, "cumulative_trapezoid", "the axis stands outside the shape");
+    }
+    if dx == 0.0 {
+        return empty_arr(), fault(F_VALUE, "cumulative_trapezoid", "the spacing holds zero");
+    }
+    let n = y.shape[ax];
+    if n < 2 {
+        return empty_arr(), fault(F_VALUE, "cumulative_trapezoid", "the axis holds fewer than two values");
+    }
+    let inner = product_after_of(y.shape, ax);
+    let outer = product_before_of(y.shape, ax);
+    let width = n - 1;
+    var res: f64[>..] = [];
+    var q: i64 = 0;
+    while q < outer * width * inner { res.push(0.0); q += 1; }
+    var o: i64 = 0;
+    while o < outer {
+        var j: i64 = 0;
+        while j < inner {
+            var lane: f64[>..] = [];
+            var k: i64 = 0;
+            while k < n {
+                lane.push(y.data[o * n * inner + k * inner + j]);
+                k += 1;
+            }
+            let t, f = cumulative_trapezoid(lane, dx);
+            if f.kind != F_NONE { return empty_arr(), f; }
+            k = 0;
+            while k < width {
+                res[o * width * inner + k * inner + j] = t.data[k];
+                k += 1;
+            }
+            j += 1;
+        }
+        o += 1;
+    }
+    var s: i64[..8] = [];
+    q = 0;
+    while q < y.ndim {
+        if q == ax { s.push(width); } else { s.push(y.shape[q]); }
+        q += 1;
+    }
+    return Arr { ndim: y.ndim, shape: s, data: res }, no_fault();
+}
+
+// integrate_lanes gathers every line of an array along an axis and
+// takes the integral of each line. The rule picks the rule of Simpson
+// when it holds one, and the rule of the trapezoid otherwise. The
+// values of the integrals go into the buffer out.
+fn integrate_lanes(y, ax: i64, dx: f64, rule: i32, out: f64[>..]&) -> Fault {
+    let n = y.shape[ax];
+    let inner = product_after_of(y.shape, ax);
+    let outer = product_before_of(y.shape, ax);
+    var o: i64 = 0;
+    while o < outer {
+        var j: i64 = 0;
+        while j < inner {
+            var lane: f64[>..] = [];
+            var k: i64 = 0;
+            while k < n {
+                lane.push(y.data[o * n * inner + k * inner + j]);
+                k += 1;
+            }
+            var t: f64 = 0.0;
+            if rule == 1 {
+                let v, f = simpson(lane, dx);
+                if f.kind != F_NONE { return f; }
+                t = v;
+            } else {
+                let v, f = trapezoid(lane, dx);
+                if f.kind != F_NONE { return f; }
+                t = v;
+            }
+            out.push(t);
+            j += 1;
+        }
+        o += 1;
+    }
+    return no_fault();
+}
+
+// integrate_result gives the shape and the values of the integral of
+// the lines of an array. The axis drops from the shape. A signal of one
+// dimension gives a result of no dimension, as SciPy does.
+fn integrate_result(y, ax: i64, out: f64[>..]&) -> Arr, Fault {
+    var sc: i64[..8] = [];
+    var i: i64 = 0;
+    while i < y.ndim {
+        if i != ax { sc.push(y.shape[i]); }
+        i += 1;
+    }
+    return Arr { ndim: sc.len, shape: sc, data: copy(out) }, no_fault();
 }
 
 // cumulative_trapezoid takes the integral of the values up to every

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.109.0";
+import scientific from "rekanalar/goose-scientific@v0.110.0";
 ```
 
 ## API
@@ -64,7 +64,7 @@ import scientific from "rekanalar/goose-scientific@v0.109.0";
 | Between the points | `interp`, `gradient`, `pad_value` |
 | Root finding | `brentq`, `brenth`, `newton`, `halley`, `secant`, `toms748`, `fsolve`, `root`, `root_scalar` |
 | Minimization | `minimize_scalar`, `minimize`, `minimize_grad`, `minimize_constrained`, `differential_evolution`, `dual_annealing`, `basinhopping`, `least_squares`, `curve_fit` |
-| Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `cumulative_simpson`, `cumulative_simpson_dx`, `cumulative_simpson_axis`, `romberg` |
+| Integration | `trapezoid`, `trapezoid_axis`, `simpson`, `simpson_axis`, `cumulative_trapezoid`, `cumulative_trapezoid_axis`, `cumulative_simpson`, `cumulative_simpson_dx`, `cumulative_simpson_axis`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
 | Filters | `butter`, `lfilter`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
@@ -1032,8 +1032,21 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   spacing. A caller that needs the integral of a function samples the
   function first.
 - `trapezoid` takes the rule of the trapezoid. `simpson` takes the
-  rule of Simpson. An even count of parts takes the trapezoid on the
-  last part, as NumPy does.
+  rule of Simpson. An even count of parts takes the correction of
+  Cartwright on the last part, as SciPy 1.18 does. Before v0.110.0 the
+  even count took the trapezoid on the last part. The value of an
+  even count differs from that release on.
+- `trapezoid` of a signal of fewer than two values gives zero.
+  `simpson` of one value gives zero. `simpson` of two values takes
+  the rule of the trapezoid. Before v0.110.0 these were faults.
+- `trapezoid_axis` and `simpson_axis` take the integral of an array
+  along one axis. The axis drops from the shape, as SciPy does. A
+  signal of one dimension gives a result of no dimension. The places
+  `x` are not taken; the spacing is `dx`.
+- `cumulative_trapezoid_axis` takes the running total along one axis
+  of an array. The axis holds one value less, as SciPy does without a
+  start value. A signal of fewer than two values on the axis is a
+  fault.
 - `cumulative_trapezoid` takes the running total. The result holds
   one value fewer than the signal, as NumPy does.
 - `cumulative_simpson` takes the signal and the places and gives the
