@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.17.0";
+import scientific from "rekanalar/goose-scientific@v0.18.0";
 ```
 
 ## API
@@ -26,7 +26,7 @@ import scientific from "rekanalar/goose-scientific@v0.17.0";
 |---|---|
 | Creation | `zeros`, `ones`, `full`, `arange`, `linspace`, `eye`, `identity`, `diag`, `diagflat`, `logspace`, `geomspace`, `from_rows`, `from_values`, `clone` |
 | Shape | `reshape`, `ravel`, `transpose`, `transpose_perm`, `squeeze`, `expand_dims`, `concatenate`, `stack`, `broadcast_shapes`, `index` |
-| Elementwise | `add`, `sub`, `mul`, `div`, `power`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `log2`, `log10`, `scale`, `clip`, `sign`, `floor`, `ceil`, `round`, `trunc`, `square`, `sin`, `cos`, `tan`, `arcsin`, `arccos`, `arctan`, `arctan2`, `sinh`, `cosh`, `tanh`, `arcsinh`, `arccosh`, `arctanh`, `expm1`, `log1p`, `reciprocal`, `deg2rad`, `rad2deg`, `signbit`, `isneginf`, `isposinf`, `floor_divide` |
+| Elementwise | `add`, `sub`, `mul`, `div`, `power`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `log2`, `log10`, `scale`, `clip`, `sign`, `floor`, `ceil`, `round`, `trunc`, `rint`, `fix`, `square`, `sin`, `cos`, `tan`, `arcsin`, `arccos`, `arctan`, `arctan2`, `sinh`, `cosh`, `tanh`, `arcsinh`, `arccosh`, `arctanh`, `expm1`, `log1p`, `reciprocal`, `deg2rad`, `rad2deg`, `signbit`, `isneginf`, `isposinf`, `floor_divide`, `mod`, `fmod`, `cbrt`, `hypot`, `exp2`, `nextafter`, `copysign`, `spacing` |
 | Names of NumPy | `array`, `subtract`, `multiply`, `divide`, `true_divide`, `negative`, `positive`, `fabs`, `absolute`, `around` |
 | Logic | `equal`, `not_equal`, `less`, `less_equal`, `greater`, `greater_equal`, `logical_and`, `logical_or`, `logical_xor`, `logical_not`, `isnan`, `isinf`, `isfinite`, `all`, `any`, `count_nonzero`, `where` |
 | Reductions | `sum`, `prod`, `min`, `max`, `mean`, `argmin`, `argmax` |
@@ -121,6 +121,27 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The hyperbolic functions and their arcs come from the formulas of
   the package. The standard library holds no arc of a hyperbolic
   function. They hold the digits of a double.
+- `rint` sends a half to the even neighbour, as `round` does. `fix`
+  cuts a value toward zero, as `trunc` does.
+- `mod` holds the sign of the divisor, as Python holds it. `fmod`
+  holds the sign of the dividend, as the C library holds it. A divisor
+  of zero gives NaN under both.
+- `cbrt` holds the root of the cube that rounds right. The C library
+  behind NumPy gives the value next to it on some inputs, up to two
+  steps away.
+- `hypot` holds the length of two numbers. The squares carry their
+  lost parts, so the result holds every digit.
+- `exp2`, `cbrt`, `copysign`, `nextafter` and `spacing` come from the
+  formulas of the package. The standard library of the older Goose
+  version holds none of them. Both supported versions give the same
+  values.
+- `nextafter` gives the number of the machine next to the one of the
+  caller. `spacing` gives the distance to it. The distance below a
+  power of two is half the distance above it.
+- `copysign` gives the size of a number with the sign of another. A
+  zero of the negative side gives the sign of minus.
+  A NaN holds no sign here, so a NaN of the negative side gives the
+  sign of plus. NumPy reads the sign bit of the NaN.
 - The names of NumPy that the package holds under another name are
   these. `var` holds the name `variance`. `pad` holds the name
   `pad_value`. `trapz` holds the name `trapezoid`.
@@ -334,6 +355,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The quotient that rounds down divides by a zero divisor. The IEEE
   rules hold, so the result holds an infinity. A caller that needs a
   finite value checks the result.
+- `mod` and `fmod` divide by a zero divisor. The IEEE rules hold, so
+  the result holds NaN. A caller that needs a finite value checks the
+  result.
+- `exp2` of a number of great size gives an infinity, as NumPy gives
+  it. `cbrt` of an infinity gives the infinity. No fault comes from
+  the value.
+- `nextafter` and `spacing` give the smallest number of the machine
+  for a value of zero. No fault comes from the value.
 - A bad axis, or a permutation that repeats an axis, is a fault. The
   check runs before any element moves.
 - The sort of a large array takes a long time. A caller that sorts a

@@ -1401,6 +1401,97 @@ fn test_elementwise_math() {
     assert(farr.kind == scientific::F_NONE && arr.data.len == 3 && arr.data[2] == 3.0);
 }
 
+// The rest of the elementwise math holds the values of NumPy. The
+// root of the cube holds the correctly rounded value; the C library
+// behind NumPy gives the value next to it on some inputs.
+fn test_elementwise_rest() {
+    // A half goes to the even neighbour under both names of NumPy.
+    let ri, fri = scientific::rint(scientific::from_values([0.5, -0.5, 2.5, -2.5, 1.5]));
+    assert(fri.kind == scientific::F_NONE);
+    assert(ri.data[0] == 0.0 && ri.data[1] == 0.0 && ri.data[2] == 2.0);
+    assert(ri.data[3] == -2.0 && ri.data[4] == 2.0);
+    let fx, ffx = scientific::fix(scientific::from_values([-1.7, 1.7, -0.5, 2.9]));
+    assert(ffx.kind == scientific::F_NONE);
+    assert(fx.data[0] == -1.0 && fx.data[1] == 1.0 && fx.data[2] == 0.0 && fx.data[3] == 2.0);
+    // A result of zero keeps the sign of the number, as NumPy keeps it.
+    let zs, fzs = scientific::signbit(scientific::from_values([ri.data[1], fx.data[2]]));
+    assert(fzs.kind == scientific::F_NONE && zs.data[0] == 1.0 && zs.data[1] == 1.0);
+    // The remainder holds the sign of the divisor, or of the number.
+    let ma, fma = scientific::from_values([7.0, -7.0, 5.5, -5.5, 1.0]);
+    let mb, fmb = scientific::from_values([3.0, 3.0, -2.5, -2.5, 0.1]);
+    let mo, fmo = scientific::mod(ma, mb);
+    assert(fmo.kind == scientific::F_NONE);
+    assert(close(mo.data[0], 1.0) && close(mo.data[1], 2.0));
+    assert(close(mo.data[2], -2.0) && close(mo.data[3], -0.5));
+    assert(mo.data[4] == 0.09999999999999995);
+    let fm, ffm = scientific::fmod(ma, mb);
+    assert(ffm.kind == scientific::F_NONE);
+    assert(close(fm.data[0], 1.0) && close(fm.data[1], -1.0));
+    assert(close(fm.data[2], 0.5) && close(fm.data[3], -0.5));
+    assert(fm.data[4] == 0.09999999999999995);
+    // A divisor of zero holds no remainder.
+    let mz, fmz = scientific::mod(scientific::from_values([5.0]), scientific::from_values([0.0]));
+    assert(fmz.kind == scientific::F_NONE && mz.data[0] != mz.data[0]);
+    let fz, ffz = scientific::fmod(scientific::from_values([5.0]), scientific::from_values([0.0]));
+    assert(ffz.kind == scientific::F_NONE && fz.data[0] != fz.data[0]);
+    // Two shapes that hold no broadcast give a fault.
+    let mbad, fmbad = scientific::mod(scientific::from_rows(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+                                      scientific::from_values([1.0, 2.0]));
+    assert(fmbad.kind == scientific::F_SHAPE && mbad.data.len == 0);
+    // The root of the cube holds the sign of the number.
+    let cb, fcb = scientific::cbrt(scientific::from_values([27.0, -27.0, 0.5, 8.0]));
+    assert(fcb.kind == scientific::F_NONE);
+    assert(cb.data[0] == 3.0 && cb.data[1] == -3.0);
+    assert(cb.data[2] == 0.7937005259840998 && cb.data[3] == 2.0);
+    // The length of two numbers takes no harm from a huge square.
+    let ha, fha = scientific::from_values([3.0, 1.0e300, 0.0, 5.0, -3.0]);
+    let hb, fhb = scientific::from_values([4.0, 1.0e300, 0.0, 12.0, -4.0]);
+    let hy, fhy = scientific::hypot(ha, hb);
+    assert(fhy.kind == scientific::F_NONE);
+    assert(hy.data[0] == 5.0 && hy.data[1] == 1.4142135623730952e300);
+    assert(hy.data[2] == 0.0 && hy.data[3] == 13.0 && hy.data[4] == 5.0);
+    // Two to the power of the number.
+    let e2, fe2 = scientific::exp2(scientific::from_values([0.5, 10.0, -1.0, 0.0]));
+    assert(fe2.kind == scientific::F_NONE);
+    assert(e2.data[0] == 1.4142135623730951 && e2.data[1] == 1024.0);
+    assert(e2.data[2] == 0.5 && e2.data[3] == 1.0);
+    // The next number of the machine toward the second number.
+    let nx, fnx = scientific::from_values([1.0, 2.0, 0.0, 0.0]);
+    let ny, fny = scientific::from_values([2.0, 1.0, 1.0, -1.0]);
+    let na, fna = scientific::nextafter(nx, ny);
+    assert(fna.kind == scientific::F_NONE);
+    assert(na.data[0] == 1.0000000000000002 && na.data[1] == 1.9999999999999998);
+    assert(na.data[2] == 4.9406564584124654e-324 && na.data[3] == -4.9406564584124654e-324);
+    // A number equals its own neighbour.
+    let ns, fns = scientific::nextafter(scientific::from_values([7.0]), scientific::from_values([7.0]));
+    assert(fns.kind == scientific::F_NONE && ns.data[0] == 7.0);
+    // The sign of the second number goes onto the first.
+    let cs, fcs = scientific::copysign(scientific::from_values([3.0, -3.0, 3.0, 3.0]),
+                                       scientific::from_values([-1.0, 1.0, 0.0, 0.0 * -1.0]));
+    assert(fcs.kind == scientific::F_NONE);
+    assert(cs.data[0] == -3.0 && cs.data[1] == 3.0);
+    assert(cs.data[2] == 3.0 && cs.data[3] == -3.0);
+    // The distance to the next number of the machine above.
+    let sp, fsp = scientific::spacing(scientific::from_values([1.0, 0.0, -1.0, 2.0]));
+    assert(fsp.kind == scientific::F_NONE);
+    assert(sp.data[0] == 2.220446049250313e-16 && sp.data[1] == 4.9406564584124654e-324);
+    assert(sp.data[2] == -2.220446049250313e-16 && sp.data[3] == 4.440892098500626e-16);
+    // The infinity holds no spacing. The largest number holds an infinity.
+    let inf = 1.0 / 0.0;
+    let sp2, fsp2 = scientific::spacing(scientific::from_values([inf, 1.7976931348623157e308]));
+    assert(fsp2.kind == scientific::F_NONE && sp2.data[0] != sp2.data[0] && sp2.data[1] > 1.0e308);
+    // The step from the smallest normal number to zero is one subnormal step.
+    let nz, fnz = scientific::nextafter(scientific::from_values([2.2250738585072014e-308, 1.0]),
+                                        scientific::from_values([0.0, 0.0]));
+    assert(fnz.kind == scientific::F_NONE);
+    assert(nz.data[0] == 2.225073858507201e-308 && nz.data[1] == 0.9999999999999999);
+    // A remainder of zero holds the sign of the divisor.
+    let mz, fmz = scientific::mod(scientific::from_values([6.0, -6.0]), scientific::from_values([-3.0, 3.0]));
+    let mzs, fmzs = scientific::signbit(mz);
+    assert(fmz.kind == scientific::F_NONE && fmzs.kind == scientific::F_NONE);
+    assert(mzs.data[0] == 1.0 && mzs.data[1] == 0.0);
+}
+
 // The scales of numbers hold the values of NumPy.
 fn test_scales() {
     let id, fid = scientific::identity(3);
@@ -1458,6 +1549,7 @@ fn main() {
     test_axis_and_permute();
     test_logic_and_math();
     test_elementwise_math();
+    test_elementwise_rest();
     test_scales();
     test_indexing();
     test_sort_and_search();

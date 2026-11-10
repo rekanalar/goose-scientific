@@ -532,3 +532,37 @@ fn argmax(a) -> i64, Fault {
     }
     return best, no_fault();
 }
+
+// rint gives every element rounded to a whole number. It is the name
+// of NumPy for round.
+fn rint(a) -> Arr, Fault { return round(a); }
+
+// fix gives every element cut toward zero. It is the name of NumPy for
+// trunc.
+fn fix(a) -> Arr, Fault { return trunc(a); }
+
+// mod gives the remainder of two arrays with the sign of the divisor.
+fn mod(a, b) -> Arr, Fault { return bapply(a, b, mathshim::mod_of); }
+
+// fmod gives the remainder of two arrays with the sign of the dividend.
+fn fmod(a, b) -> Arr, Fault { return bapply(a, b, mathshim::fmod_of); }
+
+// hypot gives the length of two numbers.
+fn hypot(a, b) -> Arr, Fault { return bapply(a, b, mathshim::hypot_of); }
+
+// nextafter gives the next number of the machine toward the second
+// number.
+fn nextafter(a, b) -> Arr, Fault { return bapply(a, b, mathshim::nextafter_of); }
+
+// copysign gives the size of every element with the sign of the second.
+fn copysign(a, b) -> Arr, Fault { return bapply(a, b, mathshim::copysign_of); }
+
+// cbrt gives the real root of the cube of every element.
+fn cbrt(a) -> Arr, Fault { return uapply(a, mathshim::cbrt_of); }
+
+// exp2 gives two to the power of every element.
+fn exp2(a) -> Arr, Fault { return uapply(a, mathshim::exp2_of); }
+
+// spacing gives the distance to the next number of the machine above
+// every element.
+fn spacing(a) -> Arr, Fault { return uapply(a, mathshim::spacing_of); }
