@@ -101,7 +101,7 @@ fn solve(a, b) -> Arr, Fault {
     while i < m {
         var c: i64 = 0;
         while c < i {
-            y[i] = y[i] - lower[i * n + c] * y[c];
+            y[i] = y[i] - lower[pivots[i] * n + c] * y[c];
             c += 1;
         }
         i += 1;

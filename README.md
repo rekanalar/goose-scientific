@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.47.0";
+import scientific from "rekanalar/goose-scientific@v0.48.0";
 ```
 
 ## API
@@ -79,6 +79,7 @@ import scientific from "rekanalar/goose-scientific@v0.47.0";
 | Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `solve_ivp` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
+| Signal design and analysis | `firwin`, `freqz`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `resample` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -109,6 +110,24 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- `solve` with a vector on the right side gave a wrong answer when
+  the elimination swapped rows. The forward substitution read the
+  rows in the wrong order. The answer now equals LAPACK. `inv` took
+  the same path and holds the fix.
+- `firwin` takes a bool for `pass_zero`, not the band names, and the
+  windows of `get_window`. `freqz` gives the real and the imaginary
+  parts in two arrays and takes a count of points, not an array.
+- `find_peaks` takes the lower limits `height` and `prominence` and
+  the `distance`. The limits `threshold`, `width`, `plateau_size`
+  and the pairs of limits stay out. A signal with no peak is a fault.
+  The distance test may drop other peaks of equal height than SciPy
+  drops, because the sort here is stable.
+- `periodogram` takes the detrend of the mean or none, and the
+  scaling `density` or `spectrum`. `nfft`, `return_onesided` and the
+  detrend `linear` stay out. `resample` takes no window and no `t`.
+- `savgol_filter` and `medfilt` take one dimension and no `axis`.
+  `savgol_filter` takes no `cval`. The edge modes are `interp`,
+  `nearest`, `mirror`, `constant` and `wrap`.
 - `linprog` takes flat lists by row for the matrices and runs the two
   phase simplex with the rule of Bland. The cost is dense, and a side
   holds up to 2048 values. A problem with no point or with no least

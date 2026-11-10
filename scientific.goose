@@ -56,6 +56,7 @@ import array_spatial;
 import array_interp;
 import array_quad;
 import array_programs;
+import array_dsp;
 import array_grid;
 import array_buffer;
 import array_fftn;
