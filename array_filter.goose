@@ -331,6 +331,115 @@ fn lfilter(b: f64[:], a: f64[:], x: f64[:]) -> Arr, Fault {
     return flt_arr(copy(y)), no_fault();
 }
 
+// lfilter_lanes filters every line of an array along an axis. The
+// buffer zi holds the initial states when have_zi holds, with the lines
+// in the order of the array and the states along the axis. The
+// results go in y, with the shape of the signal, and in zf.
+fn lfilter_lanes(pb: f64[:], pa: f64[:], x, ax: i64, zi: f64[:], have_zi: bool, y: f64[>..]&, zf: f64[>..]&) {
+    let n = x.shape[ax];
+    let inner = product_after_of(x.shape, ax);
+    let outer = product_before_of(x.shape, ax);
+    let m = pb.len - 1;
+    var i: i64 = 0;
+    while i < x.data.len { y.push(0.0); i += 1; }
+    i = 0;
+    while i < outer * m * inner { zf.push(0.0); i += 1; }
+    var o: i64 = 0;
+    while o < outer {
+        var j: i64 = 0;
+        while j < inner {
+            var lane: f64[>..] = [];
+            var k: i64 = 0;
+            while k < n { lane.push(x.data[o * n * inner + k * inner + j]); k += 1; }
+            var z: f64[>..] = [];
+            k = 0;
+            while k < pb.len {
+                if have_zi && k < m { z.push(zi[(o * m + k) * inner + j]); } else { z.push(0.0); }
+                k += 1;
+            }
+            var out: f64[>..] = [];
+            flt_run(pb, pa, lane, z, out);
+            k = 0;
+            while k < n { y[o * n * inner + k * inner + j] = out[k]; k += 1; }
+            k = 0;
+            while k < m { zf[(o * m + k) * inner + j] = z[k]; k += 1; }
+            j += 1;
+        }
+        o += 1;
+    }
+}
+
+// lfilter_shape gives the shape of the signal with the axis length
+// replaced.
+fn lfilter_shape(x, ax: i64, len: i64) -> i64[..8] {
+    var s: i64[..8] = [];
+    var i: i64 = 0;
+    while i < x.ndim {
+        if i == ax { s.push(len); } else { s.push(x.shape[i]); }
+        i += 1;
+    }
+    return s;
+}
+
+// lfilter_axis filters an array along an axis, as SciPy lfilter does
+// for an array of N dimensions. The axis is the last one by default.
+fn lfilter_axis(b: f64[:], a: f64[:], x, axis: i64 = -1) -> Arr, Fault {
+    let ax = fix_axis(axis, x.ndim);
+    if ax < 0 {
+        return empty_arr(), fault(F_RANGE, "lfilter_axis", "the axis stands outside the shape");
+    }
+    var pb: f64[>..] = [];
+    var pa: f64[>..] = [];
+    let f = flt_prepare(b, a, pb, pa, "lfilter_axis");
+    if f.kind != F_NONE { return empty_arr(), f; }
+    var y: f64[>..] = [];
+    var zf: f64[>..] = [];
+    let none: f64[0] = [];
+    lfilter_lanes(pb, pa, x, ax, none, false, y, zf);
+    return Arr { ndim: x.ndim, shape: lfilter_shape(x, ax, x.shape[ax]), data: copy(y) }, no_fault();
+}
+
+// lfilter_state filters an array along an axis from the initial state
+// zi, and gives the signal and the final state. The state holds one
+// value less than the longer of b and a along the axis, and the other
+// axes have the shape of the signal, as SciPy needs.
+fn lfilter_state(b: f64[:], a: f64[:], x, zi, axis: i64 = -1) -> Arr, Arr, Fault {
+    let ax = fix_axis(axis, x.ndim);
+    if ax < 0 {
+        return empty_arr(), empty_arr(), fault(F_RANGE, "lfilter_state", "the axis stands outside the shape");
+    }
+    var pb: f64[>..] = [];
+    var pa: f64[>..] = [];
+    let f = flt_prepare(b, a, pb, pa, "lfilter_state");
+    if f.kind != F_NONE { return empty_arr(), empty_arr(), f; }
+    let m = pb.len - 1;
+    if zi.ndim != x.ndim {
+        return empty_arr(), empty_arr(), fault(F_SHAPE, "lfilter_state", "the state does not hold the shape of the signal");
+    }
+    var i: i64 = 0;
+    while i < x.ndim {
+        var want = x.shape[i];
+        if i == ax { want = m; }
+        if zi.shape[i] != want {
+            return empty_arr(), empty_arr(), fault(F_SHAPE, "lfilter_state", "the state does not hold the shape of the signal");
+        }
+        i += 1;
+    }
+    i = 0;
+    while i < zi.data.len {
+        if !(zi.data[i] - zi.data[i] == 0.0) {
+            return empty_arr(), empty_arr(), fault(F_VALUE, "lfilter_state", "the state holds a value that is not finite");
+        }
+        i += 1;
+    }
+    var y: f64[>..] = [];
+    var zf: f64[>..] = [];
+    lfilter_lanes(pb, pa, x, ax, zi.data, true, y, zf);
+    let ys = Arr { ndim: x.ndim, shape: lfilter_shape(x, ax, x.shape[ax]), data: copy(y) };
+    let zs = Arr { ndim: x.ndim, shape: lfilter_shape(x, ax, m), data: copy(zf) };
+    return ys, zs, no_fault();
+}
+
 // flt_zi gives the state of the filter at rest for a constant input
 // of one.
 fn flt_zi(pb: f64[:], pa: f64[:], zi: f64[>..]&) -> Fault {

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.121.0";
+import scientific from "rekanalar/goose-scientific@v0.122.0";
 ```
 
 ## API
@@ -67,7 +67,7 @@ import scientific from "rekanalar/goose-scientific@v0.121.0";
 | Integration | `trapezoid`, `trapezoid_axis`, `simpson`, `simpson_axis`, `cumulative_trapezoid`, `cumulative_trapezoid_axis`, `cumulative_simpson`, `cumulative_simpson_dx`, `cumulative_simpson_axis`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
-| Filters | `butter`, `lfilter`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
+| Filters | `butter`, `lfilter`, `lfilter_axis`, `lfilter_state`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
 | Covariance and NaN statistics | `cov`, `cov_weights`, `cov_with`, `corrcoef`, `corrcoef_with`, `nanmedian`, `nanpercentile`, `nanquantile`, `nanargmax`, `nanargmin`, `nancumsum`, `nancumprod`, `cumulative_sum`, `cumulative_prod`, `ediff1d`, `histogram_bin_edges` |
 | The rest of the elementwise math | `fmax`, `fmin`, `heaviside`, `logaddexp`, `logaddexp2`, `ldexp`, `frexp`, `modf`, `sinc`, `i0`, `gcd`, `lcm`, `bitwise_and`, `bitwise_or`, `bitwise_xor`, `invert`, `left_shift`, `right_shift`, `bitwise_count`, `unwrap`, and the names `float_power`, `pow`, `remainder`, `radians`, `degrees`, `acos`, `asin`, `atan`, `atan2`, `acosh`, `asinh`, `atanh`, `bitwise_not`, `bitwise_invert`, `bitwise_left_shift`, `bitwise_right_shift`, `concat`, `amax`, `amin`, `ndim` |
 | Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
@@ -594,10 +594,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   side.
 - `unique_roots` takes the roots as real parts and imaginary parts
   and gives the same form. It takes at most 4096 roots.
-- `bessel` stays missing.
-- `lfilter` takes no initial state and no axis. `filtfilt` takes the
-  odd extension of SciPy. The pad holds three times the coefficient
-  count. No other pad option exists.
+- `lfilter` filters one line from a state of zero. `lfilter_axis`
+  filters an array along an axis. `lfilter_state` also takes the
+  initial state `zi` and gives the final state. Along the axis, the
+  state holds one value less than the longer coefficient list. The
+  other axes keep the shape of the signal. SciPy lets the state
+  broadcast, but this package needs the exact shape.
+- `filtfilt` takes the odd extension of SciPy. The pad holds three
+  times the coefficient count. No other pad option exists.
 - `hilbert` returns the real and the imaginary parts as two arrays,
   as `fft` does.
 - The shape holds at most 8 dimensions.
