@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.5.0";
+import scientific from "rekanalar/goose-scientific@v0.6.0";
 ```
 
 ## API
@@ -35,6 +35,8 @@ import scientific from "rekanalar/goose-scientific@v0.5.0";
 | Sorting | `sort`, `argsort`, `sort_axis`, `unique`, `unique_sorted`, `roll` |
 | Search | `searchsorted`, `histogram`, `histogram_edges`, `bincount`, `digitize` |
 | Order statistics | `median`, `percentile` |
+| Products | `matmul`, `dot`, `inner`, `outer`, `kron`, `trace`, `norm` |
+| Solving | `solve`, `inv`, `det`, `slogdet`, `matrix_power` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -107,6 +109,21 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The histogram holds equal bins between the smallest and the largest
   value. An array of one value is a fault, because it holds no bin.
 - `median` and `percentile` sort a copy of the array.
+- A matrix is an array with two dimensions. The package holds one
+  array type.
+- `dot` of two rows gives a number. It is held in an array of no
+  dimension.
+- `dot` of a row and a matrix takes the last axis of the row.
+  It also takes the first axis of the matrix.
+- `dot` of a matrix and a row takes the first axis of the matrix.
+  It also takes the last axis of the row.
+- `norm` gives the Frobenius norm of a matrix and the second norm of
+  a row. Both are the square root of the sum of the squares.
+- `solve`, `inv` and `det` use a Gaussian elimination with a partial
+  pivot. A matrix without a pivot is a fault. The determinant of such
+  a matrix is zero, so `slogdet` gives zero and no fault.
+- `matrix_power` takes a whole power. A power below zero gives the
+  inverse of the matrix.
 
 ## Security
 
@@ -127,6 +144,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   check runs before any element moves.
 - The sort of a large array takes a long time. A caller that sorts a
   large array waits.
+- The elimination is not scaled. A matrix whose rows hold values of
+  different sizes loses some digits.
 - A position outside the array is a fault in `take` and in `put`. The
   check of `put` runs over every position before the first write.
   A bad index leaves the array as it was.
