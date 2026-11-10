@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.104.0";
+import scientific from "rekanalar/goose-scientific@v0.105.0";
 ```
 
 ## API
@@ -971,8 +971,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `minimize_grad` finds the smallest point with a method that uses the
   gradient. The block of the caller takes a vector. It gives the
   value first and the gradient after it. The methods are `bfgs`,
-  `cg` and `lbfgsb`. The bounds hold one value per variable. The
+  `cg`, `lbfgsb` and `newton-cg`. The bounds hold one value per variable. The
   start that lies outside the bounds moves to the border.
+- `newton-cg` gets the product of the Hessian and a vector from a
+  small difference of two gradients. SciPy does the same without `hess`. It
+  takes no bounds, and a call with bounds is a fault. Its `xtol` is
+  the mean step size that ends the run.
 - `minimize_grad` replaces the methods `bfgs` and `cg` with `lbfgsb`
   when bounds are given, as SciPy does. SciPy prints a warning in that
   case. The package does not.

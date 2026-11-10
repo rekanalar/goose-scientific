@@ -446,10 +446,91 @@ fn mg_lbfgs<F: fn(f64[:]) -> f64[:]>(x0: f64[:], lb: f64[:], ub: f64[:], bounded
     return x, f, g;
 }
 
+// mg_newtoncg runs the method of Newton with the conjugate gradient
+// for the step. The product of the Hessian and a vector comes from a
+// small difference of two gradients. The inner loop stops on a
+// negative curvature, as SciPy does.
+fn mg_newtoncg<F: fn(f64[:]) -> f64[:]>(x0: f64[:], xtol: f64, turns: i64, n: i64) -> f64[>..], f64, f64[>..] {
+    var x: f64[>..] = copy_slice(x0);
+    let r = F(copy(x));
+    var f, g, ok = mg_split(r, n);
+    if !ok { return [], 0.0, []; }
+    let eps: f64 = 1.4901161193847656e-08;
+    let limit = xtol * n;
+    var upd: f64 = 2.0 * limit + 1.0;
+    var turn: i64 = 0;
+    while upd > limit && turn < turns {
+        // The inner loop solves H p = -g.
+        var mag: f64 = 0.0;
+        var i: i64 = 0;
+        while i < n { mag += mathshim::abs_of(g[i]); i += 1; }
+        var term = 0.5;
+        if mathshim::root(mag) < term { term = mathshim::root(mag); }
+        term = term * mag;
+        var xs: f64[>..] = [];
+        var ri: f64[>..] = copy_slice(g);
+        var ps: f64[>..] = [];
+        i = 0;
+        while i < n { xs.push(0.0); ps.push(-g[i]); i += 1; }
+        var dri0 = mg_dot(ri, ri);
+        var k: i64 = 0;
+        while true {
+            var rsum: f64 = 0.0;
+            i = 0;
+            while i < n { rsum += mathshim::abs_of(ri[i]); i += 1; }
+            if rsum <= term { break; }
+            var probe: f64[>..] = [];
+            i = 0;
+            while i < n { probe.push(x[i] + eps * ps[i]); i += 1; }
+            let rp = F(copy(probe));
+            let fp, gp, okp = mg_split(rp, n);
+            if !okp { return [], 0.0, []; }
+            var ap: f64[>..] = [];
+            i = 0;
+            while i < n { ap.push((gp[i] - g[i]) / eps); i += 1; }
+            let curv = mg_dot(ps, ap);
+            if curv == 0.0 { break; }
+            if curv < 0.0 {
+                if k == 0 {
+                    i = 0;
+                    while i < n { xs[i] = dri0 / (-curv) * (-g[i]); i += 1; }
+                }
+                break;
+            }
+            let alpha = dri0 / curv;
+            i = 0;
+            while i < n { xs[i] += alpha * ps[i]; ri[i] += alpha * ap[i]; i += 1; }
+            let dri1 = mg_dot(ri, ri);
+            let beta = dri1 / dri0;
+            i = 0;
+            while i < n { ps[i] = -ri[i] + beta * ps[i]; i += 1; }
+            dri0 = dri1;
+            k += 1;
+            if k > 20 * n + 100 { break; }
+        }
+        let slope = mg_dot(g, xs);
+        if slope >= 0.0 { break; }
+        let alpha, gnew, fnew = mg_line(x, xs, f, slope, 0.9, x0, x0, false, n) { t => F(copy(t)) };
+        if gnew.len != n { break; }
+        upd = 0.0;
+        i = 0;
+        while i < n {
+            let u = alpha * xs[i];
+            x[i] += u;
+            upd += mathshim::abs_of(u);
+            i += 1;
+        }
+        f = fnew;
+        g = copy(gnew);
+        turn += 1;
+    }
+    return x, f, g;
+}
+
 // minimize_grad finds the smallest point of a function with a method
 // that uses the gradient. The block of the caller takes a vector. It
 // gives the value first and the gradient after it. The methods are
-// "bfgs", "cg" and "lbfgsb". The bounds hold one value per variable.
+// "bfgs", "cg", "lbfgsb" and "newton-cg". The bounds hold one value per variable.
 // The start that lies outside the bounds moves to the border. The
 // result holds the point and the value.
 fn minimize_grad<F: fn(f64[:]) -> f64[:]>(x0: f64[:], method: const u8[:] = "bfgs", bounded: bool = false, lb: f64[:] = [], ub: f64[:] = [], xtol: f64 = 1.0e-8, ftol: f64 = 1.0e-8, gtol: f64 = 1.0e-8, turns: i64 = 200) -> Arr, Arr, Fault {
@@ -463,7 +544,7 @@ fn minimize_grad<F: fn(f64[:]) -> f64[:]>(x0: f64[:], method: const u8[:] = "bfg
     if turns < 1 {
         return empty_arr(), empty_arr(), fault(F_VALUE, "minimize_grad", "the count of turns holds a value below one");
     }
-    if method != "bfgs" && method != "cg" && method != "lbfgsb" {
+    if method != "bfgs" && method != "cg" && method != "lbfgsb" && method != "newton-cg" {
         return empty_arr(), empty_arr(), fault(F_VALUE, "minimize_grad", "the method holds an unknown name");
     }
     if bounded {
@@ -482,12 +563,20 @@ fn minimize_grad<F: fn(f64[:]) -> f64[:]>(x0: f64[:], method: const u8[:] = "bfg
     // are given, because the two methods cannot hold the bounds. The
     // package does the same, so the result matches.
     var use: const u8[:] = method;
+    if bounded && method == "newton-cg" {
+        return empty_arr(), empty_arr(), fault(F_VALUE, "minimize_grad", "the method newton-cg holds no bounds");
+    }
     if bounded && (method == "bfgs" || method == "cg") { use = "lbfgsb"; }
     var x: f64[>..] = [];
     var f: f64 = 0.0;
     var g: f64[>..] = [];
     if use == "bfgs" {
         let xx, ff, gg = mg_bfgs(x0, lb, ub, bounded, xtol, ftol, gtol, turns, n) { v => F(copy(v)) };
+        x = copy(xx);
+        f = ff;
+        g = copy(gg);
+    } else if use == "newton-cg" {
+        let xx, ff, gg = mg_newtoncg(x0, xtol, turns, n) { v => F(copy(v)) };
         x = copy(xx);
         f = ff;
         g = copy(gg);

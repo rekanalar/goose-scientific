@@ -5853,6 +5853,31 @@ fn test_partial_fractions() {
 // SciPy. The blocks give the value and the gradient of the function of
 // Rosenbrock and of a quadratic.
 fn test_minimize_grad() {
+    // The method newton-cg.
+    let nc, ncv, ncf = scientific::minimize_grad([-1.2, 1.0, 0.8], "newton-cg", false, [], [], 1.0e-8, 1.0e-8, 1.0e-8, 200) { v =>
+        var s: f64 = 0.0;
+        var g: f64[>..] = [0.0, 0.0, 0.0];
+        var j: i64 = 0;
+        while j + 1 < v.len {
+            let d = v[j+1] - v[j]*v[j];
+            s += 100.0 * d * d + (1.0 - v[j]) * (1.0 - v[j]);
+            g[j] += -400.0 * v[j] * d - 2.0 * (1.0 - v[j]);
+            g[j+1] += 200.0 * d;
+            j += 1;
+        }
+        var o: f64[>..] = [s];
+        j = 0;
+        while j < g.len { o.push(g[j]); j += 1; }
+        o
+    };
+    assert(ncf.kind == scientific::F_NONE && rel_close(nc, [1.0, 1.0, 1.0], 1.0e-6) && ncv.data[0] < 1.0e-10);
+    let nd, ndv, ndf = scientific::minimize_grad([0.0, 1.0], "newton-cg", false, [], [], 1.0e-8, 1.0e-8, 1.0e-8, 200) { v =>
+        let a = v[0] - 3.0;
+        [a * a * a * a + (v[0] + v[1]) * (v[0] + v[1]) + v[1] * v[1] * v[1] * v[1] / 5.0, 4.0 * a * a * a + 2.0 * (v[0] + v[1]), 2.0 * (v[0] + v[1]) + 4.0 * v[1] * v[1] * v[1] / 5.0]
+    };
+    assert(ndf.kind == scientific::F_NONE && rel_close(nd, [2.2299597097408763, -1.3167503728453185], 1.0e-5));
+    let ne, nev, nef = scientific::minimize_grad([0.0, 1.0], "newton-cg", true, [0.0, 0.0], [1.0, 1.0]) { v => [v[0] * v[0] + v[1] * v[1], 2.0 * v[0], 2.0 * v[1]] };
+    assert(nef.kind == scientific::F_VALUE);
     let a, av, af = scientific::minimize_grad([-1.2, 1.0], "bfgs", false, [], [], 1.0e-12, 1.0e-12, 1.0e-12, 500) { v =>
         var s: f64 = 0.0;
         var i: i64 = 0;
