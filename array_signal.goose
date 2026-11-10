@@ -191,3 +191,107 @@ fn welch(y: f64[:], size: i64) -> Arr, Fault {
     s.push(d.len);
     return Arr { ndim: 1, shape: s, data: d }, no_fault();
 }
+
+// spectral_core cuts the signal into parts, takes the window and the
+// transform of each part and gives the power. The result is a matrix
+// with one row per frequency and one column per part, as SciPy gives it.
+fn spectral_core(x: f64[:], fs: f64, window: const u8[:], param: f64, nperseg: i64, noverlap: i64, detrend: bool, density: bool, tag: const u8[:]) -> Arr, Arr, Arr, Fault {
+    if !(fs > 0.0) || !(fs - fs == 0.0) {
+        return empty_arr(), empty_arr(), empty_arr(), fault(F_VALUE, tag, "the rate must be above zero");
+    }
+    if nperseg < 2 || nperseg > x.len || nperseg > 4194304 {
+        return empty_arr(), empty_arr(), empty_arr(), fault(F_RANGE, tag, "the size of a part must hold two or more values and no more than the signal");
+    }
+    if noverlap < 0 || noverlap >= nperseg {
+        return empty_arr(), empty_arr(), empty_arr(), fault(F_RANGE, tag, "the overlap must stand from zero to below the size of a part");
+    }
+    var k: i64 = 0;
+    while k < x.len {
+        if !(x[k] - x[k] == 0.0) {
+            return empty_arr(), empty_arr(), empty_arr(), fault(F_VALUE, tag, "the signal holds a value that is not finite");
+        }
+        k += 1;
+    }
+    let w, wf = get_window(window, nperseg, true, param);
+    if wf.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), wf; }
+    var sw: f64 = 0.0;
+    var sq: f64 = 0.0;
+    k = 0;
+    while k < nperseg { sw += w.data[k]; sq += w.data[k] * w.data[k]; k += 1; }
+    var scale = 1.0 / (sw * sw);
+    if density { scale = 1.0 / (fs * sq); }
+    let step = nperseg - noverlap;
+    let nseg = (x.len - noverlap) / step;
+    let bins = nperseg / 2 + 1;
+    var m: f64[>..] = [];
+    k = 0;
+    while k < bins * nseg { m.push(0.0); k += 1; }
+    var tm: f64[>..] = [];
+    var s: i64 = 0;
+    while s < nseg {
+        let st = s * step;
+        var mean: f64 = 0.0;
+        if detrend {
+            k = 0;
+            while k < nperseg { mean += x[st + k]; k += 1; }
+            mean = mean / nperseg;
+        }
+        var part: f64[>..] = [];
+        k = 0;
+        while k < nperseg { part.push((x[st + k] - mean) * w.data[k]); k += 1; }
+        let re, im, f = fft(part);
+        if f.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), f; }
+        k = 0;
+        while k < bins {
+            var twice: f64 = 2.0;
+            if k == 0 || (nperseg % 2 == 0 && k == bins - 1) { twice = 1.0; }
+            m[k * nseg + s] = twice * scale * (re.data[k] * re.data[k] + im.data[k] * im.data[k]);
+            k += 1;
+        }
+        tm.push((nperseg / 2.0 + st) / fs);
+        s += 1;
+    }
+    var fr: f64[>..] = [];
+    k = 0;
+    while k < bins { fr.push(k * fs / nperseg); k += 1; }
+    return line_arr(copy(fr)), line_arr(copy(tm)), mat2(copy(m), bins, nseg), no_fault();
+}
+
+// spectrogram gives the power of the parts of a signal. The overlap of
+// minus one takes the eighth part of the size, as SciPy does. The
+// window is a name of get_window; SciPy takes a Tukey window of 0.25.
+// It gives the frequencies, the times of the centres of the parts and
+// the matrix of the power. The scaling is "density" or "spectrum".
+fn spectrogram(x: f64[:], fs: f64 = 1.0, window: const u8[:] = "tukey", param: f64 = 0.25, nperseg: i64 = 256, noverlap: i64 = -1, detrend: bool = true, scaling: const u8[:] = "density") -> Arr, Arr, Arr, Fault {
+    if scaling != "density" && scaling != "spectrum" {
+        return empty_arr(), empty_arr(), empty_arr(), fault(F_VALUE, "spectrogram", "the scaling holds an unknown name");
+    }
+    var ov = noverlap;
+    if ov < 0 { ov = nperseg / 8; }
+    return spectral_core(x, fs, window, param, nperseg, ov, detrend, scaling == "density", "spectrogram");
+}
+
+// welch_psd gives the mean power of the parts of a signal by their
+// frequency, as SciPy welch does. The window is a name of get_window.
+// The overlap of minus one takes half of the size.
+fn welch_psd(x: f64[:], fs: f64 = 1.0, window: const u8[:] = "hann", nperseg: i64 = 256, noverlap: i64 = -1, detrend: bool = true, scaling: const u8[:] = "density") -> Arr, Arr, Fault {
+    if scaling != "density" && scaling != "spectrum" {
+        return empty_arr(), empty_arr(), fault(F_VALUE, "welch_psd", "the scaling holds an unknown name");
+    }
+    var ov = noverlap;
+    if ov < 0 { ov = nperseg / 2; }
+    let fr, tm, m, f = spectral_core(x, fs, window, 0.0 / 0.0, nperseg, ov, detrend, scaling == "density", "welch_psd");
+    if f.kind != F_NONE { return empty_arr(), empty_arr(), f; }
+    let bins = m.shape[0];
+    let nseg = m.shape[1];
+    var p: f64[>..] = [];
+    var k: i64 = 0;
+    while k < bins {
+        var t: f64 = 0.0;
+        var s: i64 = 0;
+        while s < nseg { t += m.data[k * nseg + s]; s += 1; }
+        p.push(t / nseg);
+        k += 1;
+    }
+    return fr, line_arr(copy(p)), no_fault();
+}
