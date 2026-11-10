@@ -4060,6 +4060,18 @@ fn test_root() {
         assert(mathshim_abs(fv.data[0]) < 1.0e-6 && mathshim_abs(fv.data[1]) < 1.0e-6);
         k += 1;
     }
+    // The simple iterations reach the root that SciPy finds for this
+    // system: 0.8411639, 0.1588361.
+    let ms2 = ["linearmixing", "diagbroyden", "excitingmixing", "anderson"];
+    k = 0;
+    while k < 4 {
+        let xm, fm, gm = scientific::root([0.0, 0.0], ms2[k], 1.0e-9, 5000) { v => [v[0] + 0.5 * (v[0] - v[1]) * (v[0] - v[1]) * (v[0] - v[1]) - 1.0, 0.5 * (v[1] - v[0]) * (v[1] - v[0]) * (v[1] - v[0]) + v[1]] };
+        assert(gm.kind == scientific::F_NONE);
+        assert(mathshim_abs(xm.data[0] - 0.8411639) < 1.0e-6 && mathshim_abs(xm.data[1] - 0.1588361) < 1.0e-6);
+        k += 1;
+    }
+    let m1, m2, mg = scientific::root([1.0, 2.0], "anderson") { v => [v[0]] };
+    assert(mg.kind == scientific::F_SHAPE);
     let x3, f3v, g3 = scientific::root([1.0, 1.0, 1.0]) { v => [v[0] + v[1] + v[2] - 6.0, v[0] * v[1] - 2.0, v[2] - v[0] - 1.0] };
     assert(g3.kind == scientific::F_NONE);
     assert(mathshim_abs(x3.data[0] - 2.0) < 1.0e-6 && mathshim_abs(x3.data[1] - 1.0) < 1.0e-6 && mathshim_abs(x3.data[2] - 3.0) < 1.0e-6);

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.100.0";
+import scientific from "rekanalar/goose-scientific@v0.101.0";
 ```
 
 ## API
@@ -908,13 +908,17 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   method takes the derivative by a small difference, so the root
   holds fewer digits than the other methods.
 - `root` finds the point where several equations hold zero. The
-  methods are `hybr`, `lm`, `broyden1` and `broyden2`. The result
-  holds the point and the values of the equations.
+  methods are `hybr`, `lm`, `broyden1`, `broyden2`, `linearmixing`,
+  `diagbroyden`, `excitingmixing` and `anderson`. The result holds
+  the point and the values of the equations.
 - The method `hybr` of `root` takes damped Newton steps, not the
   trust region of MINPACK. The path differs from SciPy, but the root
-  matches. SciPy holds the methods `anderson`, `linearmixing`,
-  `diagbroyden`, `excitingmixing`, `krylov` and `df-sane`. The
-  package faults on them. The method `lm` that stops at a point that
+  matches. SciPy holds the methods `krylov` and `df-sane` too. The
+  package faults on them.
+- The four simple iterations of `root` use a line search and take the descent sign for the first guess. SciPy takes
+  the other sign and diverges on common systems with
+  `linearmixing` and `excitingmixing`. The roots match, the paths
+  differ. The method `lm` that stops at a point that
   is not a root is a fault.
 - Every solver takes a tolerance and a count of turns. A tolerance
   of zero and a count below one are faults. A method that does not
