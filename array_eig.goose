@@ -23,8 +23,19 @@ fn jacobi(a, n: i64) -> Arr, Arr, Fault {
     i = 0;
     while i < n { v[i * n + i] = 1.0; i += 1; }
     // The largest element off the diagonal gives the next turn.
+    // Each turn clears one pair of elements, so the count of turns grows
+    // with the square of the side. The stop value follows the scale of
+    // the matrix.
+    var scale: f64 = 0.0;
+    i = 0;
+    while i < n * n {
+        let a = mathshim::abs_of(m[i]);
+        if a > scale { scale = a; }
+        i += 1;
+    }
+    let stop = 1.0e-15 * scale;
     var sweep: i64 = 0;
-    while sweep < 100 {
+    while sweep < 60 * n * n + 100 {
         var p: i64 = 0;
         var q: i64 = 0;
         var best: f64 = 0.0;
@@ -39,7 +50,7 @@ fn jacobi(a, n: i64) -> Arr, Arr, Fault {
             }
             r += 1;
         }
-        if best < 1e-14 { break; }
+        if best <= stop { break; }
         // The turn of the plane.
         let app = m[p * n + p];
         let aqq = m[q * n + q];

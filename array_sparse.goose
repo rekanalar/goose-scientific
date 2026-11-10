@@ -1024,3 +1024,155 @@ fn minres(s, b: f64[:], rtol: f64 = 1.0e-5, maxiter: i64 = 0) -> Arr, i64, Fault
     }
     return line_arr(copy(x)), turn, no_fault();
 }
+
+// eigsh gives k eigenvalues and eigenvectors of a symmetric sparse
+// matrix by the Lanczos method with a full reorthogonalization. The
+// choice which is "LA" for the largest values, "SA" for the smallest
+// values, "LM" for the largest sizes, and "SM" for the smallest sizes.
+// The values come in rising order. The vectors are the columns of the
+// second result. The matrix must be symmetric; the method does not
+// check that. The method grows the Krylov space until the residuals
+// are small. A space above 256 vectors is a fault.
+fn eigsh(s, k: i64 = 6, which: const u8[:] = "LM", tol: f64 = 1.0e-10) -> Arr, Arr, Fault {
+    if s.rows != s.cols || s.rows < 2 {
+        return empty_arr(), empty_arr(), fault(F_SHAPE, "eigsh", "the matrix is not square or holds fewer than two rows");
+    }
+    let n = s.rows;
+    if k < 1 || k >= n {
+        return empty_arr(), empty_arr(), fault(F_RANGE, "eigsh", "k must stand from one to below the side");
+    }
+    if which != "LA" && which != "SA" && which != "LM" && which != "SM" {
+        return empty_arr(), empty_arr(), fault(F_VALUE, "eigsh", "which holds an unknown name");
+    }
+    if !(tol > 0.0) {
+        return empty_arr(), empty_arr(), fault(F_VALUE, "eigsh", "the tolerance must be above zero");
+    }
+    var r = default_rng(1);
+    var start: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n { start.push(random_uniform(r) - 0.5); i += 1; }
+    var m = 2 * k + 20;
+    if m > n { m = n; }
+    while true {
+        // The Lanczos steps. V holds the vectors one after another.
+        var vs: f64[>..] = [];
+        var al: f64[>..] = [];
+        var be: f64[>..] = [];
+        var nv = krylov_norm(start);
+        i = 0;
+        while i < n { vs.push(start[i] / nv); i += 1; }
+        var steps: i64 = 0;
+        var broke = false;
+        while steps < m {
+            var cur: f64[>..] = [];
+            i = 0;
+            while i < n { cur.push(vs[steps * n + i]); i += 1; }
+            let av, fa = csr_matvec(s, cur);
+            if fa.kind != F_NONE { return empty_arr(), empty_arr(), fa; }
+            var w: f64[>..] = [];
+            i = 0;
+            while i < n { w.push(av.data[i]); i += 1; }
+            var a: f64 = 0.0;
+            i = 0;
+            while i < n { a += cur[i] * w[i]; i += 1; }
+            al.push(a);
+            var pass: i64 = 0;
+            while pass < 2 {
+                var j: i64 = 0;
+                while j <= steps {
+                    var d: f64 = 0.0;
+                    i = 0;
+                    while i < n { d += vs[j * n + i] * w[i]; i += 1; }
+                    i = 0;
+                    while i < n { w[i] = w[i] - d * vs[j * n + i]; i += 1; }
+                    j += 1;
+                }
+                pass += 1;
+            }
+            let b = krylov_norm(w);
+            steps += 1;
+            if steps == m { be.push(b); break; }
+            if b <= 1.0e-12 * (1.0 + mathshim::abs_of(a)) { be.push(0.0); broke = true; break; }
+            be.push(b);
+            i = 0;
+            while i < n { vs.push(w[i] / b); i += 1; }
+        }
+        // The tridiagonal matrix of the steps.
+        var td: f64[>..] = [];
+        i = 0;
+        while i < steps * steps { td.push(0.0); i += 1; }
+        i = 0;
+        while i < steps {
+            td[i * steps + i] = al[i];
+            if i + 1 < steps { td[i * steps + i + 1] = be[i]; td[(i + 1) * steps + i] = be[i]; }
+            i += 1;
+        }
+        let tv, tz, tf = eigh(mat2(copy(td), steps, steps));
+        if tf.kind != F_NONE { return empty_arr(), empty_arr(), tf; }
+        if steps < k {
+            return empty_arr(), empty_arr(), fault(F_VALUE, "eigsh", "the Krylov space holds fewer than k vectors");
+        }
+        // The wanted Ritz values, by index into the rising list.
+        var pick: i64[>..] = [];
+        var lo: i64 = 0;
+        var hi = steps - 1;
+        while pick.len < k {
+            var take_hi = false;
+            if which == "LA" { take_hi = true; }
+            else if which == "LM" { take_hi = mathshim::abs_of(tv.data[hi]) >= mathshim::abs_of(tv.data[lo]); }
+            else if which == "SM" { take_hi = mathshim::abs_of(tv.data[hi]) < mathshim::abs_of(tv.data[lo]); }
+            if take_hi { pick.push(hi); hi -= 1; } else { pick.push(lo); lo += 1; }
+        }
+        var worst: f64 = 0.0;
+        var scale: f64 = 1.0e-300;
+        i = 0;
+        while i < k {
+            let res = mathshim::abs_of(be[steps - 1] * tz.data[(steps - 1) * steps + pick[i]]);
+            if res > worst { worst = res; }
+            let mag = mathshim::abs_of(tv.data[pick[i]]);
+            if mag > scale { scale = mag; }
+            i += 1;
+        }
+        if broke || steps >= n || worst <= tol * scale {
+            // Sort the picked indices into rising order of the value.
+            var order: i64[>..] = [];
+            i = 0;
+            while i < k { order.push(pick[i]); i += 1; }
+            var x: i64 = 1;
+            while x < k {
+                var y = x;
+                while y > 0 && order[y - 1] > order[y] {
+                    let t = order[y];
+                    order[y] = order[y - 1];
+                    order[y - 1] = t;
+                    y -= 1;
+                }
+                x += 1;
+            }
+            var vals: f64[>..] = [];
+            var vecs: f64[>..] = [];
+            i = 0;
+            while i < n * k { vecs.push(0.0); i += 1; }
+            var c: i64 = 0;
+            while c < k {
+                vals.push(tv.data[order[c]]);
+                var j: i64 = 0;
+                while j < steps {
+                    let coef = tz.data[j * steps + order[c]];
+                    i = 0;
+                    while i < n { vecs[i * k + c] = vecs[i * k + c] + coef * vs[j * n + i]; i += 1; }
+                    j += 1;
+                }
+                c += 1;
+            }
+            return line_arr(copy(vals)), mat2(copy(vecs), n, k), no_fault();
+        }
+        if m >= 256 || m >= n {
+            return empty_arr(), empty_arr(), fault(F_LIMIT, "eigsh", "the method did not converge within 256 vectors");
+        }
+        m = 2 * m;
+        if m > n { m = n; }
+        if m > 256 { m = 256; }
+    }
+    return empty_arr(), empty_arr(), no_fault();
+}

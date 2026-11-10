@@ -4624,7 +4624,71 @@ fn test_lsqr_minres() {
     return;
 }
 
+fn eg_matrix() -> scientific::Csr {
+    var ri: f64[>..] = [];
+    var ci: f64[>..] = [];
+    var v: f64[>..] = [];
+    var i: i64 = 0;
+    while i < 30 {
+        ri.push(i); ci.push(i); v.push(2.0 + 0.1 * i);
+        if i + 1 < 30 {
+            ri.push(i); ci.push(i + 1); v.push(-1.0);
+            ri.push(i + 1); ci.push(i); v.push(-1.0);
+        }
+        i += 1;
+    }
+    let s, f = scientific::csr_from_triplets(30, 30, copy(ri), copy(ci), copy(v));
+    assert(f.kind == scientific::F_NONE);
+    return s;
+}
+
+// eigsh is pinned against SciPy.
+fn test_eigsh() {
+    let s = eg_matrix();
+    let la, v1, f1 = scientific::eigsh(s, 3, "LA");
+    assert(f1.kind == scientific::F_NONE && all_loose(la, [5.835442141035716, 6.132637310688383, 6.500509781468499]));
+    let sa, v2, f2 = scientific::eigsh(s, 3, "SA");
+    assert(f2.kind == scientific::F_NONE && all_loose(sa, [0.39949021853149425, 0.7673626893116112, 1.0645578589642712]));
+    let lm, v3, f3 = scientific::eigsh(s, 3, "LM");
+    assert(f3.kind == scientific::F_NONE && all_loose(lm, [5.83544214103572, 6.132637310688378, 6.500509781468498]));
+    let sm, v4, f4 = scientific::eigsh(s, 3, "SM");
+    assert(f4.kind == scientific::F_NONE && all_loose(sm, [0.3994902185314938, 0.7673626893116103, 1.064557858964272]));
+    // The first vector of SA holds a x = value x.
+    var col: f64[>..] = [];
+    var i: i64 = 0;
+    while i < 30 { col.push(v2.data[i * 3]); i += 1; }
+    let ax, fx = scientific::csr_matvec(s, col);
+    assert(fx.kind == scientific::F_NONE);
+    i = 0;
+    while i < 30 { assert(near(ax.data[i] + 10.0, sa.data[0] * col[i] + 10.0)); i += 1; }
+    let bad, vb, fb = scientific::eigsh(s, 30);
+    assert(fb.kind == scientific::F_RANGE);
+    let bad2, vb2, fb2 = scientific::eigsh(s, 3, "XX");
+    assert(fb2.kind == scientific::F_VALUE);
+    return;
+}
+
+// eigvalsh takes a matrix of twelve rows to full accuracy.
+fn test_eigvalsh_larger() {
+    var d: f64[>..] = [];
+    var i: i64 = 0;
+    while i < 144 { d.push(0.0); i += 1; }
+    i = 0;
+    while i < 12 {
+        d[i * 12 + i] = 2.0 + 0.1 * i;
+        if i + 1 < 12 { d[i * 12 + i + 1] = -1.0; d[(i + 1) * 12 + i] = -1.0; }
+        i += 1;
+    }
+    let a, fa = scientific::from_rows(12, 12, copy(d));
+    let w, f = scientific::eigvalsh(a);
+    assert(fa.kind == scientific::F_NONE && f.kind == scientific::F_NONE);
+    assert(all_loose(w, [0.39949588055807855, 0.7684859001589346, 1.086782275967645, 1.4388282352528388, 1.8538443683280288, 2.312938653238329, 2.7870613467616696, 3.246155631671971, 3.6611717647471615, 4.013217724032353, 4.3315140998410655, 4.7005041194419235]));
+    return;
+}
+
 fn main() {
+    test_eigvalsh_larger();
+    test_eigsh();
     test_lsqr_minres();
     test_sparse_structure();
     test_differential_evolution();
