@@ -59,6 +59,7 @@ import array_programs;
 import array_dsp;
 import array_sparse;
 import array_matfun;
+import array_carray;
 import array_grid;
 import array_buffer;
 import array_fftn;

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.50.0";
+import scientific from "rekanalar/goose-scientific@v0.51.0";
 ```
 
 ## API
@@ -82,6 +82,7 @@ import scientific from "rekanalar/goose-scientific@v0.50.0";
 | Signal design and analysis | `firwin`, `freqz`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `spsolve`, `cg` |
 | Functions of matrices | `sqrtm`, `logm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
+| Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -121,6 +122,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   negative real axis. A result that needs a complex number is a fault.
   `sqrtm` takes a side up to 512. `schur`, `funm`, `sinm`, `cosm`,
   `signm` and `ldl` stay out.
+- `CArr` keeps the real and the imaginary part of each element side by
+  side in one buffer. The functions of a complex array carry the
+  prefix `c`, except `real`, `imag`, `angle`, `conj`, `iscomplex`,
+  `isreal` and `adjoint`. The real functions do not take a `CArr`.
+  `iscomplex` and `isreal` give arrays of one and zero, not booleans.
+- `csolve` and `cinv` solve the real system of twice the side, so the
+  side stays at 1024 or below. `cdet` takes a side up to 2048
+  and gives the real and the imaginary part. The complex matrices have no `eig`, `svd`, `qr` or
+  `cholesky`, and `eigvals_complex` gives no eigenvectors. `cfft` and
+  `cifft` take one dimension.
 - `solve_sylvester` and the two Lyapunov solvers build the Kronecker
   form. The product of the sides stays at 4096 or below.
 - `eig_banded` and `eigvals_banded` expand the matrix, so the side
@@ -572,8 +583,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   largest.
 - The eigenvalues of a matrix that is not symmetric come from the QR
   algorithm with a shift. They come in no particular order.
-- The package holds real numbers only. A matrix with a complex pair of
-  eigenvalues is a fault for `eig` and `eigvals`.
+- `eig` and `eigvals` take real eigenvalues only. A matrix with a
+  complex pair of eigenvalues is a fault for them. `eigvals_complex`
+  takes a real square matrix of side 512 or below. It gives the
+  eigenvalues as a complex array. They sort by real part, then by
+  imaginary part. NumPy uses another order.
 - The eigenvectors of a matrix that is not symmetric come from an
   iteration. A matrix whose eigenvalues hold no vector is a fault.
 - `svd` gives the full form, as NumPy gives it under its default.
@@ -598,7 +612,7 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `roots` takes a degree of 256 or below, because the cost grows with
   the square of the degree. A larger degree is a fault.
 - The transform works on two arrays: one holds the real parts and one
-  holds the imaginary parts. The package holds no complex type.
+  holds the imaginary parts. The type `CArr` holds a complex array.
 - `fft` takes every length. A power of two takes the radix-2 method.
   Every other length takes the Bluestein method, so it allocates the
   next power of two above twice the length.

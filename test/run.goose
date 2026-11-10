@@ -3745,6 +3745,155 @@ fn test_sparse() {
 
 fn scientific_abs(x: f64) -> f64 { return mathshim_abs(x); }
 
+// The complex array type and its operations, pinned against NumPy.
+// all_near_c tells whether the parts of a complex array agree to two lists.
+fn all_near_c(a: scientific::CArr&, vr: f64[:], vi: f64[:]) -> bool {
+    var i: i64 = 0;
+    while i < vr.len {
+        if !near(a.data[2 * i], vr[i]) { return false; }
+        if !near(a.data[2 * i + 1], vi[i]) { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+fn test_carray() {
+    let re = av([1.0, -2.0, 3.5, 0.0]);
+    let im = av([0.5, 2.0, -1.25, 4.0]);
+    let z, zf = scientific::complex_array(re, im);
+    assert(zf.kind == scientific::F_NONE);
+    assert(z.ndim == 1 && z.shape[0] == 4 && z.data.len == 8);
+    // The parts come back as they went in.
+    let zr = scientific::real(z);
+    let zi = scientific::imag(z);
+    assert(all_near(zr, [1.0, -2.0, 3.5, 0.0]) && all_near(zi, [0.5, 2.0, -1.25, 4.0]));
+    // The size and the angle of each element.
+    let za = scientific::cabs(z);
+    assert(all_near(za, [1.118033988749895, 2.8284271247461903, 3.7165171868296265, 4.0]));
+    let zang = scientific::angle(z);
+    assert(all_near(zang, [0.4636476090008061, 2.356194490192345, -0.3430239404207034, 1.5707963267948966]));
+    let zdeg = scientific::angle(z, true);
+    assert(all_near(zdeg, [26.56505117707799, 135.0, -19.65382405805331, 90.0]));
+    // The conjugate turns the imaginary part around.
+    let zc = scientific::conj(z);
+    assert(all_near_c(zc, [1.0, -2.0, 3.5, 0.0], [-0.5, -2.0, 1.25, -4.0]));
+    // The tests of the parts.
+    let zr0, zrf = scientific::complex_from_values([1.0, 2.0], [0.0, 0.0]);
+    assert(zrf.kind == scientific::F_NONE);
+    let ic0 = scientific::iscomplex(zr0);
+    let ir0 = scientific::isreal(zr0);
+    assert(all_near(ic0, [0.0, 0.0]) && all_near(ir0, [1.0, 1.0]));
+    let ic1 = scientific::iscomplex(z);
+    let ir1 = scientific::isreal(z);
+    assert(all_near(ic1, [1.0, 1.0, 1.0, 1.0]) && all_near(ir1, [0.0, 0.0, 0.0, 0.0]));
+    // The parts of different shapes make a fault.
+    let zbad, zbadf = scientific::complex_array(re, av([1.0, 2.0]));
+    assert(zbadf.kind == scientific::F_SHAPE);
+    // The elementwise operations broadcast like the real ones.
+    let a = mx(2, 2, [1.0, 3.0, 0.5, -2.0]);
+    let ai = mx(2, 2, [2.0, -1.0, 0.5, 0.0]);
+    let b = av([1.0, 2.0]);
+    let bi = av([1.0, -0.5]);
+    let ca, caf = scientific::complex_array(a, ai);
+    let cb, cbf = scientific::complex_array(b, bi);
+    assert(caf.kind == scientific::F_NONE && cbf.kind == scientific::F_NONE);
+    let sum, sf = scientific::cadd(ca, cb);
+    assert(sf.kind == scientific::F_NONE);
+    assert(all_near_c(sum, [2.0, 5.0, 1.5, 0.0], [3.0, -1.5, 1.5, -0.5]));
+    let dif, df = scientific::csub(ca, cb);
+    assert(df.kind == scientific::F_NONE);
+    assert(all_near_c(dif, [0.0, 1.0, -0.5, -4.0], [1.0, -0.5, -0.5, 0.5]));
+    let pro, pf = scientific::cmul(ca, cb);
+    assert(pf.kind == scientific::F_NONE);
+    assert(all_near_c(pro, [-1.0, 5.5, 0.0, -4.0], [3.0, -3.5, 1.0, 1.0]));
+    let quo, qf = scientific::cdiv(ca, cb);
+    assert(qf.kind == scientific::F_NONE);
+    assert(all_near_c(quo, [1.5, 1.5294117647058822, 0.5, -0.9411764705882353], [0.5, -0.11764705882352941, 0.0, -0.23529411764705882]));
+    let pw, pwf = scientific::cpower(ca, cb);
+    assert(pwf.kind == scientific::F_NONE);
+    assert(all_near_c(pw, [-0.24720004426291722, 2.932609903259764, 0.2918503793793073, 18.09782608169716], [0.6964504870825432, -7.992978025796342, 0.13697862691506052, -6.536036508550907]));
+    // The functions of one operand.
+    let u, uf = scientific::complex_from_values([0.3, -1.0, 2.0, -0.5], [0.4, 2.0, -1.0, -0.5]);
+    assert(uf.kind == scientific::F_NONE);
+    let ue = scientific::cexp(u);
+    assert(all_near_c(ue, [1.2433022950695027, -0.1530918656742263, 3.992324048441272, 0.5322807302156708], [0.5256597791969788, 0.33451182923926226, -6.217676312367968, -0.29078628821269187]));
+    let ul = scientific::clog(u);
+    assert(all_near_c(ul, [-0.6931471805599453, 0.8047189562170503, 0.8047189562170503, -0.34657359027997264], [0.9272952180016123, 2.0344439357957027, -0.4636476090008061, -2.356194490192345]));
+    let us = scientific::csqrt(u);
+    assert(all_near_c(us, [0.6324555320336759, 0.7861513777574233, 1.455346690225355, 0.3217971264527913], [0.31622776601683794, 1.272019649514069, -0.34356074972251244, -0.7768869870150187]));
+    let usn = scientific::csin(u);
+    assert(all_near_c(usn, [0.31947873074156474, -3.165778513216168, 1.4031192506220405, -0.5406126857131534], [0.3924066848326388, 1.9596010414216063, 0.4890562590412937, -0.4573041531842493]));
+    let uc = scientific::ccos(u);
+    assert(all_near_c(uc, [1.0327878842028413, 2.0327230070196656, -0.64214812471552, 0.9895848833999199], [-0.12138561220787392, 3.0518977991518, 1.0686074213827783, -0.24982639750046154]));
+    let ush = scientific::csinh(u);
+    assert(all_near_c(ush, [0.2804817641764754, 0.4890562590412937, 1.9596010414216063, -0.4573041531842493], [0.4070739913234487, 1.4031192506220405, -3.165778513216168, -0.5406126857131534]));
+    let uch = scientific::ccosh(u);
+    assert(all_near_c(uch, [0.9628205308930272, -0.64214812471552, 2.0327230070196656, 0.9895848833999199], [0.11858578787353008, -1.0686074213827783, -3.0518977991518, 0.24982639750046154]));
+    // The matrices.
+    let m1, m1f = scientific::complex_array(mx(2, 2, [1.0, 0.0, 2.0, 1.0]), mx(2, 2, [2.0, -1.0, 0.0, 1.0]));
+    let m2, m2f = scientific::complex_array(mx(2, 2, [0.5, 1.0, -1.0, 0.5]), mx(2, 2, [0.0, 1.0, 2.0, -0.5]));
+    assert(m1f.kind == scientific::F_NONE && m2f.kind == scientific::F_NONE);
+    let mm, mmf = scientific::cmatmul(m1, m2);
+    assert(mmf.kind == scientific::F_NONE);
+    assert(all_near_c(mm, [2.5, -1.5, -2.0, 3.0], [2.0, 2.5, 1.0, 2.0]));
+    let tr, trf = scientific::ctranspose(m1);
+    assert(trf.kind == scientific::F_NONE);
+    assert(all_near_c(tr, [1.0, 2.0, 0.0, 1.0], [2.0, 0.0, -1.0, 1.0]));
+    let ad, adf = scientific::adjoint(m1);
+    assert(adf.kind == scientific::F_NONE);
+    assert(all_near_c(ad, [1.0, 2.0, 0.0, 1.0], [-2.0, 0.0, 1.0, -1.0]));
+    // The solve of a complex system.
+    let rhs, rhsf = scientific::complex_from_values([1.0, 2.0], [1.0, -1.0]);
+    assert(rhsf.kind == scientific::F_NONE);
+    let sol, solf = scientific::csolve(m1, rhs);
+    assert(solf.kind == scientific::F_NONE);
+    assert(all_near_c(sol, [0.7307692307692308, 0.11538461538461536], [-0.34615384615384615, -0.423076923076923]));
+    // The solve with a matrix on the right.
+    let bm, bmf = scientific::complex_array(mx(2, 2, [1.0, 2.0, 0.0, 1.0]), mx(2, 2, [0.0, 1.0, -1.0, 0.0]));
+    assert(bmf.kind == scientific::F_NONE);
+    let solm, solmf = scientific::csolve(m1, bm);
+    assert(solmf.kind == scientific::F_NONE);
+    assert(all_near_c(solm, [0.11538461538461539, 0.7307692307692308, -0.19230769230769232, 0.11538461538461534], [-0.42307692307692313, -0.34615384615384615, 0.03846153846153848, 0.5769230769230771]));
+    // The inverse and the determinant.
+    let iv, ivf = scientific::cinv(m1);
+    assert(ivf.kind == scientific::F_NONE);
+    assert(all_near_c(iv, [0.15384615384615383, 0.19230769230769235, 0.0769230769230769, 0.3461538461538462], [-0.23076923076923075, -0.03846153846153845, 0.3846153846153847, -0.2692307692307692]));
+    let dr, di, dtf = scientific::cdet(m1);
+    assert(dtf.kind == scientific::F_NONE);
+    assert(near(dr, -1.0) && near(di, 5.0));
+    // The transforms of a complex signal.
+    let sig, sigf = scientific::complex_from_values([1.0, 2.0, 0.0, -1.0], [0.0, -1.0, 0.5, 2.0]);
+    assert(sigf.kind == scientific::F_NONE);
+    let ft, ftf = scientific::cfft(sig);
+    assert(ftf.kind == scientific::F_NONE);
+    assert(all_near_c(ft, [2.0, -2.0, 0.0, 4.0], [1.5, -3.5, -0.5, 2.5]));
+    let itf, itff = scientific::cifft(sig);
+    assert(itff.kind == scientific::F_NONE);
+    assert(all_near_c(itf, [0.5, 1.0, 0.0, -0.5], [0.375, 0.625, -0.125, -0.875]));
+    // The eigenvalues of a real matrix may hold complex pairs.
+    let ea, eaf = scientific::eigvals_complex(mx(3, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0]));
+    assert(eaf.kind == scientific::F_NONE);
+    assert(all_near_c(ea, [-0.9057401795217577, 0.1982468633970094, 16.707493316124747], [0.0, 0.0, 0.0]));
+    let eb, ebf = scientific::eigvals_complex(mx(2, 2, [0.0, -1.0, 1.0, 0.0]));
+    assert(ebf.kind == scientific::F_NONE);
+    assert(all_near_c(eb, [0.0, 0.0], [-1.0, 1.0]));
+    let ec, ecf = scientific::eigvals_complex(mx(3, 3, [2.0, 0.0, 0.0, 0.0, 3.0, 4.0, 0.0, -4.0, 3.0]));
+    assert(ecf.kind == scientific::F_NONE);
+    assert(all_near_c(ec, [2.0, 3.0, 3.0], [0.0, -4.0, 4.0]));
+    // A matrix that is not square makes a fault.
+    let c23, c23f = scientific::complex_array(mx(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]), mx(2, 3, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(c23f.kind == scientific::F_NONE);
+    let bad, badf = scientific::csolve(c23, rhs);
+    assert(badf.kind == scientific::F_SHAPE);
+    let bad2, bad2f = scientific::cmatmul(c23, c23);
+    assert(bad2f.kind == scientific::F_SHAPE);
+    let bad3, bad3f = scientific::ctranspose(rhs);
+    assert(bad3f.kind == scientific::F_SHAPE);
+    let bad4, bad4f = scientific::eigvals_complex(mx(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]));
+    assert(bad4f.kind == scientific::F_SHAPE);
+    return;
+}
+
 fn test_matfun() {
     let eg, egf = scientific::from_rows(3, 3, [4.0, 1.0, 0.0, 1.0, 3.0, 0.5, 0.0, 0.5, 2.0]);
     let ew, ev, evf = scientific::eigh(eg);
@@ -3846,6 +3995,7 @@ fn main() {
     test_dsp();
     test_sparse();
     test_matfun();
+    test_carray();
     test_generators();
     test_indexing();
     test_sort_and_search();
