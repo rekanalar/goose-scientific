@@ -3975,6 +3975,37 @@ fn test_dblquad() {
     return;
 }
 
+// loose tells whether two numbers agree to a relative 1e-5.
+fn loose(a: f64, b: f64) -> bool {
+    var d = a - b;
+    if d < 0.0 { d = -d; }
+    var s = b;
+    if s < 0.0 { s = -s; }
+    return d <= 0.00001 * (s + 0.00001);
+}
+
+// curve_fit is pinned against SciPy.
+fn test_curve_fit() {
+    let x = [0.0, 0.36363636363636365, 0.7272727272727273, 1.0909090909090908, 1.4545454545454546, 1.8181818181818183, 2.1818181818181817, 2.5454545454545454, 2.909090909090909, 3.272727272727273, 3.6363636363636367, 4.0];
+    let y = [3.02, 2.0282500972972257, 1.4812573462907253, 1.1453847417432672, 0.8573363330894807, 0.7651937511001847, 0.6365962742142248, 0.6113734634230907, 0.5169530833077661, 0.5454988590422815, 0.5521264402226302, 0.49379141105190194];
+    let p, c, f = scientific::curve_fit(x, y, [1.0, 1.0, 0.0]) { t, q => q[0] * mathshim_exp(-q[1] * t) + q[2] };
+    assert(f.kind == scientific::F_NONE);
+    assert(loose(p.data[0], 2.504842778143317) && loose(p.data[1], 1.2966838932208153) && loose(p.data[2], 0.501188851174762));
+    assert(loose(c.data[0], 0.0008144738293533199) && loose(c.data[4], 0.001227646248841025) && loose(c.data[8], 0.00022564752813311048));
+    assert(loose(c.data[1], 0.0001032144836216253) && loose(c.data[2], -0.00014630932777603877));
+    let y2 = [-1.98, -0.9390909090909092, 0.19181818181818167, 1.3127272727272725, 2.3436363636363633, 3.484545454545455, 4.535454545454545, 5.656363636363636, 6.687272727272727, 7.828181818181818, 8.93909090909091, 9.98];
+    let p2, c2, f2 = scientific::curve_fit(x, y2, [1.0, 0.0]) { t, q => q[0] * t + q[1] };
+    assert(f2.kind == scientific::F_NONE);
+    assert(loose(p2.data[0], 2.997884615327012) && loose(p2.data[1], -1.992435897275306));
+    assert(loose(c2.data[0], 4.00973865517021e-05) && loose(c2.data[1], -8.019477395462219e-05) && loose(c2.data[3], 0.00022357331117456666));
+    // Too few points and data of unequal length are faults.
+    let b1, b2, g1 = scientific::curve_fit([1.0, 2.0], [1.0, 2.0], [1.0, 0.0]) { t, q => q[0] * t + q[1] };
+    assert(g1.kind == scientific::F_VALUE);
+    let b3, b4, g2 = scientific::curve_fit([1.0, 2.0, 3.0], [1.0, 2.0], [1.0]) { t, q => q[0] * t };
+    assert(g2.kind == scientific::F_SHAPE);
+    return;
+}
+
 fn test_matfun() {
     let eg, egf = scientific::from_rows(3, 3, [4.0, 1.0, 0.0, 1.0, 3.0, 0.5, 0.0, 0.5, 2.0]);
     let ew, ev, evf = scientific::eigh(eg);
@@ -4080,6 +4111,7 @@ fn main() {
     test_pad_stats();
     test_dctn();
     test_dblquad();
+    test_curve_fit();
     test_generators();
     test_indexing();
     test_sort_and_search();

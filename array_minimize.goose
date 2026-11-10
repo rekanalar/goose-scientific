@@ -479,3 +479,80 @@ fn lsq_step(normal: f64[:], rhs: f64[:], n: i64, damping: f64) -> Arr, Fault {
     let vec = Arr { ndim: 1, shape: rs, data: copy(rv) };
     return solve(mat, vec);
 }
+
+// curve_fit fits a model f(x, p) to the points (xdata, ydata) by least
+// squares. The model is a block { x, p => ... }. It gives the best
+// parameters and their covariance. The covariance is the inverse of
+// the normal matrix, scaled by the residual variance, as SciPy scales
+// it with the default setting. The call needs more points than
+// parameters. A singular normal matrix is a fault.
+fn curve_fit<F: fn(f64, f64[:]) -> f64>(xdata: f64[:], ydata: f64[:], p0: f64[:], turns: i64 = 200) -> Arr, Arr, Fault {
+    let m = xdata.len;
+    let n = p0.len;
+    if n < 1 || m != ydata.len {
+        return empty_arr(), empty_arr(), fault(F_SHAPE, "curve_fit", "the data and the start do not agree");
+    }
+    if m <= n {
+        return empty_arr(), empty_arr(), fault(F_VALUE, "curve_fit", "the call needs more points than parameters");
+    }
+    var i: i64 = 0;
+    while i < m {
+        if !(xdata[i] - xdata[i] == 0.0) || !(ydata[i] - ydata[i] == 0.0) {
+            return empty_arr(), empty_arr(), fault(F_VALUE, "curve_fit", "the data holds a value that is not finite");
+        }
+        i += 1;
+    }
+    let best, f = least_squares(p0, 1.0e-14, turns) { p =>
+        var r: f64[>..] = [];
+        var k: i64 = 0;
+        while k < m { r.push(F(xdata[k], copy(p)) - ydata[k]); k += 1; }
+        r
+    };
+    if f.kind != F_NONE { return empty_arr(), empty_arr(), fault(f.kind, "curve_fit", f.detail); }
+    // The Jacobian by central differences at the best point.
+    var jac: f64[>..] = [];
+    i = 0;
+    while i < m * n { jac.push(0.0); i += 1; }
+    var res: f64 = 0.0;
+    i = 0;
+    while i < m {
+        let r = F(xdata[i], copy(best.data)) - ydata[i];
+        res += r * r;
+        var d: i64 = 0;
+        while d < n {
+            let h = 0.000001 * (1.0 + mathshim::abs_of(best.data[d]));
+            var up: f64[>..] = [];
+            var dn: f64[>..] = [];
+            var k: i64 = 0;
+            while k < n { up.push(best.data[k]); dn.push(best.data[k]); k += 1; }
+            up[d] = up[d] + h;
+            dn[d] = dn[d] - h;
+            jac[i * n + d] = (F(xdata[i], copy(up)) - F(xdata[i], copy(dn))) / (2.0 * h);
+            d += 1;
+        }
+        i += 1;
+    }
+    var normal: f64[>..] = [];
+    i = 0;
+    while i < n * n { normal.push(0.0); i += 1; }
+    var a: i64 = 0;
+    while a < n {
+        var b: i64 = 0;
+        while b < n {
+            var t: f64 = 0.0;
+            var row: i64 = 0;
+            while row < m { t += jac[row * n + a] * jac[row * n + b]; row += 1; }
+            normal[a * n + b] = t;
+            b += 1;
+        }
+        a += 1;
+    }
+    let nm = Arr { ndim: 2, shape: [n, n], data: copy(normal) };
+    let covu, fi = inv(nm);
+    if fi.kind != F_NONE { return empty_arr(), empty_arr(), fault(F_VALUE, "curve_fit", "the normal matrix is singular"); }
+    let s2 = res / (m - n);
+    var cov: f64[>..] = [];
+    i = 0;
+    while i < n * n { cov.push(covu.data[i] * s2); i += 1; }
+    return best, Arr { ndim: 2, shape: [n, n], data: cov }, no_fault();
+}

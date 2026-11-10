@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.54.0";
+import scientific from "rekanalar/goose-scientific@v0.55.0";
 ```
 
 ## API
@@ -63,7 +63,7 @@ import scientific from "rekanalar/goose-scientific@v0.54.0";
 | Triangles | `tril`, `triu` |
 | Between the points | `interp`, `gradient`, `pad_value` |
 | Root finding | `brentq`, `brenth`, `newton`, `fsolve` |
-| Minimization | `minimize_scalar`, `minimize`, `least_squares` |
+| Minimization | `minimize_scalar`, `minimize`, `least_squares`, `curve_fit` |
 | Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
@@ -711,6 +711,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `minimize` finds the smallest point of a function of several
   variables. The method of Nelder and Mead holds a simplex. A start
   far from the point of the smallest value can end at a local point.
+- `curve_fit` takes the model as a block `{ x, p => ... }`, the data
+  and a start. It gives the parameters and the covariance. The
+  covariance uses the scale of SciPy for the default setting. It has
+  no `sigma`, no `bounds` and no `method`. Parameters match SciPy to
+  about five digits.
 - `least_squares` fits a function to values. The method of Levenberg
   and Marquardt takes the matrix of the derivatives by a small
   difference. So the fit holds fewer digits than a fit that takes the
