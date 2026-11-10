@@ -856,3 +856,171 @@ fn csr_slice(a, r0: i64, r1: i64, c0: i64, c1: i64) -> Csr, Fault {
     }
     return csr_from_triplets(r1 - r0, c1 - c0, ri, ci, v);
 }
+
+// lsqr solves the least squares problem of a sparse matrix, of any
+// shape, by the method of Paige and Saunders. It starts from zero, so
+// a system with more unknowns than equations gives the solution of the
+// least norm. It stops when the residual norm is not above rtol times
+// the norm of b, or when the gradient of the residual is small. It
+// gives x and the info: zero for success, or the count of turns when
+// the limit of maxiter turns ran out.
+fn lsqr(s, b: f64[:], rtol: f64 = 1.0e-8, maxiter: i64 = 0) -> Arr, i64, Fault {
+    if b.len != s.rows || b.len < 1 {
+        return empty_arr(), 0, fault(F_SHAPE, "lsqr", "the right side does not fit the matrix");
+    }
+    if !(rtol >= 0.0) {
+        return empty_arr(), 0, fault(F_VALUE, "lsqr", "the tolerance holds a negative value");
+    }
+    let m = s.rows;
+    let n = s.cols;
+    let st = csr_transpose(s);
+    var limit = maxiter;
+    if limit < 1 { limit = 2 * n; }
+    var u: f64[>..] = [];
+    var i: i64 = 0;
+    while i < m { u.push(b[i]); i += 1; }
+    let bn = krylov_norm(b);
+    var x: f64[>..] = [];
+    i = 0;
+    while i < n { x.push(0.0); i += 1; }
+    if bn == 0.0 { return line_arr(copy(x)), 0, no_fault(); }
+    i = 0;
+    while i < m { u[i] = u[i] / bn; i += 1; }
+    let v0, f0 = csr_matvec(st, u);
+    if f0.kind != F_NONE { return empty_arr(), 0, f0; }
+    var v: f64[>..] = [];
+    i = 0;
+    while i < n { v.push(v0.data[i]); i += 1; }
+    var alpha = krylov_norm(v);
+    if alpha == 0.0 { return line_arr(copy(x)), 0, no_fault(); }
+    var w: f64[>..] = [];
+    i = 0;
+    while i < n { v[i] = v[i] / alpha; w.push(v[i]); i += 1; }
+    var phibar = bn;
+    var rhobar = alpha;
+    var turn: i64 = 0;
+    while turn < limit {
+        let av, f1 = csr_matvec(s, v);
+        if f1.kind != F_NONE { return empty_arr(), 0, f1; }
+        i = 0;
+        while i < m { u[i] = av.data[i] - alpha * u[i]; i += 1; }
+        let beta = krylov_norm(u);
+        if beta > 0.0 {
+            i = 0;
+            while i < m { u[i] = u[i] / beta; i += 1; }
+            let atu, f2 = csr_matvec(st, u);
+            if f2.kind != F_NONE { return empty_arr(), 0, f2; }
+            i = 0;
+            while i < n { v[i] = atu.data[i] - beta * v[i]; i += 1; }
+            alpha = krylov_norm(v);
+            if alpha > 0.0 {
+                i = 0;
+                while i < n { v[i] = v[i] / alpha; i += 1; }
+            }
+        }
+        let rho = mathshim::root(rhobar * rhobar + beta * beta);
+        let c = rhobar / rho;
+        let sn = beta / rho;
+        let theta = sn * alpha;
+        rhobar = -c * alpha;
+        let phi = c * phibar;
+        phibar = sn * phibar;
+        i = 0;
+        while i < n {
+            x[i] = x[i] + (phi / rho) * w[i];
+            w[i] = v[i] - (theta / rho) * w[i];
+            i += 1;
+        }
+        turn += 1;
+        // The test of the residual, and the test of the gradient.
+        let grad = phibar * alpha * mathshim::abs_of(c);
+        if phibar <= rtol * bn || grad <= rtol * phibar * (1.0 + alpha) || beta == 0.0 || alpha == 0.0 {
+            return line_arr(copy(x)), 0, no_fault();
+        }
+    }
+    return line_arr(copy(x)), turn, no_fault();
+}
+
+// minres solves a x = b for a symmetric sparse matrix, which may be
+// indefinite, by the method of Paige and Saunders. It starts from zero
+// and stops when the estimate of the residual norm is not above rtol
+// times the norm of b. It gives x and the info: zero for success, or
+// the count of turns when the limit of maxiter turns ran out. The
+// matrix must be symmetric. The method does not check that.
+fn minres(s, b: f64[:], rtol: f64 = 1.0e-5, maxiter: i64 = 0) -> Arr, i64, Fault {
+    if s.rows != s.cols || b.len != s.rows || b.len < 1 {
+        return empty_arr(), 0, fault(F_SHAPE, "minres", "the matrix is not square or the right side does not fit");
+    }
+    if !(rtol >= 0.0) {
+        return empty_arr(), 0, fault(F_VALUE, "minres", "the tolerance holds a negative value");
+    }
+    let n = b.len;
+    var limit = maxiter;
+    if limit < 1 { limit = 5 * n; }
+    var x: f64[>..] = [];
+    var y: f64[>..] = [];
+    var r1: f64[>..] = [];
+    var r2: f64[>..] = [];
+    var w: f64[>..] = [];
+    var w2: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n { x.push(0.0); y.push(b[i]); r1.push(b[i]); r2.push(b[i]); w.push(0.0); w2.push(0.0); i += 1; }
+    let beta1 = krylov_norm(b);
+    if beta1 == 0.0 { return line_arr(copy(x)), 0, no_fault(); }
+    var oldb: f64 = 0.0;
+    var beta = beta1;
+    var dbar: f64 = 0.0;
+    var epsln: f64 = 0.0;
+    var phibar = beta1;
+    var cs: f64 = -1.0;
+    var sn: f64 = 0.0;
+    var turn: i64 = 0;
+    while turn < limit {
+        let sc = 1.0 / beta;
+        var v: f64[>..] = [];
+        i = 0;
+        while i < n { v.push(sc * y[i]); i += 1; }
+        let av, f1 = csr_matvec(s, v);
+        if f1.kind != F_NONE { return empty_arr(), 0, f1; }
+        i = 0;
+        while i < n { y[i] = av.data[i]; i += 1; }
+        if turn >= 1 {
+            i = 0;
+            while i < n { y[i] = y[i] - (beta / oldb) * r1[i]; i += 1; }
+        }
+        var alfa: f64 = 0.0;
+        i = 0;
+        while i < n { alfa += v[i] * y[i]; i += 1; }
+        i = 0;
+        while i < n { y[i] = y[i] - (alfa / beta) * r2[i]; i += 1; }
+        i = 0;
+        while i < n { r1[i] = r2[i]; r2[i] = y[i]; i += 1; }
+        oldb = beta;
+        beta = krylov_norm(y);
+        let oldeps = epsln;
+        let delta = cs * dbar + sn * alfa;
+        let gbar = sn * dbar - cs * alfa;
+        epsln = sn * beta;
+        dbar = -cs * beta;
+        let gamma = mathshim::root(gbar * gbar + beta * beta);
+        if gamma == 0.0 {
+            return empty_arr(), 0, fault(F_VALUE, "minres", "the matrix is singular");
+        }
+        cs = gbar / gamma;
+        sn = beta / gamma;
+        let phi = cs * phibar;
+        phibar = sn * phibar;
+        let denom = 1.0 / gamma;
+        i = 0;
+        while i < n {
+            let w1 = w2[i];
+            w2[i] = w[i];
+            w[i] = (v[i] - oldeps * w1 - delta * w2[i]) * denom;
+            x[i] = x[i] + phi * w[i];
+            i += 1;
+        }
+        turn += 1;
+        if mathshim::abs_of(phibar) <= rtol * beta1 || beta == 0.0 { return line_arr(copy(x)), 0, no_fault(); }
+    }
+    return line_arr(copy(x)), turn, no_fault();
+}

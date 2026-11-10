@@ -4606,7 +4606,26 @@ fn test_sparse_structure() {
     return;
 }
 
+// lsqr and minres are pinned against the dense solutions of NumPy.
+fn test_lsqr_minres() {
+    let a, fa = scientific::csr_from_dense(mx(4, 2, [1.0, 2.0, 3.0, 4.0, 5.0, 7.0, 0.0, 1.0]));
+    let x1, i1, f1 = scientific::lsqr(a, [1.0, 2.0, 2.0, 3.0], 1.0e-12);
+    assert(fa.kind == scientific::F_NONE && f1.kind == scientific::F_NONE && i1 == 0 && all_loose(x1, [-2.7142857142857144, 2.285714285714286]));
+    let w, fw = scientific::csr_from_dense(mx(2, 4, [1.0, 0.0, 2.0, 0.0, 0.0, 3.0, 0.0, 4.0]));
+    let x2, i2, f2 = scientific::lsqr(w, [1.0, 2.0], 1.0e-12);
+    assert(fw.kind == scientific::F_NONE && f2.kind == scientific::F_NONE && i2 == 0 && all_loose(x2, [0.2, 0.24, 0.4, 0.32]));
+    let s, fs = scientific::csr_from_dense(mx(3, 3, [2.0, 1.0, 0.0, 1.0, -3.0, 1.0, 0.0, 1.0, 4.0]));
+    let x3, i3, f3 = scientific::minres(s, [1.0, 2.0, 3.0], 1.0e-12);
+    assert(fs.kind == scientific::F_NONE && f3.kind == scientific::F_NONE && i3 == 0 && all_loose(x3, [0.6, -0.2, 0.8]));
+    let x4, i4, f4 = scientific::lsqr(a, [1.0, 2.0, 3.0]);
+    assert(f4.kind == scientific::F_SHAPE);
+    let x5, i5, f5 = scientific::minres(a, [1.0, 2.0, 3.0, 4.0]);
+    assert(f5.kind == scientific::F_SHAPE);
+    return;
+}
+
 fn main() {
+    test_lsqr_minres();
     test_sparse_structure();
     test_differential_evolution();
     test_istft();
