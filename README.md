@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.88.0";
+import scientific from "rekanalar/goose-scientific@v0.89.0";
 ```
 
 ## API
@@ -62,7 +62,7 @@ import scientific from "rekanalar/goose-scientific@v0.88.0";
 | Cuts | `split`, `array_split`, `hsplit`, `vsplit`, `part` |
 | Triangles | `tril`, `triu` |
 | Between the points | `interp`, `gradient`, `pad_value` |
-| Root finding | `brentq`, `brenth`, `newton`, `halley`, `secant`, `fsolve`, `root_scalar` |
+| Root finding | `brentq`, `brenth`, `newton`, `halley`, `secant`, `toms748`, `fsolve`, `root_scalar` |
 | Minimization | `minimize_scalar`, `minimize`, `minimize_grad`, `differential_evolution`, `least_squares`, `curve_fit` |
 | Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `cumulative_simpson`, `cumulative_simpson_dx`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
@@ -854,6 +854,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   its sign. The two points that hold no change of sign are a fault.
 - `brenth` finds the same root with the step of the false position.
   The step holds the root between the two points at every turn.
+- `toms748` finds a root in a bracket with the algorithm 748 of
+  Alefeld, Potra and Shi. It takes the function as a block. The count
+  of steps of Newton type goes from one to a hundred. SciPy prints a
+  warning when the count lies outside those limits. The package takes
+  the nearest count and does not print a warning.
+- `toms748` gives a fault when the two ends of the bracket hold values
+  of the same sign. SciPy gives an error in that case.
 - `secant` finds a root from two points. It takes the function as a
   block. The method uses the last two points of the function. SciPy
   takes the second point as an option, and it takes one point when the
@@ -1061,6 +1068,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   faults on an unknown rule and on more than 257 coefficients. SciPy lets a
   negative `tol` give an empty group and an error deep in the call.
   The checks also bound the work of the root finder.
+- `toms748` checks its input before it computes. It faults on a
+  tolerance of zero or below. It also faults on a relative tolerance
+  below zero and on a count of turns below one. A value of the
+  function that is not finite is a fault. The count of steps of Newton
+  type is held between one and a hundred.
 - `secant` and `halley` check their input before they compute. They
   fault on a tolerance of zero or below and on a count of turns below
   one. The secant method also faults on two points that hold the same

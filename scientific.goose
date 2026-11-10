@@ -58,6 +58,7 @@ import array_quad;
 import array_nquad;
 import array_residue;
 import array_minimize_grad;
+import array_toms748;
 import array_elliptic;
 import array_programs;
 import array_dsp;
