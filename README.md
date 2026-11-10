@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.52.0";
+import scientific from "rekanalar/goose-scientific@v0.53.0";
 ```
 
 ## API
@@ -74,7 +74,7 @@ import scientific from "rekanalar/goose-scientific@v0.52.0";
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
 | Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `null_space`, `orth`, `expm` |
-| Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn` |
+| Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
 | Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `solve_ivp` |
@@ -216,9 +216,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   and `workers` stay out. The metrics of true and false counts read
   a nonzero value as true.
 - `dct`, `idct`, `dst` and `idst` take one row and the types one to
-  four. They take the norms `backward`, `ortho` and `forward`. The
-  names `dctn`, `dstn` and the `axis` argument stay out. Type one of
-  the cosine needs two points.
+  four. They take the norms `backward`, `ortho` and `forward`. Type one
+  of the cosine needs two points.
+- `dctn`, `idctn`, `dstn` and `idstn` take an array and a list of axes. They run each axis in turn. An
+  empty list gives the array back. No list means every axis. The
+  `axis` argument of the one-row functions stays out.
 - `hfft` and `ihfft` take and give the parts as two rows. `rfft2`,
   `rfftn`, `irfft2` and `irfftn` take the parts as two arrays. `irfftn`
   takes the length of the last axis, because it cannot tell an even

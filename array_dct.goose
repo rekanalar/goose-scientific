@@ -458,3 +458,90 @@ fn irfft2(re, im, n_last: i64 = 0) -> Arr, Fault {
     }
     return irfftn(re, im, n_last);
 }
+
+// sct_axes runs a cosine or sine transform along each listed axis, in
+// the order of the list. An empty list runs no transform and gives the
+// array back, as SciPy does. A negative axis counts from the end.
+fn sct_axes(a, axes: i64[:], kind: i64, norm: const u8[:], sine: bool, inverse: bool, tag: const u8[:]) -> Arr, Fault {
+    let c = dct_kind_check(kind, tag);
+    if c.kind != F_NONE { return empty_arr(), c; }
+    if norm_code(norm) < 0 {
+        return empty_arr(), fault(F_VALUE, tag, "the norm holds an unknown name");
+    }
+    var ax: i64[>..] = [];
+    var i: i64 = 0;
+    while i < axes.len {
+        let k = fix_axis(axes[i], a.ndim);
+        if k < 0 { return empty_arr(), fault(F_RANGE, tag, "an axis stands outside the shape"); }
+        var j: i64 = 0;
+        while j < ax.len {
+            if ax[j] == k { return empty_arr(), fault(F_VALUE, tag, "an axis repeats"); }
+            j += 1;
+        }
+        ax.push(k);
+        i += 1;
+    }
+    var d: f64[>..] = [];
+    i = 0;
+    while i < a.data.len { d.push(a.data[i]); i += 1; }
+    i = 0;
+    while i < ax.len {
+        let axis = ax[i];
+        let width = a.shape[axis];
+        let inner = product_after_of(a.shape, axis);
+        let outer = product_before_of(a.shape, axis);
+        var o: i64 = 0;
+        while o < outer {
+            var q: i64 = 0;
+            while q < inner {
+                var line: f64[>..] = [];
+                var k: i64 = 0;
+                while k < width { line.push(d[(o * width + k) * inner + q]); k += 1; }
+                let t, f = sct(line, kind, norm, sine, inverse, tag);
+                if f.kind != F_NONE { return empty_arr(), f; }
+                k = 0;
+                while k < width { d[(o * width + k) * inner + q] = t.data[k]; k += 1; }
+                q += 1;
+            }
+            o += 1;
+        }
+        i += 1;
+    }
+    var s: i64[..8] = [];
+    i = 0;
+    while i < a.ndim { s.push(a.shape[i]); i += 1; }
+    return Arr { ndim: a.ndim, shape: s, data: d }, no_fault();
+}
+
+// all_axes lists every axis of an array.
+fn all_axes(nd: i64) -> i64[>..] {
+    var v: i64[>..] = [];
+    var i: i64 = 0;
+    while i < nd { v.push(i); i += 1; }
+    return v;
+}
+
+// dctn gives the cosine transform along the axes. With no axes given
+// (the list holds a single value of 1000), it runs along every axis.
+fn dctn(a, axes: i64[:] = [1000], kind: i64 = 2, norm: const u8[:] = "backward") -> Arr, Fault {
+    if axes.len == 1 && axes[0] == 1000 { return sct_axes(a, all_axes(a.ndim), kind, norm, false, false, "dctn"); }
+    return sct_axes(a, axes, kind, norm, false, false, "dctn");
+}
+
+// idctn gives the inverse cosine transform along the axes.
+fn idctn(a, axes: i64[:] = [1000], kind: i64 = 2, norm: const u8[:] = "backward") -> Arr, Fault {
+    if axes.len == 1 && axes[0] == 1000 { return sct_axes(a, all_axes(a.ndim), kind, norm, false, true, "idctn"); }
+    return sct_axes(a, axes, kind, norm, false, true, "idctn");
+}
+
+// dstn gives the sine transform along the axes.
+fn dstn(a, axes: i64[:] = [1000], kind: i64 = 2, norm: const u8[:] = "backward") -> Arr, Fault {
+    if axes.len == 1 && axes[0] == 1000 { return sct_axes(a, all_axes(a.ndim), kind, norm, true, false, "dstn"); }
+    return sct_axes(a, axes, kind, norm, true, false, "dstn");
+}
+
+// idstn gives the inverse sine transform along the axes.
+fn idstn(a, axes: i64[:] = [1000], kind: i64 = 2, norm: const u8[:] = "backward") -> Arr, Fault {
+    if axes.len == 1 && axes[0] == 1000 { return sct_axes(a, all_axes(a.ndim), kind, norm, true, true, "idstn"); }
+    return sct_axes(a, axes, kind, norm, true, true, "idstn");
+}
