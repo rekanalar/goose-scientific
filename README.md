@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.90.0";
+import scientific from "rekanalar/goose-scientific@v0.91.0";
 ```
 
 ## API
@@ -62,7 +62,7 @@ import scientific from "rekanalar/goose-scientific@v0.90.0";
 | Cuts | `split`, `array_split`, `hsplit`, `vsplit`, `part` |
 | Triangles | `tril`, `triu` |
 | Between the points | `interp`, `gradient`, `pad_value` |
-| Root finding | `brentq`, `brenth`, `newton`, `halley`, `secant`, `toms748`, `fsolve`, `root_scalar` |
+| Root finding | `brentq`, `brenth`, `newton`, `halley`, `secant`, `toms748`, `fsolve`, `root`, `root_scalar` |
 | Minimization | `minimize_scalar`, `minimize`, `minimize_grad`, `differential_evolution`, `least_squares`, `curve_fit` |
 | Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `cumulative_simpson`, `cumulative_simpson_dx`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
@@ -879,6 +879,15 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   function of the caller takes a vector and gives a vector. The
   method takes the derivative by a small difference, so the root
   holds fewer digits than the other methods.
+- `root` finds the point where several equations hold zero. The
+  methods are `hybr`, `lm`, `broyden1` and `broyden2`. The result
+  holds the point and the values of the equations.
+- The method `hybr` of `root` takes damped Newton steps, not the
+  trust region of MINPACK. The path differs from SciPy, but the root
+  matches. SciPy holds the methods `anderson`, `linearmixing`,
+  `diagbroyden`, `excitingmixing`, `krylov` and `df-sane`. The
+  package faults on them. The method `lm` that stops at a point that
+  is not a root is a fault.
 - Every solver takes a tolerance and a count of turns. A tolerance
   of zero and a count below one are faults. A method that does not
   reach the tolerance in the count of turns is a fault.
