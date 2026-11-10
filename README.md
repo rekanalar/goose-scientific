@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.14.0";
+import scientific from "rekanalar/goose-scientific@v0.15.0";
 ```
 
 ## API
@@ -51,6 +51,7 @@ import scientific from "rekanalar/goose-scientific@v0.14.0";
 | Root finding | `brentq`, `brenth`, `newton`, `fsolve` |
 | Minimization | `minimize_scalar`, `minimize`, `least_squares` |
 | Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `romberg` |
+| Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -260,6 +261,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `romberg` takes the extrapolation of Romberg. The count of the
   parts of the grid holds a power of two, as the method of the
   references holds. A count that holds no power of two is a fault.
+- `spline` holds the coefficients of a natural cubic spline through
+  the points of a signal. The second derivative of the natural spline
+  holds zero at the two ends, as the spline of the references does.
+- `spline_value` gives the value of a spline at a point. A point
+  outside the points of the signal is a fault.
+- `spline_values` gives the values of a spline at a row of points.
 
 ## Security
 
