@@ -3375,6 +3375,70 @@ fn test_transforms() {
     assert(k4.kind == scientific::F_RANGE);
 }
 
+fn test_spatial() {
+    let c_euclidean, e_euclidean = scientific::cdist(mx(4, 3, [1.0, 2.0, 0.0, 4.0, 0.0, 3.0, -1.0, 5.0, 2.0, 0.0, 0.0, 1.0]), mx(2, 3, [2.0, 1.0, 1.0, 0.0, 3.0, -2.0]), "euclidean");
+    assert(e_euclidean.kind == scientific::F_NONE && all_near(c_euclidean, [1.7320508075688772, 2.449489742783178, 3.0, 7.0710678118654755, 5.0990195135927845, 4.58257569495584, 2.23606797749979, 4.242640687119285]));
+    let c_sqeuclidean, e_sqeuclidean = scientific::cdist(mx(4, 3, [1.0, 2.0, 0.0, 4.0, 0.0, 3.0, -1.0, 5.0, 2.0, 0.0, 0.0, 1.0]), mx(2, 3, [2.0, 1.0, 1.0, 0.0, 3.0, -2.0]), "sqeuclidean");
+    assert(e_sqeuclidean.kind == scientific::F_NONE && all_near(c_sqeuclidean, [3.0, 6.0, 9.0, 50.0, 26.0, 21.0, 5.0, 18.0]));
+    let c_cityblock, e_cityblock = scientific::cdist(mx(4, 3, [1.0, 2.0, 0.0, 4.0, 0.0, 3.0, -1.0, 5.0, 2.0, 0.0, 0.0, 1.0]), mx(2, 3, [2.0, 1.0, 1.0, 0.0, 3.0, -2.0]), "cityblock");
+    assert(e_cityblock.kind == scientific::F_NONE && all_near(c_cityblock, [3.0, 4.0, 5.0, 12.0, 8.0, 7.0, 3.0, 6.0]));
+    let c_chebyshev, e_chebyshev = scientific::cdist(mx(4, 3, [1.0, 2.0, 0.0, 4.0, 0.0, 3.0, -1.0, 5.0, 2.0, 0.0, 0.0, 1.0]), mx(2, 3, [2.0, 1.0, 1.0, 0.0, 3.0, -2.0]), "chebyshev");
+    assert(e_chebyshev.kind == scientific::F_NONE && all_near(c_chebyshev, [1.0, 2.0, 2.0, 5.0, 4.0, 4.0, 2.0, 3.0]));
+    let c_cosine, e_cosine = scientific::cdist(mx(4, 3, [1.0, 2.0, 0.0, 4.0, 0.0, 3.0, -1.0, 5.0, 2.0, 0.0, 0.0, 1.0]), mx(2, 3, [2.0, 1.0, 1.0, 0.0, 3.0, -2.0]), "cosine");
+    assert(e_cosine.kind == scientific::F_NONE && all_near(c_cosine, [0.26970325665977857, 0.25579159246474925, 0.10185376097950138, 1.3328201177351375, 0.627322003750035, 0.4429933481039833, 0.5917517095361369, 1.5547001962252291]));
+    let c_correlation, e_correlation = scientific::cdist(mx(4, 3, [1.0, 2.0, 0.0, 4.0, 0.0, 3.0, -1.0, 5.0, 2.0, 0.0, 0.0, 1.0]), mx(2, 3, [2.0, 1.0, 1.0, 0.0, 3.0, -2.0]), "correlation");
+    assert(e_correlation.kind == scientific::F_NONE && all_near(c_correlation, [1.0, 0.006600732201217263, 0.3066247547184636, 1.7953559537197221, 1.8660254037844388, 0.4039604393207302, 1.5, 1.8029550685469662]));
+    let c_hamming, e_hamming = scientific::cdist(mx(4, 3, [1.0, 2.0, 0.0, 4.0, 0.0, 3.0, -1.0, 5.0, 2.0, 0.0, 0.0, 1.0]), mx(2, 3, [2.0, 1.0, 1.0, 0.0, 3.0, -2.0]), "hamming");
+    assert(e_hamming.kind == scientific::F_NONE && all_near(c_hamming, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.6666666666666666, 0.6666666666666666]));
+    let c_canberra, e_canberra = scientific::cdist(mx(4, 3, [1.0, 2.0, 0.0, 4.0, 0.0, 3.0, -1.0, 5.0, 2.0, 0.0, 0.0, 1.0]), mx(2, 3, [2.0, 1.0, 1.0, 0.0, 3.0, -2.0]), "canberra");
+    assert(e_canberra.kind == scientific::F_NONE && all_near(c_canberra, [1.6666666666666665, 2.2, 1.8333333333333333, 3.0, 1.9999999999999998, 2.25, 2.0, 2.0]));
+    let c_braycurtis, e_braycurtis = scientific::cdist(mx(4, 3, [1.0, 2.0, 0.0, 4.0, 0.0, 3.0, -1.0, 5.0, 2.0, 0.0, 0.0, 1.0]), mx(2, 3, [2.0, 1.0, 1.0, 0.0, 3.0, -2.0]), "braycurtis");
+    assert(e_braycurtis.kind == scientific::F_NONE && all_near(c_braycurtis, [0.42857142857142855, 0.5, 0.45454545454545453, 1.5, 0.8, 0.7777777777777778, 0.6, 1.5]));
+    let c_jaccard, e_jaccard = scientific::cdist(mx(4, 3, [1.0, 2.0, 0.0, 4.0, 0.0, 3.0, -1.0, 5.0, 2.0, 0.0, 0.0, 1.0]), mx(2, 3, [2.0, 1.0, 1.0, 0.0, 3.0, -2.0]), "jaccard");
+    assert(e_jaccard.kind == scientific::F_NONE && all_near(c_jaccard, [0.3333333333333333, 0.6666666666666666, 0.3333333333333333, 0.6666666666666666, 0.0, 0.3333333333333333, 0.6666666666666666, 0.5]));
+    let a4 = mx(4, 3, [1.0, 2.0, 0.0, 4.0, 0.0, 3.0, -1.0, 5.0, 2.0, 0.0, 0.0, 1.0]);
+    let pm, pe = scientific::pdist(a4, "minkowski", 3.0);
+    assert(pe.kind == scientific::F_NONE && all_near(pm, [3.9578916096804053, 3.503398060386724, 2.154434690031884, 6.307993548663267, 4.160167646103808, 5.026525695313479]));
+    let pc, pce = scientific::pdist(a4);
+    assert(pce.kind == scientific::F_NONE && all_near(pc, [4.69041575982343, 4.123105625617661, 2.449489742783178, 7.14142842854285, 4.47213595499958, 5.196152422706632]));
+    let sq, sqe = scientific::squareform(pc);
+    assert(sqe.kind == scientific::F_NONE && sq.shape[0] == 4 && near(sq.data[6], 7.14142842854285) && near(sq.data[9], 7.14142842854285));
+    let bk, bke = scientific::squareform(sq);
+    assert(bke.kind == scientific::F_NONE && all_near(bk, pc.data));
+    let bad1, bade = scientific::squareform(av([1.0, 2.0]));
+    assert(bade.kind == scientific::F_SHAPE);
+    let u0 = [1.0, 2.0, 0.0];
+    let u1 = [4.0, 0.0, 3.0];
+    let sv, sve = scientific::seuclidean(u0, u1, [1.0, 2.0, 3.0]);
+    assert(sve.kind == scientific::F_NONE && near(sv, 3.7416573867739413));
+    let mh, mhe = scientific::mahalanobis(u0, u1, [2.0, 1.0, 0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 1.0]);
+    assert(mhe.kind == scientific::F_NONE && near(mh, 4.795831523312719));
+    let b0 = [1.0, 0.0, 1.0, 1.0, 0.0];
+    let b1 = [1.0, 1.0, 0.0, 1.0, 0.0];
+    let d1, d1e = scientific::dice(b0, b1);
+    let d2, d2e = scientific::yule(b0, b1);
+    let d3, d3e = scientific::russellrao(b0, b1);
+    let d4, d4e = scientific::sokalsneath(b0, b1);
+    let d5, d5e = scientific::rogerstanimoto(b0, b1);
+    assert(d1e.kind == scientific::F_NONE && d2e.kind == scientific::F_NONE && d3e.kind == scientific::F_NONE && d4e.kind == scientific::F_NONE && d5e.kind == scientific::F_NONE);
+    assert(near(d1, 0.3333333333333333) && near(d2, 0.6666666666666666) && near(d3, 0.6) && near(d4, 0.6666666666666666) && near(d5, 0.5714285714285714));
+    let em, eme = scientific::cdist(a4, a4, "nope");
+    assert(eme.kind == scientific::F_VALUE);
+    let tr, tre = scientific::kdtree(a4);
+    assert(tre.kind == scientific::F_NONE);
+    let kd, ki, ke = scientific::kdtree_query(tr, [0.5, 0.5, 1.0], 3);
+    assert(ke.kind == scientific::F_NONE && all_near(kd, [0.7071067811865476, 1.8708286933869707, 4.06201920231798]) && all_near(ki, [3.0, 0.0, 1.0]));
+    let k1, i1, e1 = scientific::kdtree_query(tr, [0.5, 0.5, 1.0], 2, 1.0);
+    assert(e1.kind == scientific::F_NONE && all_near(k1, [1.0, 3.0]) && all_near(i1, [3.0, 0.0]));
+    let kb, kbe = scientific::kdtree_query_ball_point(tr, [0.5, 0.5, 1.0], 3.5);
+    assert(kbe.kind == scientific::F_NONE && all_near(kb, [0.0, 3.0]));
+    let hp = mx(6, 2, [0.0, 0.0, 2.0, 0.0, 1.0, 1.0, 2.0, 2.0, 0.0, 2.0, 1.0, 0.5]);
+    let hv, ha, hper, he = scientific::convex_hull(hp);
+    assert(he.kind == scientific::F_NONE && all_near(hv, [0.0, 1.0, 3.0, 4.0]) && near(ha, 4.0) && near(hper, 8.0));
+    let hl, hl1, hl2, hle = scientific::convex_hull(mx(3, 2, [0.0, 0.0, 1.0, 1.0, 2.0, 2.0]));
+    assert(hle.kind == scientific::F_VALUE);
+}
+
 fn main() {
     test_create();
     test_shape();
@@ -3408,6 +3472,7 @@ fn main() {
     test_products();
     test_scilinalg();
     test_transforms();
+    test_spatial();
     test_generators();
     test_indexing();
     test_sort_and_search();

@@ -52,6 +52,7 @@ import array_select;
 import array_products;
 import array_scilinalg;
 import array_dct;
+import array_spatial;
 import array_grid;
 import array_buffer;
 import array_fftn;
