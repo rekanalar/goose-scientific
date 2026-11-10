@@ -378,3 +378,73 @@ fn stft(x: f64[:], fs: f64 = 1.0, window: const u8[:] = "hann", nperseg: i64 = 2
     while k < bins { fr.push(k * fs / nperseg); k += 1; }
     return line_arr(copy(fr)), line_arr(copy(tm)), mat2(copy(mr), bins, nseg), mat2(copy(mi), bins, nseg), no_fault();
 }
+
+// istft gives the signal of a short time transform, with the parts of
+// the real matrix zr and the imaginary matrix zi, one row per frequency.
+// It adds the parts by overlap and divides by the sum of the squares of
+// the window. The window, the size and the overlap must equal those of
+// stft. With boundary true it removes nperseg / 2 values at both ends.
+// It gives the times and the signal.
+fn istft(zr, zi, fs: f64 = 1.0, window: const u8[:] = "hann", nperseg: i64 = 256, noverlap: i64 = -1, boundary: bool = true) -> Arr, Arr, Fault {
+    var ov = noverlap;
+    if ov < 0 { ov = nperseg / 2; }
+    if !(fs > 0.0) || !(fs - fs == 0.0) {
+        return empty_arr(), empty_arr(), fault(F_VALUE, "istft", "the rate must be above zero");
+    }
+    if nperseg < 2 || nperseg > 4194304 || ov < 0 || ov >= nperseg {
+        return empty_arr(), empty_arr(), fault(F_RANGE, "istft", "the size of a part or the overlap stands outside the range");
+    }
+    if zr.ndim != 2 || zi.ndim != 2 || zr.shape[0] != zi.shape[0] || zr.shape[1] != zi.shape[1] || zr.shape[0] != nperseg / 2 + 1 || zr.shape[1] < 1 {
+        return empty_arr(), empty_arr(), fault(F_SHAPE, "istft", "the matrices must agree and hold nperseg / 2 + 1 rows");
+    }
+    let nseg = zr.shape[1];
+    let bins = zr.shape[0];
+    let step = nperseg - ov;
+    let outlen = nperseg + (nseg - 1) * step;
+    if outlen > MAX_DSP_LENGTH {
+        return empty_arr(), empty_arr(), fault(F_LIMIT, "istft", "the signal would be too long");
+    }
+    let w, wf = get_window(window, nperseg, true);
+    if wf.kind != F_NONE { return empty_arr(), empty_arr(), wf; }
+    var sw: f64 = 0.0;
+    var k: i64 = 0;
+    while k < nperseg { sw += w.data[k]; k += 1; }
+    var x: f64[>..] = [];
+    var norm: f64[>..] = [];
+    k = 0;
+    while k < outlen { x.push(0.0); norm.push(0.0); k += 1; }
+    var s: i64 = 0;
+    while s < nseg {
+        var cr: f64[>..] = [];
+        var ci: f64[>..] = [];
+        k = 0;
+        while k < bins { cr.push(zr.data[k * nseg + s]); ci.push(zi.data[k * nseg + s]); k += 1; }
+        let part, pf = irfft(cr, ci, nperseg);
+        if pf.kind != F_NONE { return empty_arr(), empty_arr(), pf; }
+        k = 0;
+        while k < nperseg {
+            x[s * step + k] += part.data[k] * sw * w.data[k];
+            norm[s * step + k] += w.data[k] * w.data[k];
+            k += 1;
+        }
+        s += 1;
+    }
+    var lo: i64 = 0;
+    var hi = outlen;
+    if boundary { lo = nperseg / 2; hi = outlen - nperseg / 2; }
+    if hi <= lo {
+        return empty_arr(), empty_arr(), fault(F_SHAPE, "istft", "the transform is too short for the boundary");
+    }
+    var out: f64[>..] = [];
+    var tm: f64[>..] = [];
+    k = lo;
+    while k < hi {
+        if !(norm[k] > 1.0e-10) {
+            return empty_arr(), empty_arr(), fault(F_VALUE, "istft", "the window does not meet the overlap condition");
+        }
+        out.push(x[k] / norm[k]);
+        tm.push((k - lo) / fs);
+        k += 1;
+    }
+    return line_arr(copy(tm)), line_arr(copy(out)), no_fault();
+}
