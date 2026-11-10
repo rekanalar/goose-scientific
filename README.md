@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.98.0";
+import scientific from "rekanalar/goose-scientific@v0.99.0";
 ```
 
 ## API
@@ -296,10 +296,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `fixed_quad` takes up to 512 points.
 - `solve_ivp` takes the methods `RK45` and `RK23`. The steps equal the
   steps of SciPy. The result holds one row per time, where SciPy
-  holds one column. The arguments `t_eval`, `dense_output`, `events`
-  and `first_step` stay out, and so do the methods `DOP853`, `Radau`,
-  `BDF` and `LSODA`. A stiff system needs many steps and may reach the
-  limit of one million steps.
+  holds one column. The argument `t_eval` takes sorted times inside
+  the span and gives the values from the dense output of the method.
+  The arguments `dense_output`, `events` and `first_step` stay out,
+  and so do the methods `DOP853`, `Radau`, `BDF` and `LSODA`. A stiff
+  system needs many steps and may reach the limit of one million
+  steps.
 - `cubic_spline` takes the conditions `not-a-knot`, `natural`,
   `clamped` and `periodic`. `clamped` takes the end slopes `left`
   and `right`, zero by default. A periodic spline needs equal first

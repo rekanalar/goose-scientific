@@ -282,7 +282,7 @@ fn ivp_tableau(rk45: bool, c: f64[>..]&, a: f64[>..]&, b: f64[>..]&, e: f64[>..]
 // matrix of one row per time. The tolerances hold the relative and the
 // absolute error of one step. A count of steps above 1000000 is a
 // fault.
-fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64 = 0.001, atol: f64 = 1.0e-6, method: const u8[:] = "RK45", max_step: f64 = 1.0e308) -> Arr, Arr, Fault {
+fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64 = 0.001, atol: f64 = 1.0e-6, method: const u8[:] = "RK45", max_step: f64 = 1.0e308, t_eval: f64[:] = []) -> Arr, Arr, Fault {
     if method != "RK45" && method != "RK23" {
         return empty_arr(), empty_arr(), fault(F_VALUE, "solve_ivp", "the method holds an unknown name");
     }
@@ -300,6 +300,22 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
     let n = y0.len;
     var dir: f64 = 1.0;
     if t1 < t0 { dir = -1.0; }
+    // The times of t_eval must lie in the span and must be sorted.
+    var qi: i64 = 0;
+    while qi < t_eval.len {
+        let te = t_eval[qi];
+        if !(te - te == 0.0) || dir * (te - t0) < 0.0 || dir * (t1 - te) < 0.0 {
+            return empty_arr(), empty_arr(), fault(F_VALUE, "solve_ivp", "a time of t_eval is not finite or lies outside the span");
+        }
+        if qi > 0 && dir * (te - t_eval[qi - 1]) < 0.0 {
+            return empty_arr(), empty_arr(), fault(F_VALUE, "solve_ivp", "the times of t_eval do not follow the direction");
+        }
+        qi += 1;
+    }
+    var hist_t: f64[>..] = [];
+    var hist_h: f64[>..] = [];
+    var hist_y: f64[>..] = [];
+    var hist_k: f64[>..] = [];
     let rk45 = method == "RK45";
     var order: f64 = 3.0;
     if rk45 { order = 5.0; }
@@ -372,6 +388,7 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
         if h_abs < min_step { h_abs = min_step; }
         if h_abs > max_step { h_abs = max_step; }
         var accepted = false;
+        var kacc: f64[>..] = [];
         var fnew: f64[>..] = [];
         var ynew: f64[>..] = [];
         var tnew: f64 = t;
@@ -443,6 +460,7 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
             }
             let err = ivp_rms(sq);
             if err < 1.0 {
+                kacc = copy_slice(k);
                 var factor: f64 = 10.0;
                 if err != 0.0 {
                     factor = 0.9 * mathshim::power(err, -1.0 / order);
@@ -459,12 +477,80 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
                 rejected = true;
             }
         }
+        if t_eval.len > 0 {
+            hist_t.push(t);
+            hist_h.push(tnew - t);
+            i = 0;
+            while i < n { hist_y.push(y[i]); i += 1; }
+            i = 0;
+            while i < ns * n { hist_k.push(kacc[i]); i += 1; }
+            i = 0;
+            while i < n { hist_k.push(fnew[i]); i += 1; }
+        }
         t = tnew;
         y = copy(ynew);
         f = copy(fnew);
         ts.push(t);
         i = 0;
         while i < n { ys.push(y[i]); i += 1; }
+    }
+    if t_eval.len > 0 {
+        return ivp_dense(t_eval, hist_t, hist_h, hist_y, hist_k, rk45, ns, n);
+    }
+    return line_arr(copy(ts)), mat2(copy(ys), ts.len, n), no_fault();
+}
+
+// ivp_dense gives the values at the times of t_eval from the dense
+// output of the steps. The polynomial of each step uses the stages of
+// the step, as SciPy does for RK45 and RK23.
+fn ivp_dense(te: f64[:], ht: f64[:], hh: f64[:], hy: f64[:], hk: f64[:], rk45: bool, ns: i64, n: i64) -> Arr, Arr, Fault {
+    var pm: f64[>..] = [];
+    var pc: i64 = 3;
+    if rk45 {
+        pc = 4;
+        pm = [1.0, -2.8535800653862835, 3.0717434641059005, -1.1270175653862835,
+              0.0, 0.0, 0.0, 0.0,
+              0.0, 4.023133379230305, -6.249321565289, 2.675424484351598,
+              0.0, -3.7324019615885042, 10.068970589843675, -5.685526961588504,
+              0.0, 2.5548038301849423, -6.399112377351017, 3.5219323679207912,
+              0.0, -1.3744241142186024, 3.272657752246729, -1.7672812570757455,
+              0.0, 1.3824689317781436, -3.764937863556287, 2.382468931778144];
+    } else {
+        pm = [1.0, -1.3333333333333333, 0.5555555555555556,
+              0.0, 1.0, -0.6666666666666666,
+              0.0, 1.3333333333333333, -0.8888888888888888,
+              0.0, -1.0, 1.0];
+    }
+    let rows = ns + 1;
+    var ts: f64[>..] = [];
+    var ys: f64[>..] = [];
+    var si: i64 = 0;
+    var j: i64 = 0;
+    while j < te.len {
+        let x = te[j];
+        // The first step whose end lies at x or after it.
+        while si + 1 < ht.len && (hh[si] > 0.0 && ht[si] + hh[si] < x || hh[si] < 0.0 && ht[si] + hh[si] > x) { si += 1; }
+        let xs = (x - ht[si]) / hh[si];
+        var pw: f64[>..] = [];
+        var pp: f64 = 1.0;
+        var c: i64 = 0;
+        while c < pc { pp = pp * xs; pw.push(pp); c += 1; }
+        ts.push(x);
+        var i: i64 = 0;
+        while i < n {
+            var acc: f64 = 0.0;
+            c = 0;
+            while c < pc {
+                var q: f64 = 0.0;
+                var r: i64 = 0;
+                while r < rows { q += hk[si * rows * n + r * n + i] * pm[r * pc + c]; r += 1; }
+                acc += q * pw[c];
+                c += 1;
+            }
+            ys.push(hy[si * n + i] + hh[si] * acc);
+            i += 1;
+        }
+        j += 1;
     }
     return line_arr(copy(ts)), mat2(copy(ys), ts.len, n), no_fault();
 }
