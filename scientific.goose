@@ -43,6 +43,7 @@ import array_minimize;
 import array_integrate;
 import array_interpolate;
 import array_signal;
+import array_welch;
 import array_filter;
 import array_sos;
 import array_stats;
