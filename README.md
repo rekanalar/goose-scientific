@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.91.0";
+import scientific from "rekanalar/goose-scientific@v0.92.0";
 ```
 
 ## API
@@ -63,7 +63,7 @@ import scientific from "rekanalar/goose-scientific@v0.91.0";
 | Triangles | `tril`, `triu` |
 | Between the points | `interp`, `gradient`, `pad_value` |
 | Root finding | `brentq`, `brenth`, `newton`, `halley`, `secant`, `toms748`, `fsolve`, `root`, `root_scalar` |
-| Minimization | `minimize_scalar`, `minimize`, `minimize_grad`, `differential_evolution`, `least_squares`, `curve_fit` |
+| Minimization | `minimize_scalar`, `minimize`, `minimize_grad`, `differential_evolution`, `dual_annealing`, `basinhopping`, `least_squares`, `curve_fit` |
 | Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `cumulative_simpson`, `cumulative_simpson_dx`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
@@ -902,6 +902,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `constraints`, `workers` and `init` stay out. The run has no local
   polish, so a result is a good start for `minimize` and not a final
   value. Use a large `popsize` for functions with many local minima.
+- `dual_annealing` takes bounds, a seed, `maxiter` and an initial
+  temperature. It anneals with a heavy-tailed step and runs a local
+  search at each new best point. The step uses a Cauchy form, not the
+  exact distribution of SciPy. The random numbers differ from SciPy.
+  The local search is the method of Nelder and Mead, not L-BFGS-B.
+- `basinhopping` takes a start, `niter`, the temperature `T`, a
+  step size and a seed. Each turn takes a random step and a local
+  search, then applies the rule of Metropolis. The arguments
+  `minimizer_kwargs`, `take_step`, `accept_test`, `callback` and
+  `interval` stay out. The result holds the point and the value.
 - `minimize` finds the smallest point of a function of several
   variables. The method of Nelder and Mead holds a simplex. A start
   far from the point of the smallest value can end at a local point.
