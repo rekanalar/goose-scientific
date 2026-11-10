@@ -4578,6 +4578,32 @@ fn test_cumulative_simpson_initial() {
 
 // solve_ivp takes the times t_eval and gives the values from the dense
 // output of the method, as SciPy does.
+// The method of Dormand and Prince of the order eight, pinned against
+// SciPy 1.18.1.
+fn test_dop853() {
+    // The steps of the method. The times and the states match SciPy.
+    let e1 = [0.0, 0.000999000999000999, 0.010989010989010988, 0.11088911088911087, 1.1098901098901095, 3.577580383341898, 5.0];
+    let e2 = [1.0, 0.0, 0.9999995009985435, -0.0009990008328333421, 0.9999396214263468, -0.010988789821184265, 0.9938581000167407, -0.11066199451986314, 0.44475998750894596, -0.8956497674212576, -0.9063114415145316, 0.42208333978208246, 0.2834614005249253, 0.9587505956092199];
+    let t1, y1, f1 = scientific::solve_ivp(0.0, 5.0, [1.0, 0.0], 0.001, 1e-6, "DOP853") { t, v => [v[1], -v[0]] };
+    assert(f1.kind == scientific::F_NONE && t1.data.len == 7 && y1.data.len == 14);
+    assert(all_near(t1, e1) && all_near(y1, e2));
+    // The values between the steps, from the dense output.
+    let e3 = [0.8775825615538217, -0.479425538086932, -0.12884449379636104, -0.9916648039614262, 0.46851666612604054, 0.883454646570579];
+    let t2, y2, d2, f2 = scientific::solve_ivp_dense(0.0, 6.0, [1.0, 0.0], 1.0e-8, 1.0e-10, "DOP853") { t, v => [v[1], -v[0]] };
+    assert(f2.kind == scientific::F_NONE);
+    let dv, dvf = scientific::dense_eval(d2, [0.5, 1.7, 5.2]);
+    assert(dvf.kind == scientific::F_NONE && all_near(dv, e3));
+    // The values at the times of t_eval.
+    let e4 = [1.0, 0.0, 0.9553364760057397, -0.29552021042511084, 0.5403013851324846, -0.8414706099471434, 0.020795124339923032, -0.9997845908803505, -0.989992409386347, -0.141120163362502];
+    let t3, y3, f3 = scientific::solve_ivp(0.0, 3.0, [1.0, 0.0], 1.0e-6, 1.0e-9, "DOP853", 1.0e308, [0.0, 0.3, 1.0, 1.55, 3.0]) { t, v => [v[1], -v[0]] };
+    assert(f3.kind == scientific::F_NONE && all_near(y3, e4));
+    // The time and the state of an event.
+    let et, ey, eet, eei, eey, ef = scientific::solve_ivp_events(0.0, 10.0, [10.0, 0.0], 1, [true], [-1.0], 1.0e-8, 1.0e-10, "DOP853") { t, v => [v[1], -9.81, v[0]] };
+    assert(ef.kind == scientific::F_NONE && eet.data.len == 1);
+    assert(mathshim_abs(eet.data[0] - 1.4278431229270638) < 1.0e-9);
+    assert(mathshim_abs(eey.data[1] + 14.00714103591449) < 1.0e-9);
+}
+
 fn test_ivp_t_eval() {
     let e1 = [1.0, 0.0, 0.9553364803050641, -0.29552023491137414, 0.540302079728339, -0.8414711243630892, 0.020794742986437575, -0.9997835787518795, -0.9899921548382596, -0.1411198096921278];
     let t1, y1, f1 = scientific::solve_ivp(0.0, 3.0, [1.0, 0.0], 1.0e-6, 1.0e-9, "RK45", 1.0e308, [0.0, 0.3, 1.0, 1.55, 3.0]) { t, v => [v[1], -v[0]] };
@@ -6189,6 +6215,7 @@ fn main() {
     test_windows_more();
     test_dpss();
     test_ivp_t_eval();
+    test_dop853();
     test_cumulative_simpson_initial();
     test_bspline();
     test_spline_ends();

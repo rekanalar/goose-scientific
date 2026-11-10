@@ -249,9 +249,18 @@ fn ivp_rms(v: f64[:]) -> f64 {
 // ivp_tableau fills the coefficients of a method. The count of stages
 // leaves out the stage of the new point. The method RK45 is the pair
 // of Dormand and Prince. The method RK23 is the pair of Bogacki and
-// Shampine.
-fn ivp_tableau(rk45: bool, c: f64[>..]&, a: f64[>..]&, b: f64[>..]&, e: f64[>..]&) -> i64 {
-    if rk45 {
+// Shampine. The method DOP853 is the pair of Dormand and Prince of
+// the order eight. It holds two error vectors.
+fn ivp_tableau(kind: i32, c: f64[>..]&, a: f64[>..]&, b: f64[>..]&, e: f64[>..]&, e3: f64[>..]&) -> i64 {
+    if kind == 2 {
+        dop853_c(c);
+        dop853_a(a);
+        dop853_b(b);
+        dop853_e5(e);
+        dop853_e3(e3);
+        return 12;
+    }
+    if kind == 0 {
         c.push(0.0); c.push(0.2); c.push(0.3); c.push(0.8); c.push(8.0 / 9.0); c.push(1.0);
         let rows: f64[36] = [
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -319,7 +328,8 @@ fn dense_eval(d: Dense&, x: f64[:]) -> Arr, Fault {
         return empty_arr(), fault(F_VALUE, "dense_eval", "the dense output holds no step");
     }
     let st = d.steps;
-    let rows = d.ns + 1;
+    var rows = d.ns + 1;
+    if d.kind == 2 { rows = 16; }
     var ht: f64[>..] = [];
     var hh: f64[>..] = [];
     var hy: f64[>..] = [];
@@ -330,7 +340,7 @@ fn dense_eval(d: Dense&, x: f64[:]) -> Arr, Fault {
     while q < st * d.n { hy.push(d.buf[2 * st + q]); q += 1; }
     q = 0;
     while q < st * rows * d.n { hk.push(d.buf[2 * st + st * d.n + q]); q += 1; }
-    let t, y, f = ivp_dense(x, ht, hh, hy, hk, d.rk45, d.ns, d.n);
+    let t, y, f = ivp_dense(x, ht, hh, hy, hk, d.kind, d.ns, d.n);
     return y, f;
 }
 
@@ -387,12 +397,69 @@ fn ivp_point(rk45: bool, ns: i64, n: i64, y: f64[:], h: f64, k: f64[:], fl: f64[
     return out;
 }
 
+// ivp_point_kind gives the state inside one step, at the fraction xs
+// of the step. The rows of the stages are in kall. The method of the
+// order eight uses its own interpolation.
+fn ivp_point_kind(kind: i32, ns: i64, n: i64, y: f64[:], ynew: f64[:], h: f64, kall: f64[:], xs: f64) -> f64[>..] {
+    if kind == 2 {
+        return dop853_point(n, y, ynew, h, kall, xs);
+    }
+    var k: f64[>..] = [];
+    var fl: f64[>..] = [];
+    var i: i64 = 0;
+    while i < ns * n { k.push(kall[i]); i += 1; }
+    i = 0;
+    while i < n { fl.push(kall[ns * n + i]); i += 1; }
+    return ivp_point(kind == 0, ns, n, y, h, k, fl, xs);
+}
+
+// dop853_point gives the state inside one step of the method of the
+// order eight, at the fraction xs of the step. The rows of the stages
+// are in k. The first row stands at the start of the step, the row of
+// the number twelve holds the derivative at the end of the step and
+// the last three rows serve the interpolation.
+fn dop853_point(n: i64, y: f64[:], ynew: f64[:], h: f64, k: f64[:], xs: f64) -> f64[>..] {
+    var dm: f64[>..] = [];
+    dop853_d(dm);
+    var out: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n {
+        let dy = ynew[i] - y[i];
+        let fo = k[i];
+        let fnv = k[12 * n + i];
+        // The four rows of the matrix of the interpolation.
+        var f3: f64 = 0.0;
+        var f4: f64 = 0.0;
+        var f5: f64 = 0.0;
+        var f6: f64 = 0.0;
+        var r: i64 = 0;
+        while r < 4 {
+            var q: f64 = 0.0;
+            var j: i64 = 0;
+            while j < 16 { q += k[j * n + i] * dm[r * 16 + j]; j += 1; }
+            if r == 0 { f3 = q; } else if r == 1 { f4 = q; } else if r == 2 { f5 = q; } else { f6 = q; }
+            r += 1;
+        }
+        var acc = h * f6;
+        acc = acc * xs + h * f5;
+        acc = acc * (1.0 - xs) + h * f4;
+        acc = acc * xs + h * f3;
+        acc = acc * (1.0 - xs) + 2.0 * dy - h * (fnv + fo);
+        acc = acc * xs + h * fo - dy;
+        acc = acc * (1.0 - xs) + dy;
+        acc = acc * xs;
+        out.push(y[i] + acc);
+        i += 1;
+    }
+    return out;
+}
+
 // Dense holds the steps of a run. It gives the values between the
 // steps with the polynomial of each step. The buffer holds the step
 // starts, the step sizes, the states and the stages, one after the
 // other.
 struct Dense {
-    rk45: bool,
+    kind: i32,
     ns: i64,
     n: i64,
     steps: i64,
@@ -401,7 +468,7 @@ struct Dense {
 
 // dense_none gives a dense output that holds no step.
 fn dense_none() -> Dense {
-    return Dense { rk45: true, ns: 0, n: 0, steps: 0, buf: [] };
+    return Dense { kind: 0, ns: 0, n: 0, steps: 0, buf: [] };
 }
 
 // ivp_run integrates the system y' = f(t, y) from t0 to t1. The block
@@ -409,7 +476,7 @@ fn dense_none() -> Dense {
 // functions. It gives the times and the states, the times, the numbers
 // and the states of the events, and the dense output of the steps.
 fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64, atol: f64, method: const u8[:], max_step: f64, t_eval: f64[:], nev: i64, terminal: bool[:], direction: f64[:], want_dense: bool) -> Arr, Arr, Arr, Arr, Arr, Dense, Fault {
-    if method != "RK45" && method != "RK23" {
+    if method != "RK45" && method != "RK23" && method != "DOP853" {
         return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "the method holds an unknown name");
     }
     if !(t0 - t0 == 0.0) || !(t1 - t1 == 0.0) || t0 == t1 {
@@ -442,16 +509,27 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
     var hist_h: f64[>..] = [];
     var hist_y: f64[>..] = [];
     var hist_k: f64[>..] = [];
-    let rk45 = method == "RK45";
+    // The kind of the method. The number zero is RK45, the number one
+    // is RK23 and the number two is DOP853.
+    var kind: i32 = 1;
+    if method == "RK45" { kind = 0; }
+    if method == "DOP853" { kind = 2; }
     var order: f64 = 3.0;
-    if rk45 { order = 5.0; }
+    if kind == 0 { order = 5.0; }
+    if kind == 2 { order = 8.0; }
     // The exponent of the control is minus one over the order of the
     // error estimate plus one.
     var cc: f64[>..] = [];
     var aa: f64[>..] = [];
     var bb: f64[>..] = [];
     var ee: f64[>..] = [];
-    let ns = ivp_tableau(rk45, cc, aa, bb, ee);
+    var e3: f64[>..] = [];
+    let ns = ivp_tableau(kind, cc, aa, bb, ee, e3);
+    // The count of the rows of the stages that the dense output holds.
+    // The method of the order eight holds three more rows for the
+    // interpolation.
+    var rows: i64 = ns + 1;
+    if kind == 2 { rows = 16; }
     var y: f64[>..] = [];
     var i: i64 = 0;
     while i < n { y.push(y0[i]); i += 1; }
@@ -480,6 +558,9 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
     let d1 = ivp_rms(q2);
     var h0: f64 = 0.000001;
     if !(d0 < 0.00001 || d1 < 0.00001) { h0 = 0.01 * d0 / d1; }
+    // The step of the trial does not leave the span, as SciPy does.
+    let span = mathshim::abs_of(t1 - t0);
+    if h0 > span { h0 = span; }
     var y1: f64[>..] = [];
     i = 0;
     while i < n { y1.push(y[i] + h0 * dir * f[i]); i += 1; }
@@ -502,7 +583,6 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
     }
     var h_abs = 100.0 * h0;
     if h1 < h_abs { h_abs = h1; }
-    let span = mathshim::abs_of(t1 - t0);
     if span < h_abs { h_abs = span; }
     if max_step < h_abs { h_abs = max_step; }
     var ts: f64[>..] = [t];
@@ -577,25 +657,54 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
             while i < n { fnew.push(fn1[i]); i += 1; }
             i = 0;
             while i < nev { gnew.push(fn1[n + i]); i += 1; }
-            var en: f64[>..] = [];
-            i = 0;
-            while i < n {
-                var acc: f64 = 0.0;
-                var j: i64 = 0;
-                while j < ns { acc += k[j * n + i] * ee[j]; j += 1; }
-                acc += fnew[i] * ee[ns];
-                en.push(h * acc);
-                i += 1;
+            var err: f64 = 0.0;
+            if kind == 2 {
+                // The method of the order eight holds two error vectors.
+                // The estimate of the error takes the fifth order and
+                // the third order together, as SciPy does.
+                var s5: f64 = 0.0;
+                var s3: f64 = 0.0;
+                i = 0;
+                while i < n {
+                    var a5: f64 = 0.0;
+                    var a3: f64 = 0.0;
+                    var j: i64 = 0;
+                    while j < ns { a5 += k[j * n + i] * ee[j]; a3 += k[j * n + i] * e3[j]; j += 1; }
+                    a5 += fnew[i] * ee[ns];
+                    a3 += fnew[i] * e3[ns];
+                    var big = mathshim::abs_of(y[i]);
+                    if mathshim::abs_of(ynew[i]) > big { big = mathshim::abs_of(ynew[i]); }
+                    let sc = atol + big * tol;
+                    let d5 = a5 / sc;
+                    let d3 = a3 / sc;
+                    s5 += d5 * d5;
+                    s3 += d3 * d3;
+                    i += 1;
+                }
+                if !(s5 == 0.0 && s3 == 0.0) {
+                    err = mathshim::abs_of(h) * s5 / mathshim::root((s5 + 0.01 * s3) * n);
+                }
+            } else {
+                var en: f64[>..] = [];
+                i = 0;
+                while i < n {
+                    var acc: f64 = 0.0;
+                    var j: i64 = 0;
+                    while j < ns { acc += k[j * n + i] * ee[j]; j += 1; }
+                    acc += fnew[i] * ee[ns];
+                    en.push(h * acc);
+                    i += 1;
+                }
+                var sq: f64[>..] = [];
+                i = 0;
+                while i < n {
+                    var big = mathshim::abs_of(y[i]);
+                    if mathshim::abs_of(ynew[i]) > big { big = mathshim::abs_of(ynew[i]); }
+                    sq.push(en[i] / (atol + big * tol));
+                    i += 1;
+                }
+                err = ivp_rms(sq);
             }
-            var sq: f64[>..] = [];
-            i = 0;
-            while i < n {
-                var big = mathshim::abs_of(y[i]);
-                if mathshim::abs_of(ynew[i]) > big { big = mathshim::abs_of(ynew[i]); }
-                sq.push(en[i] / (atol + big * tol));
-                i += 1;
-            }
-            let err = ivp_rms(sq);
             if err < 1.0 {
                 kacc = copy_slice(k);
                 var factor: f64 = 10.0;
@@ -614,15 +723,58 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
                 rejected = true;
             }
         }
+        // The rows of the stages that the interpolation of the step
+        // uses. The method of the order eight holds three more rows.
+        var kall: f64[>..] = [];
+        var kex: f64[>..] = [];
+        if kind == 2 && (t_eval.len > 0 || want_dense || nev > 0) {
+            let hh = tnew - t;
+            var exa: f64[>..] = [];
+            var exc: f64[>..] = [];
+            dop853_extra(exa, exc);
+            var s: i64 = 13;
+            while s < 16 {
+                var base: i64 = 0;
+                if s == 14 { base = 13; }
+                if s == 15 { base = 27; }
+                var ytmp: f64[>..] = [];
+                i = 0;
+                while i < n {
+                    var acc: f64 = 0.0;
+                    var j: i64 = 0;
+                    while j < s {
+                        var kv: f64 = 0.0;
+                        if j < ns { kv = kacc[j * n + i]; }
+                        else if j == ns { kv = fnew[i]; }
+                        else { kv = kex[(j - ns - 1) * n + i]; }
+                        acc += kv * exa[base + j];
+                        j += 1;
+                    }
+                    ytmp.push(y[i] + hh * acc);
+                    i += 1;
+                }
+                let ks = F(t + exc[s - 13] * hh, copy(ytmp));
+                if ks.len != n + nev {
+                    return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_SHAPE, "solve_ivp", "the function holds a different count of values");
+                }
+                i = 0;
+                while i < n { kex.push(ks[i]); i += 1; }
+                s += 1;
+            }
+        }
+        i = 0;
+        while i < ns * n { kall.push(kacc[i]); i += 1; }
+        i = 0;
+        while i < n { kall.push(fnew[i]); i += 1; }
+        i = 0;
+        while i < kex.len { kall.push(kex[i]); i += 1; }
         if t_eval.len > 0 || want_dense {
             hist_t.push(t);
             hist_h.push(tnew - t);
             i = 0;
             while i < n { hist_y.push(y[i]); i += 1; }
             i = 0;
-            while i < ns * n { hist_k.push(kacc[i]); i += 1; }
-            i = 0;
-            while i < n { hist_k.push(fnew[i]); i += 1; }
+            while i < kall.len { hist_k.push(kall[i]); i += 1; }
         }
         if nev > 0 {
             // The events of the step. A change of sign of an event
@@ -648,7 +800,7 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
                     while it < 200 {
                         let mid = 0.5 * (lo + hi);
                         if mid == lo || mid == hi { break; }
-                        let ym = ivp_point(rk45, ns, n, y, tnew - t, kacc, fnew, mid);
+                        let ym = ivp_point_kind(kind, ns, n, y, ynew, tnew - t, kall, mid);
                         let gm = F(t + mid * (tnew - t), copy(ym));
                         let gv = gm[n + e];
                         if (glo <= 0.0 && gv >= 0.0) || (glo >= 0.0 && gv <= 0.0) { hi = mid; } else { lo = mid; glo = gv; }
@@ -682,7 +834,7 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
                 let th = hit_t[h];
                 let eh = hit_i[h] as i64;
                 let fr = (th - t) / (tnew - t);
-                let yh = ivp_point(rk45, ns, n, y, tnew - t, kacc, fnew, fr);
+                let yh = ivp_point_kind(kind, ns, n, y, ynew, tnew - t, kall, fr);
                 ev_t.push(th);
                 ev_i.push(eh);
                 i = 0;
@@ -718,7 +870,7 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
         while q < hist_y.len { buf.push(hist_y[q]); q += 1; }
         q = 0;
         while q < hist_k.len { buf.push(hist_k[q]); q += 1; }
-        dn = Dense { rk45: rk45, ns: ns, n: n, steps: hist_t.len, buf: copy(buf) };
+        dn = Dense { kind: kind, ns: ns, n: n, steps: hist_t.len, buf: copy(buf) };
     }
     var evt = empty_arr();
     var evi = empty_arr();
@@ -736,7 +888,7 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
             if dir * (t_eval[qq] - t) <= 0.0 { kept.push(t_eval[qq]); }
             qq += 1;
         }
-        let rt, ry, rf = ivp_dense(kept, hist_t, hist_h, hist_y, hist_k, rk45, ns, n);
+        let rt, ry, rf = ivp_dense(kept, hist_t, hist_h, hist_y, hist_k, kind, ns, n);
         return rt, ry, evt, evi, evy, dn, rf;
     }
     return line_arr(copy(ts)), mat2(copy(ys), ts.len, n), evt, evi, evy, dn, no_fault();
@@ -745,10 +897,10 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
 // ivp_dense gives the values at the times of t_eval from the dense
 // output of the steps. The polynomial of each step uses the stages of
 // the step, as SciPy does for RK45 and RK23.
-fn ivp_dense(te: f64[:], ht: f64[:], hh: f64[:], hy: f64[:], hk: f64[:], rk45: bool, ns: i64, n: i64) -> Arr, Arr, Fault {
+fn ivp_dense(te: f64[:], ht: f64[:], hh: f64[:], hy: f64[:], hk: f64[:], kind: i32, ns: i64, n: i64) -> Arr, Arr, Fault {
     var pm: f64[>..] = [];
     var pc: i64 = 3;
-    if rk45 {
+    if kind == 0 {
         pc = 4;
         pm = [1.0, -2.8535800653862835, 3.0717434641059005, -1.1270175653862835,
               0.0, 0.0, 0.0, 0.0,
@@ -757,7 +909,7 @@ fn ivp_dense(te: f64[:], ht: f64[:], hh: f64[:], hy: f64[:], hk: f64[:], rk45: b
               0.0, 2.5548038301849423, -6.399112377351017, 3.5219323679207912,
               0.0, -1.3744241142186024, 3.272657752246729, -1.7672812570757455,
               0.0, 1.3824689317781436, -3.764937863556287, 2.382468931778144];
-    } else {
+    } else if kind == 1 {
         pm = [1.0, -1.3333333333333333, 0.5555555555555556,
               0.0, 1.0, -0.6666666666666666,
               0.0, 1.3333333333333333, -0.8888888888888888,
@@ -773,6 +925,32 @@ fn ivp_dense(te: f64[:], ht: f64[:], hh: f64[:], hy: f64[:], hk: f64[:], rk45: b
         // The first step whose end lies at x or after it.
         while si + 1 < ht.len && (hh[si] > 0.0 && ht[si] + hh[si] < x || hh[si] < 0.0 && ht[si] + hh[si] > x) { si += 1; }
         let xs = (x - ht[si]) / hh[si];
+        if kind == 2 {
+            // The method of the order eight. The rows of the stages of
+            // the step and the state at its end.
+            var kb: f64[>..] = [];
+            var i0: i64 = 0;
+            while i0 < 16 * n { kb.push(hk[si * 16 * n + i0]); i0 += 1; }
+            var bb: f64[>..] = [];
+            dop853_b(bb);
+            var yo: f64[>..] = [];
+            var yn: f64[>..] = [];
+            var i: i64 = 0;
+            while i < n {
+                yo.push(hy[si * n + i]);
+                var acc: f64 = 0.0;
+                var r: i64 = 0;
+                while r < 12 { acc += kb[r * n + i] * bb[r]; r += 1; }
+                yn.push(hy[si * n + i] + hh[si] * acc);
+                i += 1;
+            }
+            let yv = dop853_point(n, yo, yn, hh[si], kb, xs);
+            ts.push(x);
+            i = 0;
+            while i < n { ys.push(yv[i]); i += 1; }
+            j += 1;
+            continue;
+        }
         var pw: f64[>..] = [];
         var pp: f64 = 1.0;
         var c: i64 = 0;

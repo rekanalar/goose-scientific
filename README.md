@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.110.0";
+import scientific from "rekanalar/goose-scientific@v0.111.0";
 ```
 
 ## API
@@ -299,13 +299,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   SciPy, because the package holds no extrapolation.
 
 - `fixed_quad` takes up to 512 points.
-- `solve_ivp` takes the methods `RK45` and `RK23`. The steps equal the
-  steps of SciPy. The result holds one row per time, where SciPy
-  holds one column. The argument `t_eval` takes sorted times inside
-  the span and gives the values from the dense output of the method.
-  The argument `first_step` stays out, and so do the methods `DOP853`, `Radau`, `BDF` and `LSODA`. A stiff
-  system needs many steps and may reach the limit of one million
-  steps.
+- `solve_ivp` takes the methods `RK45`, `RK23` and `DOP853`. The steps
+  equal the steps of SciPy. The result holds one row per time, where
+  SciPy holds one column. The argument `t_eval` takes sorted times
+  inside the span. It gives the values from the dense output.
+- `DOP853` is the method of Dormand and Prince of the order eight. It
+  holds the error estimate and the interpolation of SciPy. Its dense
+  output and its events call the function three more times per step.
+- The argument `first_step` stays out, and so do the methods `Radau`,
+  `BDF` and `LSODA`. A stiff system needs many steps. It may reach the
+  limit of one million steps.
 - `solve_ivp_events` takes the events of SciPy. The block gives the
   derivative and then the event functions. The arrays `terminal` and
   `direction` hold one value per event. It gives the event times, the
