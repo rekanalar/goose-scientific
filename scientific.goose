@@ -68,6 +68,7 @@ import array_toms748;
 import array_root;
 import array_global;
 import array_bspline;
+import array_curfit;
 import array_windows;
 import array_elliptic;
 import array_programs;

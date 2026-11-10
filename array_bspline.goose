@@ -446,15 +446,43 @@ fn bspline_design_matrix(x: f64[:], t: f64[:], k: i64, extrapolate: const u8[:] 
     return csr_from_parts(pts.len, n, ptr, idx, val), no_fault();
 }
 
-// splrep builds the B-spline of the data. Only the interpolation
-// with s equal to zero holds. A smoothing factor above zero is a
-// fault.
+// splrep builds the B-spline of the data. A smoothing factor s above
+// zero gives the smoothing spline of Dierckx: the fit holds the
+// weighted sum of squared residuals below s, with the fewest knots
+// that the search of Dierckx finds. The weights hold one. A factor
+// of zero gives the interpolation.
 fn splrep(x: f64[:], y: f64[:], k: i64 = 3, s: f64 = 0.0) -> BSpl, Fault {
-    if s != 0.0 {
-        return bspl_empty(), fault(F_VALUE, "splrep", "a smoothing factor above zero is not supported");
+    if s == 0.0 {
+        if k < 1 || k > 5 {
+            return bspl_empty(), fault(F_RANGE, "splrep", "the degree is outside one to five");
+        }
+        return make_interp_spline(x, y, k);
     }
-    if k < 1 || k > 5 {
-        return bspl_empty(), fault(F_RANGE, "splrep", "the degree is outside one to five");
+    var ones: f64[>..] = [];
+    var i: i64 = 0;
+    while i < x.len { ones.push(1.0); i += 1; }
+    let t, c, fp, ier, f = curfit_fit(x, y, ones, k, s);
+    if f.kind != F_NONE { return bspl_empty(), f; }
+    if ier > 0 {
+        return bspl_empty(), fault(F_VALUE, "splrep", "the search of the knots did not come to rest");
     }
-    return make_interp_spline(x, y, k);
+    return bs_make(k, t, c), no_fault();
+}
+
+// splrep_residual gives the weighted sum of squared residuals of the
+// spline at the points x. It is the number fp of the smoothing of
+// splrep.
+fn splrep_residual(x: f64[:], y: f64[:], w: f64[:], b) -> f64, Fault {
+    let v, f = splev(x, b);
+    if f.kind != F_NONE { return 0.0, f; }
+    var fp: f64 = 0.0;
+    var i: i64 = 0;
+    while i < x.len {
+        var wi: f64 = 1.0;
+        if i < w.len { wi = w[i]; }
+        let d = wi * (v.data[i] - y[i]);
+        fp = fp + d * d;
+        i += 1;
+    }
+    return fp, no_fault();
 }

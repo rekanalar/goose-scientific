@@ -22,6 +22,55 @@ fn mathshim_abs(x: f64) -> f64 {
     return x;
 }
 
+// pin_splrep checks one smoothing spline against the knots, the
+// coefficients and the residual that SciPy gives.
+fn pin_splrep(x: f64[:], y: f64[:], k: i64, s: f64, kn: f64[:], co: f64[:], fp: f64) {
+    let b, f = scientific::splrep(x, y, k, s);
+    assert(f.kind == scientific::F_NONE);
+    let bk = scientific::bs_knots_of(b);
+    let bc = scientific::bs_coefs_of(b);
+    assert(bk.len == kn.len && bc.len == co.len);
+    var q: i64 = 0;
+    while q < kn.len { assert(mathshim_abs(bk[q] - kn[q]) < 1.0e-9); q += 1; }
+    q = 0;
+    while q < co.len { assert(mathshim_abs(bc[q] - co[q]) < 1.0e-8 * (1.0 + mathshim_abs(co[q]))); q += 1; }
+    var w: f64[>..] = [];
+    q = 0;
+    while q < x.len { w.push(1.0); q += 1; }
+    let r, fr = scientific::splrep_residual(x, y, w, b);
+    assert(fr.kind == scientific::F_NONE);
+    assert(mathshim_abs(r - fp) < 1.0e-8);
+}
+
+fn test_splrep_smoothing() {
+    let x = [0.0, 1.0, 2.5, 4.0, 5.0, 6.5, 8.0];
+    let y = [1.0, 3.0, 2.0, 5.0, 1.0, 0.5, 2.0];
+    pin_splrep(x, y, 1, 0.5, [0.0, 0.0, 1.0, 2.5, 4.0, 5.0, 6.5, 8.0, 8.0], [1.0881479931198719, 2.8012178275095376, 2.295314577882852, 4.503989269199748, 1.3426072116965462, 0.5121882481532914, 1.956534872438152], 0.4999392379837124);
+    pin_splrep(x, y, 3, 0.5, [0.0, 0.0, 0.0, 0.0, 2.5, 4.0, 5.0, 8.0, 8.0, 8.0, 8.0], [1.0362887354896118, 4.938572348622184, -0.9126337603286359, 6.652100678821841, -2.6750081000568433, 1.4921267588738036, 2.021009572689087], 0.49960959922221115);
+    pin_splrep(x, y, 1, 2.0, [0.0, 0.0, 2.5, 4.0, 5.0, 6.5, 8.0, 8.0], [1.5947354321876934, 2.5674738818378726, 4.565021809975909, 1.3205282124104933, 0.5083484206137865, 1.9600614309264792], 2.001945805585216);
+    pin_splrep(x, y, 3, 2.0, [0.0, 0.0, 0.0, 0.0, 2.5, 4.0, 5.0, 8.0, 8.0, 8.0, 8.0], [1.0766825548138765, 4.162540386277328, 0.48681450064398596, 5.475075379782319, -0.8561282694453414, 0.04445395491370056, 2.0398099399823724], 1.999951956208563);
+    pin_splrep(x, y, 1, 10.0, [0.0, 0.0, 4.0, 6.5, 8.0, 8.0], [1.9096010567065218, 2.7522934263923187, 1.5808925172947341, 1.4169219999650242], 10.000099204030123);
+    // A large factor gives the least-squares polynomial.
+    pin_splrep(x, y, 3, 10.0, [0.0, 0.0, 0.0, 0.0, 8.0, 8.0, 8.0, 8.0], [0.9037529796625429, 7.783101095172949, -1.5194087015478872, 1.7437547849013437], 8.757028295854889);
+    let x2 = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0];
+    let y2 = [0.1, 0.9, 2.1, 2.8, 4.2, 4.9, 6.2, 6.8, 8.1, 9.2, 9.9, 11.1];
+    pin_splrep(x2, y2, 2, 0.3, [0.0, 0.0, 0.0, 11.0, 11.0, 11.0], [0.020604395604397134, 5.477609890109886, 11.070604395604395], 0.25785964035964076);
+    // The faults of the data.
+    let e1, f1 = scientific::splrep(x, y, 3, -1.0);
+    assert(f1.kind == scientific::F_VALUE);
+    let e2, f2 = scientific::splrep(x, y, 6, 0.5);
+    assert(f2.kind == scientific::F_RANGE);
+    let e3, f3 = scientific::splrep([0.0, 1.0, 1.0, 2.0, 3.0], [1.0, 2.0, 3.0, 4.0, 5.0], 1, 0.5);
+    assert(f3.kind == scientific::F_VALUE);
+    let e4, f4 = scientific::splrep([0.0, 1.0], [1.0, 2.0], 3, 0.5);
+    assert(f4.kind == scientific::F_SHAPE);
+    let nan = 0.0 / 0.0;
+    let e5, f5 = scientific::splrep([0.0, 1.0, 2.0, 3.0, 4.0], [1.0, nan, 3.0, 4.0, 5.0], 1, 0.5);
+    assert(f5.kind == scientific::F_VALUE);
+    let e6, f6 = scientific::splrep(x, y, 3, nan);
+    assert(f6.kind == scientific::F_VALUE);
+}
+
 fn close(a: f64, b: f64) -> bool {
     let d = a - b;
     if d < 0.0 { return -d < 0.0000001; }
@@ -4726,8 +4775,7 @@ fn test_bspline() {
     assert(mathshim_abs(z.data[0]) < 1.0e-12);
     let sr, fsr = scientific::splrep(x, y, 3);
     assert(fsr.kind == scientific::F_NONE);
-    let sg, fsg = scientific::splrep(x, y, 3, 0.5);
-    assert(fsg.kind == scientific::F_VALUE);
+    test_splrep_smoothing();
     let e1, g1 = scientific::make_interp_spline([0.0, 1.0], [1.0, 2.0], 3);
     assert(g1.kind == scientific::F_SHAPE);
     let e2, g2 = scientific::make_interp_spline([0.0, 1.0, 1.0, 2.0], [1.0, 2.0, 3.0, 4.0], 3);
