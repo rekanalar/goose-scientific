@@ -351,32 +351,49 @@ fn butter_zpk(order: i64, wn: f64[:], btype: const u8[:], z: Cplx[>..]&, p: Cplx
     return proto_zpk(order, wn, btype, p0, 1.0, z, p);
 }
 
-// proto_zpk maps the poles p0 and the gain kp of an analog lowpass
-// prototype without zeros to a digital filter. The map to the band and
-// the bilinear rule follow SciPy.
+// proto_zpk maps the poles p0 and the gain kp0 of an analog lowpass
+// prototype without zeros to a digital filter.
 fn proto_zpk(order: i64, wn: f64[:], btype: const u8[:], p0: Cplx[:], kp0: f64, z: Cplx[>..]&, p: Cplx[>..]&) -> f64 {
-    let zero = Cplx { re: 0.0, im: 0.0 };
-    var w0 = 4.0 * mathshim::tan_of(PI_VALUE * wn[0] / 2.0);
-    var k: f64 = kp0;
-    // The product of the negated prototype poles, for the gain of the
-    // types that invert the prototype.
-    var prod = Cplx { re: 1.0, im: 0.0 };
+    var none: Cplx[>..] = [];
+    return proto_zpk2(order, wn, btype, none, p0, kp0, z, p);
+}
+
+// cx_prod_neg gives the product of the negated values of a list.
+fn cx_prod_neg(a: Cplx[:]) -> Cplx {
+    var t = Cplx { re: 1.0, im: 0.0 };
     var i: i64 = 0;
-    while i < p0.len { prod = c_mul(prod, c_scale(p0[i], -1.0)); i += 1; }
-    let invk = c_div(Cplx { re: 1.0, im: 0.0 }, prod).re;
+    while i < a.len { t = c_mul(t, c_scale(a[i], -1.0)); i += 1; }
+    return t;
+}
+
+// proto_zpk2 maps the zeros z0, the poles p0 and the gain kp0 of an
+// analog lowpass prototype to a digital filter. The map to the band and
+// the bilinear rule follow SciPy: lp2lp, lp2hp, lp2bp or lp2bs, then
+// bilinear with a sampling rate of two.
+fn proto_zpk2(order: i64, wn: f64[:], btype: const u8[:], z0: Cplx[:], p0: Cplx[:], kp0: f64, z: Cplx[>..]&, p: Cplx[>..]&) -> f64 {
+    let zero = Cplx { re: 0.0, im: 0.0 };
+    let w0 = 4.0 * mathshim::tan_of(PI_VALUE * wn[0] / 2.0);
+    let degree = p0.len - z0.len;
+    var k: f64 = kp0;
+    // The real ratio of the product of the negated zeros to that of the
+    // poles, for the types that invert the prototype.
+    let ratio = c_div(cx_prod_neg(z0), cx_prod_neg(p0)).re;
     var sz: Cplx[>..] = [];
     var sp: Cplx[>..] = [];
+    var i: i64 = 0;
     if btype == "lowpass" {
-        i = 0;
         while i < p0.len { sp.push(c_scale(p0[i], w0)); i += 1; }
         i = 0;
-        while i < order { k = k * w0; i += 1; }
-    } else if btype == "highpass" {
+        while i < z0.len { sz.push(c_scale(z0[i], w0)); i += 1; }
         i = 0;
+        while i < degree { k = k * w0; i += 1; }
+    } else if btype == "highpass" {
         while i < p0.len { sp.push(c_div(Cplx { re: w0, im: 0.0 }, p0[i])); i += 1; }
         i = 0;
-        while i < order { sz.push(zero); i += 1; }
-        k = kp0 * invk;
+        while i < z0.len { sz.push(c_div(Cplx { re: w0, im: 0.0 }, z0[i])); i += 1; }
+        i = 0;
+        while i < degree { sz.push(zero); i += 1; }
+        k = k * ratio;
     } else {
         let w1 = 4.0 * mathshim::tan_of(PI_VALUE * wn[1] / 2.0);
         let bw = w1 - w0;
@@ -384,38 +401,48 @@ fn proto_zpk(order: i64, wn: f64[:], btype: const u8[:], p0: Cplx[:], kp0: f64, 
         let wo2 = Cplx { re: wo * wo, im: 0.0 };
         var plus: Cplx[>..] = [];
         var minus: Cplx[>..] = [];
+        var zplus: Cplx[>..] = [];
+        var zminus: Cplx[>..] = [];
         i = 0;
         while i < p0.len {
             var pl: Cplx;
-            if btype == "bandpass" {
-                pl = c_scale(p0[i], bw / 2.0);
-            } else {
-                pl = c_div(Cplx { re: bw / 2.0, im: 0.0 }, p0[i]);
-            }
+            if btype == "bandpass" { pl = c_scale(p0[i], bw / 2.0); }
+            else { pl = c_div(Cplx { re: bw / 2.0, im: 0.0 }, p0[i]); }
             let r = c_sqrt(c_sub(c_mul(pl, pl), wo2));
             plus.push(c_add(pl, r));
             minus.push(c_sub(pl, r));
             i += 1;
         }
+        i = 0;
+        while i < z0.len {
+            var zl: Cplx;
+            if btype == "bandpass" { zl = c_scale(z0[i], bw / 2.0); }
+            else { zl = c_div(Cplx { re: bw / 2.0, im: 0.0 }, z0[i]); }
+            let r = c_sqrt(c_sub(c_mul(zl, zl), wo2));
+            zplus.push(c_add(zl, r));
+            zminus.push(c_sub(zl, r));
+            i += 1;
+        }
         cx_join(plus, minus, sp);
+        cx_join(zplus, zminus, sz);
         if btype == "bandpass" {
             i = 0;
-            while i < order { sz.push(zero); k = k * bw; i += 1; }
+            while i < degree { sz.push(zero); k = k * bw; i += 1; }
         } else {
             i = 0;
-            while i < order { sz.push(Cplx { re: 0.0, im: wo }); i += 1; }
+            while i < degree { sz.push(Cplx { re: 0.0, im: wo }); i += 1; }
             i = 0;
-            while i < order { sz.push(Cplx { re: 0.0, im: -wo }); i += 1; }
-            k = kp0 * invk;
+            while i < degree { sz.push(Cplx { re: 0.0, im: -wo }); i += 1; }
+            k = k * ratio;
         }
     }
     // The bilinear rule with a sampling rate of two.
-    var kp = Cplx { re: 1.0, im: 0.0 };
+    var kz = Cplx { re: 1.0, im: 0.0 };
     var kq = Cplx { re: 1.0, im: 0.0 };
-    var f4 = Cplx { re: 4.0, im: 0.0 };
+    let f4 = Cplx { re: 4.0, im: 0.0 };
     i = 0;
     while i < sz.len {
-        kp = c_mul(kp, c_sub(f4, sz[i]));
+        kz = c_mul(kz, c_sub(f4, sz[i]));
         z.push(c_div(c_add(f4, sz[i]), c_sub(f4, sz[i])));
         i += 1;
     }
@@ -427,7 +454,7 @@ fn proto_zpk(order: i64, wn: f64[:], btype: const u8[:], p0: Cplx[:], kp0: f64, 
     }
     i = sz.len;
     while i < sp.len { z.push(Cplx { re: -1.0, im: 0.0 }); i += 1; }
-    return k * c_div(kp, kq).re;
+    return k * c_div(kz, kq).re;
 }
 
 // butter_sos designs a digital Butterworth filter and gives it as
@@ -534,5 +561,38 @@ fn cheby1_sos(order: i64, rp: f64, wn: f64[:], btype: const u8[:]) -> Arr, Fault
     var z: Cplx[>..] = [];
     var p: Cplx[>..] = [];
     let k = proto_zpk(order, wn, btype, p0, kp, z, p);
+    return sos_from_zpk(z, p, k);
+}
+
+// cheby2_sos designs a digital Chebyshev filter of type II with a stop
+// band attenuation of rs decibels, and gives it as sections of the
+// order two. The cuts are the edges of the stop band, as in cheby2.
+fn cheby2_sos(order: i64, rs: f64, wn: f64[:], btype: const u8[:]) -> Arr, Fault {
+    let chk = flt_check_design(order, wn, btype, "cheby2_sos");
+    if chk.kind != F_NONE { return empty_arr(), chk; }
+    if !(rs > 0.0) || !(rs < 1.0e6) {
+        return empty_arr(), fault(F_VALUE, "cheby2_sos", "the attenuation holds a value outside zero to a million");
+    }
+    let de = 1.0 / mathshim::root(mathshim::power(10.0, 0.1 * rs) - 1.0);
+    let mu = mathshim::arcsinh_of(1.0 / de) / order;
+    var z0: Cplx[>..] = [];
+    var p0: Cplx[>..] = [];
+    var m = 1 - order;
+    while m < order {
+        let th = PI_VALUE * m / (2.0 * order);
+        if m != 0 {
+            // The zero is the conjugate of j over the sine of the angle.
+            z0.push(Cplx { re: 0.0, im: -1.0 / mathshim::sine(th) });
+        }
+        // The pole is the inverse of sinh(mu) re + j cosh(mu) im of -e^(j th).
+        let pr = -mathshim::sinh_of(mu) * mathshim::cosine(th);
+        let pi_ = -mathshim::cosh_of(mu) * mathshim::sine(th);
+        p0.push(c_div(Cplx { re: 1.0, im: 0.0 }, Cplx { re: pr, im: pi_ }));
+        m += 2;
+    }
+    let kp = c_div(cx_prod_neg(p0), cx_prod_neg(z0)).re;
+    var z: Cplx[>..] = [];
+    var p: Cplx[>..] = [];
+    let k = proto_zpk2(order, wn, btype, z0, p0, kp, z, p);
     return sos_from_zpk(z, p, k);
 }
