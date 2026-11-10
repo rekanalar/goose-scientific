@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.114.0";
+import scientific from "rekanalar/goose-scientific@v0.115.0";
 ```
 
 ## API
@@ -74,7 +74,7 @@ import scientific from "rekanalar/goose-scientific@v0.114.0";
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
 | Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `einsum3`, `einsum_set`, `ESet`, `eset_new`, `eset_add`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `general_cosine`, `general_hamming`, `general_gaussian`, `taylor`, `chebwin`, `kaiser_bessel_derived`, `dpss`, `dpss_ratios`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `null_space`, `orth`, `expm` |
-| Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn` |
+| Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn`, `fht`, `ifht`, `fhtoffset` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_hermite`, `bspline`, `make_interp_spline`, `splrep`, `splev`, `bspline_eval`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
@@ -387,8 +387,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   arrays. They hold no `s` list for the other axes, no `axes` and no
   `norm`. The default norm is `backward`.
 - `next_fast_len` follows SciPy. A complex transform takes the factors
-  up to 11. A real one takes 2, 3 and 5. The Fast Hankel transform
-  `fht` stays out.
+  up to 11. A real one takes 2, 3 and 5.
+- `fht` and `ifht` take a one-row signal, `dln`, `mu`, `offset` and
+  `bias`. `fhtoffset` takes `dln`, `mu`, `initial` and `bias`. They hold
+  no `axis` argument. A transform that is singular for the bias gives a
+  fault, where SciPy warns and goes on. `dln` must not be zero.
 - `lu_factor` and `lu` follow LAPACK. The row i swaps with the row
   `piv[i]`. A singular matrix gives no fault there. `lu_solve` gives a
   fault when it meets a zero on the diagonal. `solve` takes a matrix on the right side.
@@ -1232,6 +1235,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `cheby1`, `cheby2` and `ellip` fault on a ripple outside zero to
   one million. They also fault on an order above 32. A large value
   cannot make the design overflow into infinite coefficients.
+- `fht`, `ifht` and `fhtoffset` fault on a `dln` of zero and on a value
+  that is not finite. They fault on a bias that makes the transform
+  singular. The log gamma function uses a reflection and a short
+  shift. A large `mu` cannot make a loop run long.
 
 ## License
 

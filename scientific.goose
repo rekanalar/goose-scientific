@@ -53,6 +53,7 @@ import array_products;
 import array_einsum;
 import array_scilinalg;
 import array_dct;
+import array_fftlog;
 import array_spatial;
 import array_interp;
 import array_quad;
