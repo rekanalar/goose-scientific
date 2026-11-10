@@ -4039,6 +4039,15 @@ fn test_dblquad() {
     return;
 }
 
+// cov_close tells whether two values of a covariance matrix agree. The
+// comparison uses a scale of 1e-3, because the small values of the
+// matrix lose their digits in the reference library.
+fn cov_close(a: f64, b: f64) -> bool {
+    var d = a - b;
+    if d < 0.0 { d = -d; }
+    return d <= 0.001 * 0.001;
+}
+
 // loose tells whether two numbers agree to a relative 1e-5.
 fn loose(a: f64, b: f64) -> bool {
     var d = a - b;
@@ -4062,6 +4071,53 @@ fn test_curve_fit() {
     assert(f2.kind == scientific::F_NONE);
     assert(loose(p2.data[0], 2.997884615327012) && loose(p2.data[1], -1.992435897275306));
     assert(loose(c2.data[0], 4.00973865517021e-05) && loose(c2.data[1], -8.019477395462219e-05) && loose(c2.data[3], 0.00022357331117456666));
+    // The values of sigma scale the residuals.
+    let sig = [0.05, 0.06, 0.05, 0.07, 0.05, 0.06, 0.05, 0.07, 0.05, 0.06, 0.05, 0.07];
+    let ps, cs, fs = scientific::curve_fit(x, y, [1.0, 1.0, 0.0], 200, sig) { t, q => q[0] * mathshim_exp(-q[1] * t) + q[2] };
+    assert(fs.kind == scientific::F_NONE);
+    assert(loose(ps.data[0], 2.5105340700115826) && loose(ps.data[1], 1.3067584455977996) && loose(ps.data[2], 0.5014645542629256));
+    // The covariance holds a scale. The comparison uses it, because the
+    // small values of the matrix lose their digits in SciPy.
+    assert(cov_close(cs.data[0], 0.0006939681062620468) && cov_close(cs.data[4], 0.001161032323389619) && cov_close(cs.data[8], 0.00022211805651708264));
+    assert(cov_close(cs.data[1], 1.4921191905565632e-05) && cov_close(cs.data[2], -0.000159433318239479));
+    // One value of sigma serves every point.
+    let pv, cv, fv = scientific::curve_fit(x, y, [1.0, 1.0, 0.0], 200, [0.1]) { t, q => q[0] * mathshim_exp(-q[1] * t) + q[2] };
+    assert(fv.kind == scientific::F_NONE);
+    assert(loose(pv.data[0], 2.5048427779253335) && loose(pv.data[1], 1.2966838921487769) && loose(pv.data[2], 0.5011888506950971));
+    assert(cov_close(cv.data[0], 0.0008144738275679136) && cov_close(cv.data[4], 0.0012276462627711755) && cov_close(cv.data[8], 0.00022564753169769866));
+    // A matrix of sigma holds the covariance.
+    let mat: f64[>..] = [];
+    var mr: i64 = 0;
+    while mr < 12 {
+        var mc: i64 = 0;
+        while mc < 12 {
+            if mr == mc { mat.push(sig[mr] * sig[mr]); } else { mat.push(0.0); }
+            mc += 1;
+        }
+        mr += 1;
+    }
+    let pm, cm, fm = scientific::curve_fit(x, y, [1.0, 1.0, 0.0], 200, mat) { t, q => q[0] * mathshim_exp(-q[1] * t) + q[2] };
+    assert(fm.kind == scientific::F_NONE);
+    assert(loose(pm.data[0], 2.510534070187927) && loose(pm.data[1], 1.3067584452752734) && loose(pm.data[2], 0.5014645540838876));
+    assert(cov_close(cm.data[0], 0.0006939680930908152) && cov_close(cm.data[4], 0.00116103238092085) && cov_close(cm.data[8], 0.00022211806304844883));
+    // A wrong count of sigma, a value of zero and a matrix that is not
+    // positive definite are faults.
+    let b7, b8, g7 = scientific::curve_fit(x, y, [1.0, 1.0, 0.0], 200, [0.1, 0.2]) { t, q => q[0] * mathshim_exp(-q[1] * t) + q[2] };
+    assert(g7.kind == scientific::F_SHAPE);
+    let b9, b10, g8 = scientific::curve_fit(x, y, [1.0, 1.0, 0.0], 200, [0.0]) { t, q => q[0] * mathshim_exp(-q[1] * t) + q[2] };
+    assert(g8.kind == scientific::F_VALUE);
+    let bad: f64[>..] = [];
+    var br: i64 = 0;
+    while br < 12 {
+        var bc: i64 = 0;
+        while bc < 12 {
+            if br == bc { bad.push(-1.0); } else { bad.push(0.0); }
+            bc += 1;
+        }
+        br += 1;
+    }
+    let b11, b12, g9 = scientific::curve_fit(x, y, [1.0, 1.0, 0.0], 200, bad) { t, q => q[0] * mathshim_exp(-q[1] * t) + q[2] };
+    assert(g9.kind == scientific::F_VALUE);
     // Too few points and data of unequal length are faults.
     let b1, b2, g1 = scientific::curve_fit([1.0, 2.0], [1.0, 2.0], [1.0, 0.0]) { t, q => q[0] * t + q[1] };
     assert(g1.kind == scientific::F_VALUE);

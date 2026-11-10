@@ -486,7 +486,7 @@ fn lsq_step(normal: f64[:], rhs: f64[:], n: i64, damping: f64) -> Arr, Fault {
 // the normal matrix, scaled by the residual variance, as SciPy scales
 // it with the default setting. The call needs more points than
 // parameters. A singular normal matrix is a fault.
-fn curve_fit<F: fn(f64, f64[:]) -> f64>(xdata: f64[:], ydata: f64[:], p0: f64[:], turns: i64 = 200) -> Arr, Arr, Fault {
+fn curve_fit<F: fn(f64, f64[:]) -> f64>(xdata: f64[:], ydata: f64[:], p0: f64[:], turns: i64 = 200, sigma: f64[:] = []) -> Arr, Arr, Fault {
     let m = xdata.len;
     let n = p0.len;
     if n < 1 || m != ydata.len {
@@ -502,10 +502,67 @@ fn curve_fit<F: fn(f64, f64[:]) -> f64>(xdata: f64[:], ydata: f64[:], p0: f64[:]
         }
         i += 1;
     }
+    // The form of sigma. The count 0 means no sigma. The count 1 is a
+    // value for every point. The count m holds a value for each
+    // point. The count m times m holds the matrix of the covariance.
+    var mode: i64 = 0;
+    if sigma.len == 1 { mode = 1; }
+    else if sigma.len == m { mode = 2; }
+    else if sigma.len == m * m && m > 1 { mode = 3; }
+    else if sigma.len > 0 {
+        return empty_arr(), empty_arr(), fault(F_SHAPE, "curve_fit", "sigma holds a wrong count of values");
+    }
+    i = 0;
+    while i < sigma.len {
+        if !(sigma[i] - sigma[i] == 0.0) || mathshim::is_infinite_of(sigma[i]) != 0.0 {
+            return empty_arr(), empty_arr(), fault(F_VALUE, "curve_fit", "sigma holds a value that is not finite");
+        }
+        i += 1;
+    }
+    if mode == 1 || mode == 2 {
+        var k: i64 = 0;
+        while k < m {
+            var sv = sigma[0];
+            if mode == 2 { sv = sigma[k]; }
+            if sv == 0.0 {
+                return empty_arr(), empty_arr(), fault(F_VALUE, "curve_fit", "sigma holds a value of zero");
+            }
+            k += 1;
+        }
+    }
+    // The factor of the matrix form. It is the lower triangle of the
+    // Cholesky of the matrix of sigma.
+    var lo = empty_arr();
+    if mode == 3 {
+        let sm = Arr { ndim: 2, shape: [m, m], data: copy_slice(sigma) };
+        let l, lf = cholesky(sm);
+        if lf.kind != F_NONE {
+            return empty_arr(), empty_arr(), fault(F_VALUE, "curve_fit", "the matrix of sigma is not positive definite");
+        }
+        lo = copy(l);
+    }
     let best, f = least_squares(p0, 1.0e-14, turns) { p =>
         var r: f64[>..] = [];
         var k: i64 = 0;
-        while k < m { r.push(F(xdata[k], copy(p)) - ydata[k]); k += 1; }
+        while k < m {
+            var v = F(xdata[k], copy(p)) - ydata[k];
+            if mode == 1 { v = v / sigma[0]; }
+            else if mode == 2 { v = v / sigma[k]; }
+            r.push(v);
+            k += 1;
+        }
+        if mode == 3 {
+            // The factor of the matrix form scales the whole vector.
+            var sh: i64[..8] = [];
+            sh.push(m);
+            let zz, zf = solve_triangular(lo, Arr { ndim: 1, shape: sh, data: copy(r) }, true);
+            if zf.kind == F_NONE {
+                r = copy(zz.data);
+            } else {
+                var kk: i64 = 0;
+                while kk < m { r[kk] = 0.0; kk += 1; }
+            }
+        }
         r
     };
     if f.kind != F_NONE { return empty_arr(), empty_arr(), fault(f.kind, "curve_fit", f.detail); }
@@ -513,11 +570,31 @@ fn curve_fit<F: fn(f64, f64[:]) -> f64>(xdata: f64[:], ydata: f64[:], p0: f64[:]
     var jac: f64[>..] = [];
     i = 0;
     while i < m * n { jac.push(0.0); i += 1; }
+    // The residuals at the best point. They take the factor of sigma.
+    var rr: f64[>..] = [];
+    i = 0;
+    while i < m {
+        rr.push(F(xdata[i], copy(best.data)) - ydata[i]);
+        i += 1;
+    }
+    if mode == 1 || mode == 2 {
+        i = 0;
+        while i < m {
+            var sv = sigma[0];
+            if mode == 2 { sv = sigma[i]; }
+            rr[i] = rr[i] / sv;
+            i += 1;
+        }
+    } else if mode == 3 {
+        var sh: i64[..8] = [];
+        sh.push(m);
+        let zz, zf = solve_triangular(lo, Arr { ndim: 1, shape: sh, data: copy(rr) }, true);
+        if zf.kind == F_NONE { rr = copy(zz.data); }
+    }
     var res: f64 = 0.0;
     i = 0;
     while i < m {
-        let r = F(xdata[i], copy(best.data)) - ydata[i];
-        res += r * r;
+        res += rr[i] * rr[i];
         var d: i64 = 0;
         while d < n {
             let h = 0.000001 * (1.0 + mathshim::abs_of(best.data[d]));
@@ -531,6 +608,34 @@ fn curve_fit<F: fn(f64, f64[:]) -> f64>(xdata: f64[:], ydata: f64[:], p0: f64[:]
             d += 1;
         }
         i += 1;
+    }
+    // The rows of the Jacobian take the factor of sigma.
+    if mode == 1 || mode == 2 {
+        i = 0;
+        while i < m {
+            var sv = sigma[0];
+            if mode == 2 { sv = sigma[i]; }
+            var d: i64 = 0;
+            while d < n { jac[i * n + d] = jac[i * n + d] / sv; d += 1; }
+            i += 1;
+        }
+    } else if mode == 3 {
+        // The factor of the matrix form scales every column of the
+        // Jacobian.
+        var sh: i64[..8] = [];
+        sh.push(m);
+        var d: i64 = 0;
+        while d < n {
+            var col: f64[>..] = [];
+            var row: i64 = 0;
+            while row < m { col.push(jac[row * n + d]); row += 1; }
+            let zz, zf = solve_triangular(lo, Arr { ndim: 1, shape: sh, data: copy(col) }, true);
+            if zf.kind == F_NONE {
+                row = 0;
+                while row < m { jac[row * n + d] = zz.data[row]; row += 1; }
+            }
+            d += 1;
+        }
     }
     var normal: f64[>..] = [];
     i = 0;

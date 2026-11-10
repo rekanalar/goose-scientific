@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.89.0";
+import scientific from "rekanalar/goose-scientific@v0.90.0";
 ```
 
 ## API
@@ -914,9 +914,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   the turns and no status of the end.
 - `curve_fit` takes the model as a block `{ x, p => ... }`, the data
   and a start. It gives the parameters and the covariance. The
-  covariance uses the scale of SciPy for the default setting. It has
-  no `sigma`, no `bounds` and no `method`. Parameters match SciPy to
-  about five digits.
+  covariance uses the scale of SciPy for the default setting. The
+  fifth argument `sigma` takes one value, one value per point or the
+  full covariance matrix of the points. A matrix that is not positive
+  definite, a value of zero and a wrong count are faults. It has no
+  `bounds` and no `method`.
+- `curve_fit` parameters match SciPy to about five digits. The
+  covariance matches to about three digits, because SciPy takes it
+  from a rough difference of the derivatives.
 - `least_squares` fits a function to values. The method of Levenberg
   and Marquardt takes the matrix of the derivatives by a small
   difference. So the fit holds fewer digits than a fit that takes the
