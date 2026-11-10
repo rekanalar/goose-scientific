@@ -105,9 +105,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   absolute size plus the relative size times the second number. The
   infinity equals itself. The missing value matches itself only under
   the flag.
-- `histogram2d` and `histogramdd` take the range from the smallest and
-  the largest value of the input, as the histogram of one dimension
-  does. NumPy takes a `range` option. A column where every value holds
+- `histogram2d` and `histogramdd` take the range from the input, as
+  the histogram of one dimension does. The range runs from the
+  smallest value to the largest value. NumPy takes a `range` option. A column where every value holds
   the same number is a fault. The counts hold no `weights` and no
   `density` option.
 - `histogramdd` takes rows of points. Each column holds one dimension.
