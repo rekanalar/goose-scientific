@@ -774,3 +774,109 @@ fn decimate(x: f64[:], q: i64, ftype: const u8[:] = "iir", n: i64 = 0) -> Arr, F
     while i < y.data.len { out.push(y.data[i]); i += q; }
     return line_arr(copy(out)), no_fault();
 }
+
+// firwin2 designs a linear phase filter by the frequency sampling
+// method. The list freq holds the frequencies from zero up to fs / 2 and
+// the list gain holds the response at each one. A frequency may occur
+// twice, for a jump. The window is a name of get_window, or "none" for
+// no window. With antisymmetric true the filter has odd symmetry.
+fn firwin2(numtaps: i64, freq: f64[:], gain: f64[:], nfreqs: i64 = 0, window: const u8[:] = "hamming", antisymmetric: bool = false, fs: f64 = 2.0) -> Arr, Fault {
+    if numtaps < 1 || numtaps > MAX_DSP_LENGTH / 4 {
+        return empty_arr(), fault(F_RANGE, "firwin2", "the count of taps stands outside one to the limit");
+    }
+    if freq.len != gain.len || freq.len < 2 || !(fs > 0.0) {
+        return empty_arr(), fault(F_SHAPE, "firwin2", "freq and gain must have one length of two or more, and the rate must be above zero");
+    }
+    let nyq = 0.5 * fs;
+    var nf = nfreqs;
+    if nf == 0 {
+        var p: i64 = 1;
+        while p < numtaps { p *= 2; }
+        nf = 1 + p;
+    }
+    if numtaps >= nf || nf > MAX_DSP_LENGTH / 4 {
+        return empty_arr(), fault(F_RANGE, "firwin2", "numtaps must be below nfreqs, and nfreqs must stay within the limit");
+    }
+    if freq[0] != 0.0 || freq[freq.len - 1] != nyq {
+        return empty_arr(), fault(F_VALUE, "firwin2", "freq must start with 0 and end with fs / 2");
+    }
+    var k: i64 = 0;
+    while k < freq.len {
+        if !(freq[k] - freq[k] == 0.0) || !(gain[k] - gain[k] == 0.0) {
+            return empty_arr(), fault(F_VALUE, "firwin2", "a value is not finite");
+        }
+        if k > 0 && freq[k] < freq[k - 1] {
+            return empty_arr(), fault(F_VALUE, "firwin2", "the values in freq must not fall");
+        }
+        if k > 1 && freq[k] == freq[k - 1] && freq[k - 1] == freq[k - 2] {
+            return empty_arr(), fault(F_VALUE, "firwin2", "a value in freq must not occur more than twice");
+        }
+        k += 1;
+    }
+    if freq[1] == 0.0 || freq[freq.len - 2] == nyq {
+        return empty_arr(), fault(F_VALUE, "firwin2", "the value 0 and the value fs / 2 must not repeat");
+    }
+    var ftype: i64 = 1;
+    if antisymmetric { ftype = 3; }
+    if numtaps % 2 == 0 { ftype += 1; }
+    let g0 = gain[0];
+    let g1 = gain[gain.len - 1];
+    if (ftype == 2 && g1 != 0.0) || (ftype == 3 && (g0 != 0.0 || g1 != 0.0)) || (ftype == 4 && g0 != 0.0) {
+        return empty_arr(), fault(F_VALUE, "firwin2", "the gain at zero or at fs / 2 does not suit the type of the filter");
+    }
+    // A repeated frequency moves apart by a small step, so that the
+    // interpolation has a rising row.
+    var fq: f64[>..] = [];
+    k = 0;
+    while k < freq.len { fq.push(freq[k]); k += 1; }
+    let eps = 2.220446049250313e-16 * nyq;
+    k = 0;
+    while k + 1 < fq.len {
+        if freq[k] == freq[k + 1] {
+            fq[k] = fq[k] - eps;
+            fq[k + 1] = fq[k + 1] + eps;
+        }
+        k += 1;
+    }
+    k = 0;
+    while k + 1 < fq.len {
+        if !(fq[k + 1] > fq[k]) {
+            return empty_arr(), fault(F_VALUE, "firwin2", "freq holds numbers too close to a repeated value");
+        }
+        k += 1;
+    }
+    var x: f64[>..] = [];
+    k = 0;
+    while k < nf { x.push(nyq * k / (nf - 1)); k += 1; }
+    let fx, ff = interp(gain, fq, x);
+    if ff.kind != F_NONE { return empty_arr(), ff; }
+    var re: f64[>..] = [];
+    var im: f64[>..] = [];
+    k = 0;
+    while k < nf {
+        let ph = -(numtaps - 1) / 2.0 * 3.141592653589793 * x[k] / nyq;
+        var cr = fx.data[k] * mathshim::cosine(ph);
+        var ci = fx.data[k] * mathshim::sine(ph);
+        if ftype > 2 { let t = cr; cr = -ci; ci = t; }
+        re.push(cr);
+        im.push(ci);
+        k += 1;
+    }
+    let full, fr = irfft(re, im, 2 * (nf - 1));
+    if fr.kind != F_NONE { return empty_arr(), fr; }
+    var out: f64[>..] = [];
+    var wd: f64[>..] = [];
+    if window == "none" {
+        k = 0;
+        while k < numtaps { wd.push(1.0); k += 1; }
+    } else {
+        let w, wf = get_window(window, numtaps, false);
+        if wf.kind != F_NONE { return empty_arr(), wf; }
+        k = 0;
+        while k < numtaps { wd.push(w.data[k]); k += 1; }
+    }
+    k = 0;
+    while k < numtaps { out.push(full.data[k] * wd[k]); k += 1; }
+    if ftype == 3 { out[numtaps / 2] = 0.0; }
+    return line_arr(copy(out)), no_fault();
+}
