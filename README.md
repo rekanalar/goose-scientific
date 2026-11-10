@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.83.0";
+import scientific from "rekanalar/goose-scientific@v0.84.0";
 ```
 
 ## API
@@ -79,7 +79,7 @@ import scientific from "rekanalar/goose-scientific@v0.83.0";
 | Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `odeint` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
-| Signal design and analysis | `firwin`, `firwin2`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
+| Signal design and analysis | `firwin`, `firwin2`, `remez`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
@@ -211,6 +211,21 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   The older `welch` of the package stays as it is.
 
 - `firwin2` takes the window as a name, and `none` gives no window.
+- `remez` follows the exchange routine of SciPy step by step, so the
+  taps agree to 1e-9. The call takes `bands`, `desired`, an empty or
+  complete `weight`, the kind `bandpass`, `differentiator` or `hilbert`,
+  `maxiter`, `grid_density` and `fs`. The default `fs` is 1, as in
+  SciPy. The name of the argument `type` is `kind`, because `type` is a
+  keyword. When the deviation stops rising, the call gives `F_VALUE`,
+  as SciPy raises an error. When `maxiter` ends first, the call gives
+  the taps of the last pass without a fault, as SciPy does.
+- `remez` refuses more input than SciPy does. It faults on a value that
+  is not finite and on a weight at or below zero. It faults on an `fs`
+  at or below zero and on more than 4096 taps.
+
+- `remez` also faults on a grid of more than 262144 points. It faults
+  on a `maxiter` above 1000 and on a `grid_density` above 1024. SciPy
+  takes some of these and may fail on memory or time.
   It follows SciPy for the types one to four and for a jump in `freq`.
 - `decimate` takes the kinds `iir` and `fir` with a zero phase shift.
   The argument `ftype` takes a name, not a filter object. The
