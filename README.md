@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.68.0";
+import scientific from "rekanalar/goose-scientific@v0.69.0";
 ```
 
 ## API
@@ -79,7 +79,7 @@ import scientific from "rekanalar/goose-scientific@v0.68.0";
 | Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `solve_ivp`, `odeint` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
-| Signal design and analysis | `firwin`, `freqz`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `resample` |
+| Signal design and analysis | `firwin`, `freqz`, `sosfreqz`, `sosfreqz_at`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `spsolve`, `cg`, `bicgstab`, `gmres` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
@@ -165,6 +165,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `firwin` takes a bool for `pass_zero`, not the band names, and the
   windows of `get_window`. `freqz` gives the real and the imaginary
   parts in two arrays and takes a count of points, not an array.
+  `sosfreqz` does the same for sections. `sosfreqz_at` takes the
+  frequencies as an array.
 - `find_peaks` takes the lower limits `height` and `prominence` and
   the `distance`. The limits `threshold`, `width`, `plateau_size`
   and the pairs of limits stay out. A signal with no peak is a fault.

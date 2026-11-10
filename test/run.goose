@@ -4399,7 +4399,29 @@ fn test_interp1d_kinds() {
     return;
 }
 
+fn sf_sos() -> scientific::Arr {
+    let s, f = scientific::from_rows(2, 6, [0.01856301062689717, 0.03712602125379434, 0.01856301062689717, 1.0, -0.6727409111915273, 0.14453519983312102, 1.0, 2.0, 1.0, 1.0, -0.8976579400366445, 0.5271869046315972]);
+    return s;
+}
+
+// sosfreqz is pinned against SciPy.
+fn test_sosfreqz() {
+    let w, hr, hi, f1 = scientific::sosfreqz(sf_sos(), 5);
+    assert(f1.kind == scientific::F_NONE);
+    assert(all_near(w, [0.0, 0.6283185307179586, 1.2566370614359172, 1.8849555921538759, 2.5132741228718345]));
+    assert(all_loose(hr, [1.0, -0.21708827518165963, -0.09993200670106575, 0.010342348962786515, 0.0006814869992726401]));
+    assert(all_loose(hi, [0.0, -0.9624215957339939, 0.2128155141360432, 0.01567225283401711, 0.00031608231753612226]));
+    let r2, i2, f2 = scientific::sosfreqz_at(sf_sos(), [0.1, 1.0, 2.0]);
+    assert(f2.kind == scientific::F_NONE);
+    assert(all_loose(r2, [0.9671606461491014, -0.5838102178759325, 0.007400139523795283]));
+    assert(all_loose(i2, [-0.25416584326812836, 0.15258273743416995, 0.008744911198204164]));
+    let w3, r3, i3, f3 = scientific::sosfreqz(sf_sos(), 0);
+    assert(f3.kind == scientific::F_SHAPE);
+    return;
+}
+
 fn main() {
+    test_sosfreqz();
     test_interp1d_kinds();
     test_matrix_trig();
     test_create();

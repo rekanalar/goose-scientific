@@ -609,3 +609,76 @@ fn resample(x: f64[:], num: i64) -> Arr, Fault {
     while i < num { out.push(r.data[i] * num / nx); i += 1; }
     return line_arr(copy(out)), no_fault();
 }
+
+// sos_response gives the response of the cascade of sections at the
+// frequency om, as the product of the response of each section.
+fn sos_response(sos, om: f64, re: f64&, im: f64&) {
+    var pr: f64 = 1.0;
+    var pi: f64 = 0.0;
+    var s: i64 = 0;
+    while s < sos.shape[0] {
+        var br: f64 = 0.0;
+        var bi: f64 = 0.0;
+        var ar: f64 = 0.0;
+        var ai: f64 = 0.0;
+        var k: i64 = 0;
+        while k < 3 {
+            let c = mathshim::cosine(om * k);
+            let n = mathshim::sine(om * k);
+            br += sos.data[s * 6 + k] * c;
+            bi -= sos.data[s * 6 + k] * n;
+            ar += sos.data[s * 6 + 3 + k] * c;
+            ai -= sos.data[s * 6 + 3 + k] * n;
+            k += 1;
+        }
+        let d = ar * ar + ai * ai;
+        let hr = (br * ar + bi * ai) / d;
+        let hi = (bi * ar - br * ai) / d;
+        let t = pr * hr - pi * hi;
+        pi = pr * hi + pi * hr;
+        pr = t;
+        s += 1;
+    }
+    re = pr;
+    im = pi;
+    return;
+}
+
+// sosfreqz gives the frequency response of a filter in sections at the
+// frequencies w, in radians per sample. It gives the real and the
+// imaginary parts of the response.
+fn sosfreqz_at(sos, w: f64[:]) -> Arr, Arr, Fault {
+    let f = sos_check(sos, "sosfreqz");
+    if f.kind != F_NONE { return empty_arr(), empty_arr(), f; }
+    if w.len < 1 || w.len > MAX_DSP_LENGTH {
+        return empty_arr(), empty_arr(), fault(F_SHAPE, "sosfreqz", "the count of frequencies is out of range");
+    }
+    var hr: f64[>..] = [];
+    var hi: f64[>..] = [];
+    var i: i64 = 0;
+    while i < w.len {
+        var r: f64 = 0.0;
+        var m: f64 = 0.0;
+        sos_response(sos, w[i], r, m);
+        hr.push(r);
+        hi.push(m);
+        i += 1;
+    }
+    return line_arr(copy(hr)), line_arr(copy(hi)), no_fault();
+}
+
+// sosfreqz gives the response at n points from zero up to, but not
+// including, pi. With whole true the points reach up to 2 pi. It gives
+// the frequencies, the real parts and the imaginary parts.
+fn sosfreqz(sos, n: i64 = 512, whole: bool = false) -> Arr, Arr, Arr, Fault {
+    if n < 1 || n > MAX_DSP_LENGTH {
+        return empty_arr(), empty_arr(), empty_arr(), fault(F_SHAPE, "sosfreqz", "the count is out of range");
+    }
+    var top = 3.141592653589793;
+    if whole { top = 6.283185307179586; }
+    var w: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n { w.push(top * i / n); i += 1; }
+    let hr, hi, f = sosfreqz_at(sos, w);
+    return line_arr(copy(w)), hr, hi, f;
+}
