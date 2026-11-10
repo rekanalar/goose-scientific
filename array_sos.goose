@@ -743,3 +743,132 @@ fn cheby2_sos(order: i64, rs: f64, wn: f64[:], btype: const u8[:]) -> Arr, Fault
     let k = cheby2_digital(order, rs, wn, btype, z, p);
     return sos_from_zpk(z, p, k);
 }
+
+// bessel_poly gives the coefficients of the reverse Bessel polynomial
+// of the order n, from the highest power to the lowest.
+fn bessel_poly(n: i64) -> f64[>..] {
+    var prev: f64[>..] = [1.0];
+    var cur: f64[>..] = [1.0, 1.0];
+    var m: i64 = 2;
+    while m <= n {
+        // theta(m) = (2m - 1) theta(m - 1) + s^2 theta(m - 2), lowest power first.
+        var next: f64[>..] = [];
+        var i: i64 = 0;
+        while i <= m {
+            var v: f64 = 0.0;
+            if i < cur.len { v = (2.0 * m - 1.0) * cur[i]; }
+            if i >= 2 && i - 2 < prev.len { v += prev[i - 2]; }
+            next.push(v);
+            i += 1;
+        }
+        prev = copy(cur);
+        cur = copy(next);
+        m += 1;
+    }
+    var out: f64[>..] = [];
+    var i = cur.len - 1;
+    while i >= 0 { out.push(cur[i]); i -= 1; }
+    return out;
+}
+
+// bessel_polish improves a root of a polynomial by the rule of Newton.
+fn bessel_polish(c: f64[:], z0: Cplx) -> Cplx {
+    var dc: f64[>..] = [];
+    let n = c.len - 1;
+    var i: i64 = 0;
+    while i < n { dc.push(c[i] * (n - i)); i += 1; }
+    var z = z0;
+    var turn: i64 = 0;
+    while turn < 8 {
+        let d = c_value(dc, z);
+        if c_abs(d) == 0.0 { break; }
+        z = c_sub(z, c_div(c_value(c, z), d));
+        turn += 1;
+    }
+    return z;
+}
+
+// bessel_gain gives the size of the gain of the all pole filter with
+// the poles p and the gain k at the angular frequency w.
+fn bessel_gain(p: Cplx[:], k: f64, w: f64) -> f64 {
+    var t = Cplx { re: 1.0, im: 0.0 };
+    var i: i64 = 0;
+    while i < p.len { t = c_mul(t, c_sub(Cplx { re: 0.0, im: w }, p[i])); i += 1; }
+    return k / c_abs(t);
+}
+
+// bessel_digital gives the digital zeros, poles and gain of the Bessel
+// filter. The norm is "phase", "delay" or "mag". The arguments are
+// already checked.
+fn bessel_digital(order: i64, wn: f64[:], btype: const u8[:], norm: const u8[:], z: Cplx[>..]&, p: Cplx[>..]&) -> f64, Fault {
+    let poly = bessel_poly(order);
+    let rts, rf = roots_of(poly);
+    if rf.kind != F_NONE { return 0.0, rf; }
+    var p0: Cplx[>..] = [];
+    var i: i64 = 0;
+    while i < rts.len { p0.push(bessel_polish(poly, rts[i])); i += 1; }
+    let a_last = poly[poly.len - 1];
+    var kp = a_last;
+    if norm == "phase" {
+        let f = mathshim::power(10.0, -mathshim::log10_of(a_last) / order);
+        i = 0;
+        while i < p0.len { p0[i] = c_scale(p0[i], f); i += 1; }
+        kp = 1.0;
+    } else if norm == "mag" {
+        // The gain falls with the frequency, so bisect for the 3 dB point.
+        let target = 0.7071067811865476;
+        var hi: f64 = 1.0;
+        while bessel_gain(p0, a_last, hi) > target { hi = hi * 2.0; }
+        var lo: f64 = 0.0;
+        var turn: i64 = 0;
+        while turn < 200 {
+            let mid = 0.5 * (lo + hi);
+            if bessel_gain(p0, a_last, mid) > target { lo = mid; } else { hi = mid; }
+            turn += 1;
+        }
+        let nf = 0.5 * (lo + hi);
+        i = 0;
+        while i < p0.len { p0[i] = c_scale(p0[i], 1.0 / nf); i += 1; }
+        kp = a_last / mathshim::power(nf, order * 1.0);
+    }
+    return proto_zpk(order, wn, btype, p0, kp, z, p), no_fault();
+}
+
+// bessel_check checks the name of the norm.
+fn bessel_check(norm: const u8[:], tag: const u8[:]) -> Fault {
+    if norm != "phase" && norm != "delay" && norm != "mag" {
+        return fault(F_VALUE, tag, "the norm holds an unknown name");
+    }
+    return no_fault();
+}
+
+// bessel designs a digital Bessel filter. The cut is a fraction of the
+// Nyquist rate. The norm is "phase", "delay" or "mag", and says what
+// the cut means, as in SciPy. The result holds the numerator and the
+// denominator.
+fn bessel(order: i64, wn: f64[:], btype: const u8[:], norm: const u8[:] = "phase") -> Arr, Arr, Fault {
+    let chk = flt_check_design(order, wn, btype, "bessel");
+    if chk.kind != F_NONE { return empty_arr(), empty_arr(), chk; }
+    let nf = bessel_check(norm, "bessel");
+    if nf.kind != F_NONE { return empty_arr(), empty_arr(), nf; }
+    var z: Cplx[>..] = [];
+    var p: Cplx[>..] = [];
+    let k, df = bessel_digital(order, wn, btype, norm, z, p);
+    if df.kind != F_NONE { return empty_arr(), empty_arr(), df; }
+    let b, a = zpk_to_ba(z, p, k);
+    return b, a, no_fault();
+}
+
+// bessel_sos designs the same filter as bessel and gives it as
+// sections of the order two.
+fn bessel_sos(order: i64, wn: f64[:], btype: const u8[:], norm: const u8[:] = "phase") -> Arr, Fault {
+    let chk = flt_check_design(order, wn, btype, "bessel_sos");
+    if chk.kind != F_NONE { return empty_arr(), chk; }
+    let nf = bessel_check(norm, "bessel_sos");
+    if nf.kind != F_NONE { return empty_arr(), nf; }
+    var z: Cplx[>..] = [];
+    var p: Cplx[>..] = [];
+    let k, df = bessel_digital(order, wn, btype, norm, z, p);
+    if df.kind != F_NONE { return empty_arr(), df; }
+    return sos_from_zpk(z, p, k);
+}

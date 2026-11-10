@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.118.0";
+import scientific from "rekanalar/goose-scientific@v0.119.0";
 ```
 
 ## API
@@ -79,11 +79,11 @@ import scientific from "rekanalar/goose-scientific@v0.118.0";
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
-| Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `residue`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
+| Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `bessel`, `residue`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
-| Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
+| Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -557,6 +557,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   takes the ripple of the pass band and the attenuation of the stop
   band. They have no `fs` argument, no analog filter and no `output`
   option. Use `zpk2sos` or the `_sos` forms for a high order.
+- `bessel` and `bessel_sos` design a digital Bessel filter. They take
+  the order, the cuts, the type and the norm `phase`, `delay` or
+  `mag`, `phase` by default. The poles come from the roots of the
+  reverse Bessel polynomial, improved by Newton steps. They have no
+  `fs` argument, no analog filter and no `output` option. The order
+  runs from one to 32.
 - `ellip` faults when the attenuation is not above the ripple.
   SciPy gives NaN or zeros in that case.
 - `residue` takes real coefficients only. SciPy also takes complex
@@ -1247,6 +1253,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `cheby1`, `cheby2` and `ellip` fault on a ripple outside zero to
   one million. They also fault on an order above 32. A large value
   cannot make the design overflow into infinite coefficients.
+- `bessel` and `bessel_sos` fault on an order outside one to 32. They
+  also fault on a cut outside zero to one and on an unknown norm.
+  The search for the 3 dB point stops after a fixed count of turns.
 - `fht`, `ifht` and `fhtoffset` fault on a `dln` of zero and on a value
   that is not finite. They fault on a bias that makes the transform
   singular. The log gamma function uses a reflection and a short
