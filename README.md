@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.106.0";
+import scientific from "rekanalar/goose-scientific@v0.107.0";
 ```
 
 ## API
@@ -78,7 +78,7 @@ import scientific from "rekanalar/goose-scientific@v0.106.0";
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_hermite`, `bspline`, `make_interp_spline`, `splrep`, `splev`, `bspline_eval`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `odeint` |
-| Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
+| Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `residue`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
@@ -242,6 +242,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `savgol_filter` and `medfilt` take one dimension and no `axis`.
   `savgol_filter` takes no `cval`. The edge modes are `interp`,
   `nearest`, `mirror`, `constant` and `wrap`.
+- `milp` takes the arguments of `linprog` and a list of flags for the
+  integer variables. It uses branch and bound over the relaxations of
+  `linprog`. The search stops with a fault after 20000 nodes. SciPy uses
+  HiGHS, which also cuts and presolves. A problem with ties may return
+  another optimal point with the same value.
 - `linprog` takes flat lists by row for the matrices and runs the two
   phase simplex with the rule of Bland. The cost is dense, and a side
   holds up to 2048 values. A problem with no point or with no least

@@ -586,3 +586,99 @@ fn linprog(c: f64[:], a_ub: f64[:], b_ub: f64[:], a_eq: f64[:], b_eq: f64[:], lb
     }
     return line_arr(copy(x)), fun, no_fault();
 }
+
+// milp minimizes c x under the rows of linprog and the bounds, where
+// the variables flagged in integer take whole values. The method is
+// branch and bound over the relaxations of linprog. It takes the most
+// fractional variable first, and it explores the deeper node first. A
+// problem with no point is a fault, and so is a relaxation with no
+// least value. A search of more than 20000 nodes is a limit fault.
+fn milp(c: f64[:], integer: bool[:], a_ub: f64[:], b_ub: f64[:], a_eq: f64[:], b_eq: f64[:], lb: f64[:] = [], ub: f64[:] = []) -> Arr, f64, Fault {
+    let nv = c.len;
+    if integer.len != nv {
+        return empty_arr(), 0.0, fault(F_SHAPE, "milp", "the flags do not hold one value per variable");
+    }
+    if (lb.len != 0 && lb.len != nv) || (ub.len != 0 && ub.len != nv) {
+        return empty_arr(), 0.0, fault(F_SHAPE, "milp", "the bounds do not hold one value per variable");
+    }
+    var nlb: f64[>..] = [];
+    var nub: f64[>..] = [];
+    var i: i64 = 0;
+    while i < nv {
+        if lb.len > 0 { nlb.push(lb[i]); } else { nlb.push(0.0); }
+        if ub.len > 0 { nub.push(ub[i]); } else { nub.push(1.0 / 0.0); }
+        i += 1;
+    }
+    // The stack of the nodes holds the bounds of each node.
+    var slb: f64[>..<] = copy_slice(nlb);
+    var sub: f64[>..<] = copy_slice(nub);
+    var best: f64[>..] = [];
+    var bestv: f64 = 1.0 / 0.0;
+    var found = false;
+    var nodes: i64 = 0;
+    while slb.len > 0 {
+        nodes += 1;
+        if nodes > 20000 {
+            return empty_arr(), 0.0, fault(F_LIMIT, "milp", "the search holds more nodes than the limit");
+        }
+        var clb: f64[>..] = [];
+        var cub: f64[>..] = [];
+        i = 0;
+        while i < nv {
+            clb.push(slb[slb.len - nv + i]);
+            cub.push(sub[sub.len - nv + i]);
+            i += 1;
+        }
+        i = 0;
+        while i < nv { slb.pop(); sub.pop(); i += 1; }
+        var skip = false;
+        i = 0;
+        while i < nv { if clb[i] > cub[i] { skip = true; } i += 1; }
+        if skip { continue; }
+        let x, v, f = linprog(c, a_ub, b_ub, a_eq, b_eq, clb, cub);
+        if f.kind != F_NONE {
+            if f.kind == F_VALUE && f.detail == "the problem holds no feasible point" { continue; }
+            return empty_arr(), 0.0, fault(f.kind, "milp", f.detail);
+        }
+        if found && v >= bestv - 0.000000001 { continue; }
+        // The most fractional variable.
+        var pick: i64 = -1;
+        var worst: f64 = 0.000001;
+        i = 0;
+        while i < nv {
+            if integer[i] {
+                var fr = x.data[i] - mathshim::floor_of(x.data[i]);
+                if fr > 0.5 { fr = 1.0 - fr; }
+                if fr > worst { worst = fr; pick = i; }
+            }
+            i += 1;
+        }
+        if pick < 0 {
+            best = copy_slice(x.data);
+            i = 0;
+            while i < nv { if integer[i] { best[i] = mathshim::round_of(best[i]); } i += 1; }
+            bestv = v;
+            found = true;
+            continue;
+        }
+        let fl = mathshim::floor_of(x.data[pick]);
+        // The node of the upper part is pushed first, so the lower
+        // part runs first.
+        i = 0;
+        while i < nv {
+            slb.push(clb[i]);
+            if i == pick { sub.push(cub[i]); } else { sub.push(cub[i]); }
+            i += 1;
+        }
+        slb[slb.len - nv + pick] = fl + 1.0;
+        i = 0;
+        while i < nv { slb.push(clb[i]); sub.push(cub[i]); i += 1; }
+        sub[sub.len - nv + pick] = fl;
+    }
+    if !found {
+        return empty_arr(), 0.0, fault(F_VALUE, "milp", "the problem holds no feasible point");
+    }
+    var s: i64[..8] = [];
+    s.push(nv);
+    return Arr { ndim: 1, shape: s, data: best }, bestv, no_fault();
+}

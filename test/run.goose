@@ -3711,6 +3711,15 @@ fn test_quad() {
 }
 
 fn test_programs() {
+    // Mixed integer programs.
+    let kx, kv, kf = scientific::milp([-8.0, -11.0, -6.0, -4.0], [true, true, true, true], [5.0, 7.0, 4.0, 3.0], [14.0], [], [], [0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 1.0, 1.0]);
+    assert(kf.kind == scientific::F_NONE && rel_close(kx, [0.0, 1.0, 1.0, 1.0], 1.0e-9) && mathshim_abs(kv + 21.0) < 1.0e-9);
+    let mx2, mv2, mf2 = scientific::milp([-1.0, -2.0], [true, false], [1.0, 1.0, 1.0, -1.0], [3.5, 1.2], [], []);
+    assert(mf2.kind == scientific::F_NONE && rel_close(mx2, [0.0, 3.5], 1.0e-9) && mathshim_abs(mv2 + 7.0) < 1.0e-9);
+    let mx3, mv3, mf3 = scientific::milp([1.0, 1.0], [true, true], [], [], [2.0, 2.0], [3.0]);
+    assert(mf3.kind == scientific::F_VALUE);
+    let mx4, mv4, mf4 = scientific::milp([1.0, 1.0], [true], [], [], [], []);
+    assert(mf4.kind == scientific::F_SHAPE);
     let l1, l1v, l1f = scientific::linprog([-1.0, -2.0], [1.0, 1.0, 1.0, 3.0, 2.0, 1.0], [4.0, 6.0, 5.0], [], [], [], []);
     assert(l1f.kind == scientific::F_NONE && all_near(l1, [1.8000000000000007, 1.4]) && near(l1v, -4.6000000000000005));
     let l2, l2v, l2f = scientific::linprog([2.0, 3.0, 1.0], [-1.0, -1.0, -1.0], [-10.0], [1.0, -1.0, 0.0], [2.0], [], []);
