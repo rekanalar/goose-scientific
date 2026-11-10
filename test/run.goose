@@ -4036,8 +4036,18 @@ fn test_dblquad() {
     // A bad tolerance is a fault.
     let v5, e5, f5 = scientific::dblquad(0.0, 1.0, -1.0, 1.49e-8, 50, dbl_zero, dbl_sq) { y, x => x * y };
     assert(f5.kind == scientific::F_VALUE);
+    // Infinite limits of x and of y.
+    let v6, e6, f6 = scientific::dblquad(0.0, 1.0 / 0.0, dbl_zero, dbl_inf) { y, x => mathshim_exp(-x - y) };
+    assert(f6.kind == scientific::F_NONE && mathshim_abs(v6 - 1.0) < 1.0e-7);
+    let v7, e7, f7 = scientific::dblquad(-(1.0 / 0.0), 1.0 / 0.0, dbl_zero, dbl_inf) { y, x => mathshim_exp(-x * x - y) };
+    assert(f7.kind == scientific::F_NONE && mathshim_abs(v7 - 1.772453850905264) < 1.0e-6);
+    // A missing value of a limit is a fault.
+    let v8, e8, f8 = scientific::dblquad(0.0 / 0.0, 1.0, dbl_zero, dbl_sq) { y, x => x * y };
+    assert(f8.kind == scientific::F_VALUE);
     return;
 }
+
+fn dbl_inf(x: f64) -> f64 { return 1.0 / 0.0; }
 
 // root is pinned against SciPy for four methods and the faults.
 fn test_root() {

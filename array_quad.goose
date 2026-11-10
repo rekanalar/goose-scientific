@@ -561,23 +561,18 @@ fn quad_finite(v: f64) -> bool { return v - v == 0.0; }
 // dblquad_inner integrates the function over y for one x, between two
 // finite limits.
 fn dblquad_inner<F: fn(f64, f64) -> f64>(x: f64, lo: f64, hi: f64, epsabs: f64, epsrel: f64, limit: i64) -> f64, f64, Fault {
-    if lo == hi { return 0.0, 0.0, no_fault(); }
-    var a = lo;
-    var b = hi;
-    var sgn: f64 = 1.0;
-    if lo > hi { a = hi; b = lo; sgn = -1.0; }
-    let v, e, f = quad_run(0, 0.0, a, b, epsabs, epsrel, limit) { y => F(y, x) };
-    return sgn * v, e, f;
+    let v, e, f = quad(lo, hi, epsabs, epsrel, limit) { y => F(y, x) };
+    return v, e, f;
 }
 
 // dblquad gives the double integral of a function f(y, x) over x from a
-// to b and over y from g(x) to h(x). The limits are finite. The limits
+// to b and over y from g(x) to h(x). The limits may be infinite. The limits
 // of y are two named functions of the caller. The function f is a block.
 // The call gives the value and the sum of the errors of the inner
 // integrals. A fault of an inner integral stops the call.
 fn dblquad<G: fn(f64) -> f64, H: fn(f64) -> f64, F: fn(f64, f64) -> f64>(a: f64, b: f64, epsabs: f64 = 1.49e-8, epsrel: f64 = 1.49e-8, limit: i64 = 50) -> f64, f64, Fault {
-    if a != a || b != b || !quad_finite(a) || !quad_finite(b) {
-        return 0.0, 0.0, fault(F_VALUE, "dblquad", "a limit of x holds a value that is not finite");
+    if a != a || b != b {
+        return 0.0, 0.0, fault(F_VALUE, "dblquad", "a limit of x holds the missing value");
     }
     if !(epsabs >= 0.0) || !(epsrel >= 0.0) || (epsabs == 0.0 && epsrel < 5.0e-29) {
         return 0.0, 0.0, fault(F_VALUE, "dblquad", "the tolerance holds a value that no result can meet");
@@ -586,18 +581,14 @@ fn dblquad<G: fn(f64) -> f64, H: fn(f64) -> f64, F: fn(f64, f64) -> f64>(a: f64,
         return 0.0, 0.0, fault(F_RANGE, "dblquad", "the limit stands outside one to the largest count");
     }
     if a == b { return 0.0, 0.0, no_fault(); }
-    var lo = a;
-    var hi = b;
-    var sgn: f64 = 1.0;
-    if a > b { lo = b; hi = a; sgn = -1.0; }
     var err: f64 = 0.0;
     var bad: Fault = no_fault();
-    let v, e, f = quad_run(0, 0.0, lo, hi, epsabs, epsrel, limit) { x =>
+    let v, e, f = quad(a, b, epsabs, epsrel, limit) { x =>
         let g = G(x);
         let h = H(x);
         var r: f64 = 0.0;
-        if !quad_finite(g) || !quad_finite(h) {
-            bad = fault(F_VALUE, "dblquad", "a limit of y holds a value that is not finite");
+        if g != g || h != h {
+            bad = fault(F_VALUE, "dblquad", "a limit of y holds the missing value");
         } else {
             let iv, ie, ifl = dblquad_inner(x, g, h, epsabs, epsrel, limit) { y, xx => F(y, xx) };
             if ifl.kind != F_NONE { bad = ifl; }
@@ -607,7 +598,7 @@ fn dblquad<G: fn(f64) -> f64, H: fn(f64) -> f64, F: fn(f64, f64) -> f64>(a: f64,
         r
     };
     if bad.kind != F_NONE { return 0.0, 0.0, bad; }
-    return sgn * v, e + err, f;
+    return v, e + err, f;
 }
 
 // odeint integrates dy/dt = f(y, t) from the start y0 and gives the

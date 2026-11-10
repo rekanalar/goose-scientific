@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.99.0";
+import scientific from "rekanalar/goose-scientific@v0.100.0";
 ```
 
 ## API
@@ -266,9 +266,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `full_output`. The function takes `y` first, then `t`.
 - `dblquad` takes the function as a block `{ y, x => ... }`, as SciPy
   orders the arguments. The limits of y are two named functions. They
-  come last in the call, after the tolerances. Every limit is
-  finite. A limit that is not finite is a fault. The error is the
-  sum of the errors of the inner integrals.
+  come last in the call, after the tolerances. A limit of x or of y
+  may be infinite, as in SciPy. A missing value of a limit is a
+  fault. The error is the sum of the errors of the inner integrals.
 
 - `tplquad` takes the block `{ z, y, x => f }`. The four limit
   functions come last, in the order `g`, `h`, `q`, `r`. The functions
