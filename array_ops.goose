@@ -6,12 +6,7 @@
 // below zero gives NaN.
 namespace scientific;
 
-// The runtime math functions under private names. The package also
-// holds array operations named sqrt, exp and log, and an unqualified
-// call of one of those names would find the array operation first.
-extern "gs_sqrt" fn sqrt_f64(x: f64) -> f64;
-extern "gs_exp" fn exp_f64(x: f64) -> f64;
-extern "gs_log" fn log_f64(x: f64) -> f64;
+import mathshim;
 
 // bwalk walks a broadcast shape and gives the flat position of each
 // source. The caller gets one element pair per call through a
@@ -131,9 +126,9 @@ fn uop(a, rule: i32) -> Arr, Fault {
         let x = a.data[i];
         if rule == 0 { d.push(-x); }
         else if rule == 1 { if x < 0.0 { d.push(-x); } else { d.push(x); } }
-        else if rule == 2 { d.push(sqrt_f64(x)); }
-        else if rule == 3 { d.push(exp_f64(x)); }
-        else { d.push(log_f64(x)); }
+        else if rule == 2 { d.push(mathshim::root(x)); }
+        else if rule == 3 { d.push(mathshim::power_e(x)); }
+        else { d.push(mathshim::ln(x)); }
         i += 1;
     }
     var s: i64[..8] = [];
@@ -228,4 +223,117 @@ fn mean(a) -> f64, Fault {
     var i: i64 = 0;
     while i < a.data.len { t += a.data[i]; i += 1; }
     return t / (a.data.len as f64), no_fault();
+}
+
+// shape_without gives the shape of a reduction along one axis. The
+// axis drops out of the shape.
+fn shape_without(a_shape: i64[:], axis: i64, out: i64[>..]&) -> Fault {
+    if axis < 0 || axis >= a_shape.len {
+        return fault(F_RANGE, "axis", "the axis stands outside the shape");
+    }
+    var i: i64 = 0;
+    while i < a_shape.len {
+        if i != axis { out.push(a_shape[i]); }
+        i += 1;
+    }
+    if out.len == 0 { out.push(1); }
+    return no_fault();
+}
+
+// reduce_axis runs one rule along one axis. The rule picks the
+// operation: 0 sum, 1 prod, 2 min, 3 max, 4 mean.
+fn reduce_axis(a, axis: i64, rule: i32) -> Arr, Fault {
+    var s: i64[>..] = [];
+    let sf = shape_without(a.shape, axis, s);
+    if sf.kind != F_NONE { return empty_arr(), sf; }
+    let inner = product_after_of(a.shape, axis);
+    let width = a.shape[axis];
+    let outer = product_before_of(a.shape, axis);
+    var d: f64[>..] = [];
+    var cell: i64 = 0;
+    while cell < outer * inner {
+        let base = (cell / inner) * (width * inner) + cell % inner;
+        var t: f64 = 0.0;
+        if rule == 1 { t = 1.0; }
+        else if rule == 2 || rule == 3 {
+            t = a.data[base];
+        }
+        var k: i64 = 0;
+        while k < width {
+            let x = a.data[base + k * inner];
+            if rule == 0 { t += x; }
+            else if rule == 1 { t *= x; }
+            else if rule == 2 { if x < t { t = x; } }
+            else if rule == 3 { if x > t { t = x; } }
+            else { t += x; }
+            k += 1;
+        }
+        if rule == 4 { t /= width as f64; }
+        d.push(t);
+        cell += 1;
+    }
+    var sc: i64[..8] = [];
+    var i: i64 = 0;
+    while i < s.len { sc.push(s[i]); i += 1; }
+    return Arr { ndim: sc.len, shape: sc, data: d }, no_fault();
+}
+
+fn product_before_of(s: i64[:], axis: i64) -> i64 {
+    var n: i64 = 1;
+    var i: i64 = 0;
+    while i < axis { n *= s[i]; i += 1; }
+    return n;
+}
+
+fn product_after_of(s: i64[:], axis: i64) -> i64 {
+    var n: i64 = 1;
+    var i: i64 = axis + 1;
+    while i < s.len { n *= s[i]; i += 1; }
+    return n;
+}
+
+// sum_axis adds the elements along one axis. The axis drops from the
+// shape, as in NumPy.
+fn sum_axis(a, axis: i64) -> Arr, Fault { return reduce_axis(a, axis, 0); }
+
+// prod_axis multiplies the elements along one axis.
+fn prod_axis(a, axis: i64) -> Arr, Fault { return reduce_axis(a, axis, 1); }
+
+// min_axis takes the smallest element along one axis.
+fn min_axis(a, axis: i64) -> Arr, Fault { return reduce_axis(a, axis, 2); }
+
+// max_axis takes the largest element along one axis.
+fn max_axis(a, axis: i64) -> Arr, Fault { return reduce_axis(a, axis, 3); }
+
+// mean_axis averages the elements along one axis.
+fn mean_axis(a, axis: i64) -> Arr, Fault { return reduce_axis(a, axis, 4); }
+
+// argmin gives the flat position of the smallest element. The first
+// of equal elements wins. An empty array is a fault.
+fn argmin(a) -> i64, Fault {
+    if a.data.len == 0 {
+        return -1, fault(F_VALUE, "argmin", "the array holds no element");
+    }
+    var best: i64 = 0;
+    var i: i64 = 1;
+    while i < a.data.len {
+        if a.data[i] < a.data[best] { best = i; }
+        i += 1;
+    }
+    return best, no_fault();
+}
+
+// argmax gives the flat position of the largest element. The first of
+// equal elements wins. An empty array is a fault.
+fn argmax(a) -> i64, Fault {
+    if a.data.len == 0 {
+        return -1, fault(F_VALUE, "argmax", "the array holds no element");
+    }
+    var best: i64 = 0;
+    var i: i64 = 1;
+    while i < a.data.len {
+        if a.data[i] > a.data[best] { best = i; }
+        i += 1;
+    }
+    return best, no_fault();
 }

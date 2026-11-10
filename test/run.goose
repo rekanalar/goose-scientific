@@ -207,11 +207,70 @@ fn test_reduce() {
     assert(f5.kind == scientific::F_NONE && close(m, 3.5));
 }
 
+
+// The reductions along one axis, the flat positions of the extremes
+// and the permutation of the dimensions.
+fn test_axis_and_permute() {
+    let a = make23();
+    // Over the rows: one result per column.
+    let sr, f = scientific::sum_axis(a, 0);
+    assert(f.kind == scientific::F_NONE && sr.ndim == 1 && sr.shape[0] == 3);
+    assert(sr.data[0] == 5.0 && sr.data[2] == 9.0);
+    // Over the columns: one result per row.
+    let sc, f2 = scientific::sum_axis(a, 1);
+    assert(f2.kind == scientific::F_NONE && sc.shape[0] == 2);
+    assert(sc.data[0] == 6.0 && sc.data[1] == 15.0);
+    let pc, f3 = scientific::prod_axis(a, 1);
+    assert(f3.kind == scientific::F_NONE && pc.data[0] == 6.0 && pc.data[1] == 120.0);
+    let mnc, f4 = scientific::min_axis(a, 0);
+    assert(f4.kind == scientific::F_NONE && mnc.data[1] == 2.0);
+    let mxc, f5 = scientific::max_axis(a, 0);
+    assert(f5.kind == scientific::F_NONE && mxc.data[1] == 5.0);
+    let mc, f6 = scientific::mean_axis(a, 1);
+    assert(f6.kind == scientific::F_NONE && close(mc.data[1], 5.0));
+    // A three-dimensional array reduces to a matrix and to a row.
+    let cu, f7 = scientific::from_rows(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let deep, f8 = scientific::expand_dims(cu, 0);
+    assert(f8.kind == scientific::F_NONE && deep.ndim == 3);
+    let d0, f9 = scientific::sum_axis(deep, 0);
+    assert(f9.kind == scientific::F_NONE && d0.ndim == 2 && d0.data[0] == 1.0 && d0.data[5] == 6.0);
+    let d1, f10 = scientific::sum_axis(deep, 1);
+    assert(f10.kind == scientific::F_NONE && d1.ndim == 2 && d1.shape[1] == 3 && d1.data[0] == 5.0 && d1.data[2] == 9.0);
+    // A bad axis is a fault with an empty result.
+    let bad, f11 = scientific::sum_axis(a, 2);
+    assert(f11.kind == scientific::F_RANGE && bad.data.len == 0);
+    // The flat position of the extremes. The first of equals wins.
+    let v, f12 = scientific::from_values([3.0, 1.0, 4.0, 1.0, 5.0]);
+    let imn, f13 = scientific::argmin(v);
+    assert(f13.kind == scientific::F_NONE && imn == 1);
+    let imx, f14 = scientific::argmax(v);
+    assert(f14.kind == scientific::F_NONE && imx == 4);
+    let ze, f16 = scientific::argmin(a);
+    assert(f16.kind == scientific::F_NONE && ze == 0);
+    // The general permutation.
+    let c1, f17 = scientific::reshape(a, [1, 2, 3]);
+    let p1, f18 = scientific::transpose_perm(c1, [2, 0, 1]);
+    assert(f18.kind == scientific::F_NONE && p1.ndim == 3);
+    assert(p1.shape[0] == 3 && p1.shape[1] == 1 && p1.shape[2] == 2);
+    assert(p1.data[0] == 1.0 && p1.data[1] == 4.0);
+    // The default order is the reverse, which matches the transpose of a matrix.
+    let rev, f19 = scientific::transpose_perm(a, [1, 0]);
+    assert(f19.kind == scientific::F_NONE && rev.data[3] == 5.0);
+    // A permutation that repeats an axis or leaves one out is a fault.
+    let bad1, f20 = scientific::transpose_perm(a, [0, 0]);
+    assert(f20.kind == scientific::F_SHAPE);
+    let bad2, f21 = scientific::transpose_perm(a, [0]);
+    assert(f21.kind == scientific::F_SHAPE);
+    let bad3, f22 = scientific::transpose_perm(a, [0, 2]);
+    assert(f22.kind == scientific::F_RANGE);
+}
+
 fn main() {
     test_create();
     test_shape();
     test_ops();
     test_reduce();
+    test_axis_and_permute();
     print("ok\n");
     return;
 }

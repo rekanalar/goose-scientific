@@ -135,6 +135,57 @@ fn transpose(a) -> Arr, Fault {
     return Arr { ndim: 2, shape: s, data: d }, no_fault();
 }
 
+// transpose_perm permutes the dimensions of an array. The axes hold
+// one number for each dimension, as in NumPy: out dim k takes in dim
+// axes[k]. An axis that repeats or stays out is a fault. The default
+// order is the reverse of the dimensions.
+fn transpose_perm(a, axes: i64[:]) -> Arr, Fault {
+    if axes.len != a.ndim {
+        return empty_arr(), fault(F_SHAPE, "transpose_perm", "the permutation holds a different count than the shape");
+    }
+    var seen: i64 = 0;
+    var i: i64 = 0;
+    while i < axes.len {
+        if axes[i] < 0 || axes[i] >= a.ndim {
+            return empty_arr(), fault(F_RANGE, "transpose_perm", "an axis stands outside the shape");
+        }
+        let bit = 1 << axes[i];
+        if seen & bit != 0 {
+            return empty_arr(), fault(F_SHAPE, "transpose_perm", "the permutation holds one axis twice");
+        }
+        seen |= bit;
+        i += 1;
+    }
+    var s: i64[..8] = [];
+    i = 0;
+    while i < a.ndim { s.push(a.shape[axes[i]]); i += 1; }
+    var in_strides: i64[>..] = [];
+    strides_of(a.shape, in_strides);
+    let total = a.data.len;
+    var d: f64[>..] = [];
+    // Walk the output in row-major order and read the input through
+    // the permutation and the strides of the input.
+    var pos: i64[..8] = [];
+    i = 0;
+    while i < s.len { pos.push(0); i += 1; }
+    var n: i64 = 0;
+    while n < total {
+        var src: i64 = 0;
+        i = 0;
+        while i < a.ndim { src += pos[i] * in_strides[axes[i]]; i += 1; }
+        d.push(a.data[src]);
+        i = a.ndim - 1;
+        while i >= 0 {
+            pos[i] += 1;
+            if pos[i] < s[i] { break; }
+            pos[i] = 0;
+            i -= 1;
+        }
+        n += 1;
+    }
+    return Arr { ndim: s.len, shape: s, data: d }, no_fault();
+}
+
 // squeeze drops every dimension of length one. One dimension always
 // stays, because the package holds no scalar array.
 fn squeeze(a) -> Arr, Fault {

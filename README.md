@@ -1,5 +1,7 @@
 # scientific
 
+[![ci](https://github.com/rekanalar/goose-scientific/actions/workflows/ci.yml/badge.svg)](https://github.com/rekanalar/goose-scientific/actions/workflows/ci.yml)
+
 Numeric arrays for the [Goose](https://github.com/aardappel/goose)
 language. The package holds the N-dimensional array of `f64` numbers.
 It holds the operations that broadcast over the array and the
@@ -15,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.1.0";
+import scientific from "rekanalar/goose-scientific@v0.2.0";
 ```
 
 ## API
@@ -23,9 +25,10 @@ import scientific from "rekanalar/goose-scientific@v0.1.0";
 | Area | Functions |
 |---|---|
 | Creation | `zeros`, `ones`, `full`, `arange`, `linspace`, `eye`, `diag`, `from_rows`, `from_values`, `clone` |
-| Shape | `reshape`, `ravel`, `transpose`, `squeeze`, `expand_dims`, `concatenate`, `stack`, `broadcast_shapes`, `index` |
+| Shape | `reshape`, `ravel`, `transpose`, `transpose_perm`, `squeeze`, `expand_dims`, `concatenate`, `stack`, `broadcast_shapes`, `index` |
 | Elementwise | `add`, `sub`, `mul`, `div`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `scale`, `clip` |
-| Reductions | `sum`, `prod`, `min`, `max`, `mean` |
+| Reductions | `sum`, `prod`, `min`, `max`, `mean`, `argmin`, `argmax` |
+| Reductions along an axis | `sum_axis`, `prod_axis`, `min_axis`, `max_axis`, `mean_axis` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -59,10 +62,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - One array holds at most `MAX_ELEMENTS` elements, 268435456.
 - Every dimension holds at least one element. The release refuses an
   array of length zero.
-- `transpose` swaps the two dimensions of a matrix. The general
-  permutation of N dimensions stays out for now.
-- The reductions hold the whole array. The reductions along one axis
-  stay out for now.
+- `transpose` swaps the two dimensions of a matrix. `transpose_perm`
+  takes any permutation of the axes.
+- An axis reduction drops the reduced axis from the shape. It has no
+  `keepdims` option. Use `expand_dims` on the result instead.
+- `argmin` and `argmax` give the flat position of the first extreme.
+  They take no axis.
 - The elementwise math holds the functions of this table. The rest of
   the scalar functions of NumPy stay out for now.
 
@@ -78,6 +83,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   infinity. A log of a number below zero gives NaN. No fault comes
   from a value, only from a shape, a range or a limit. Check `is_nan`
   of the standard library when the input is hostile.
+- A bad axis, or a permutation that repeats an axis, is a fault. The
+  check runs before any element moves.
 - A fault result holds an empty array. A caller that keeps reading
   after a fault reads an array of length zero, not a torn one.
 - The package takes no text input and holds no parser. The attack
