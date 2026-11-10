@@ -1096,6 +1096,58 @@ fn test_minimize() {
     assert(fb6.kind == scientific::F_VALUE);
 }
 
+fn test_integrate() {
+    // The integral of a straight line over zero to one.
+    let y = [0.0, 0.25, 0.5, 0.75, 1.0];
+    let t1, f1 = scientific::trapezoid(y, 0.25);
+    assert(f1.kind == scientific::F_NONE && close(t1, 0.5));
+    let s1, f2 = scientific::simpson(y, 0.25);
+    assert(f2.kind == scientific::F_NONE && close(s1, 0.5));
+    let r1, f3 = scientific::romberg(y, 0.25);
+    assert(f3.kind == scientific::F_NONE && close(r1, 0.5));
+    let c1, f4 = scientific::cumulative_trapezoid(y, 0.25);
+    assert(f4.kind == scientific::F_NONE && c1.data.len == 4);
+    assert(close(c1.data[0], 0.03125) && close(c1.data[1], 0.125));
+    assert(close(c1.data[2], 0.28125) && close(c1.data[3], 0.5));
+    // The integral of a square over zero to two.
+    let ones = [1.0, 1.0, 1.0, 1.0, 1.0];
+    let t2, f5 = scientific::trapezoid(ones, 0.5);
+    assert(f5.kind == scientific::F_NONE && close(t2, 2.0));
+    // An even count of parts takes the trapezoid on the last part.
+    let s3, f6 = scientific::simpson([0.0, 0.5, 1.0, 1.5], 0.5);
+    assert(f6.kind == scientific::F_NONE && close(s3, 1.125));
+    // The integral of the sine over zero to pi.
+    var y9: f64[>..] = [];
+    var i: i64 = 0;
+    while i <= 8 {
+        y9.push(mathshim::sine(3.141592653589793 * i / 8.0));
+        i += 1;
+    }
+    let s9, f7 = scientific::simpson(y9, 3.141592653589793 / 8.0);
+    assert(f7.kind == scientific::F_NONE && close(s9, 2.000269169948388));
+    let r9, f8 = scientific::romberg(y9, 3.141592653589793 / 8.0);
+    assert(f8.kind == scientific::F_NONE && close(r9, 2.000005549979671));
+    // A spacing of zero is a fault.
+    let bad1, fb1 = scientific::trapezoid(y, 0.0);
+    assert(fb1.kind == scientific::F_VALUE);
+    let bad2, fb2 = scientific::simpson(y, 0.0);
+    assert(fb2.kind == scientific::F_VALUE);
+    let bad3, fb3 = scientific::cumulative_trapezoid(y, 0.0);
+    assert(fb3.kind == scientific::F_VALUE);
+    let bad4, fb4 = scientific::romberg(y, 0.0);
+    assert(fb4.kind == scientific::F_VALUE);
+    // A signal of too few values is a fault.
+    let bad5, fb5 = scientific::trapezoid([1.0], 1.0);
+    assert(fb5.kind == scientific::F_VALUE);
+    let bad6, fb6 = scientific::simpson([1.0, 2.0], 1.0);
+    assert(fb6.kind == scientific::F_VALUE);
+    let bad7, fb7 = scientific::romberg([1.0, 2.0], 1.0);
+    assert(fb7.kind == scientific::F_VALUE);
+    // A count of the parts that is not a power of two is a fault.
+    let bad8, fb8 = scientific::romberg([0.0, 1.0, 2.0, 3.0], 1.0);
+    assert(fb8.kind == scientific::F_VALUE);
+}
+
 fn main() {
     test_create();
     test_shape();
@@ -1113,6 +1165,7 @@ fn main() {
     test_misc();
     test_optimize();
     test_minimize();
+    test_integrate();
     print("ok\n");
     return;
 }

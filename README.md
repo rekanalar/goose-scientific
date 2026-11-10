@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.13.0";
+import scientific from "rekanalar/goose-scientific@v0.14.0";
 ```
 
 ## API
@@ -50,6 +50,7 @@ import scientific from "rekanalar/goose-scientific@v0.13.0";
 | Between the points | `interp`, `gradient`, `pad_value` |
 | Root finding | `brentq`, `brenth`, `newton`, `fsolve` |
 | Minimization | `minimize_scalar`, `minimize`, `least_squares` |
+| Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `romberg` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -248,6 +249,17 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   and Marquardt takes the matrix of the derivatives by a small
   difference. So the fit holds fewer digits than a fit that takes the
   derivatives from the caller.
+- The integration functions take the values of a signal and a
+  spacing. A caller that needs the integral of a function samples the
+  function first.
+- `trapezoid` takes the rule of the trapezoid. `simpson` takes the
+  rule of Simpson. An even count of parts takes the trapezoid on the
+  last part, as NumPy does.
+- `cumulative_trapezoid` takes the running total. The result holds
+  one value fewer than the signal, as NumPy does.
+- `romberg` takes the extrapolation of Romberg. The count of the
+  parts of the grid holds a power of two, as the method of the
+  references holds. A count that holds no power of two is a fault.
 
 ## Security
 
@@ -317,6 +329,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   difference that the method can read. The method then stops at a
   distance of about the size of the root of the machine. SciPy stops
   at the same distance.
+- The integration functions hold no adaptive method that calls the
+  function of the caller at every point of a grid. A caller that
+  needs a fine integral samples the function on a fine grid.
 
 ## License
 
