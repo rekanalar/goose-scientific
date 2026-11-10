@@ -4512,7 +4512,26 @@ fn test_spectral() {
     return;
 }
 
+// stft is pinned against SciPy.
+fn test_stft() {
+    let x = sp_signal();
+    let f, t, zr, zi, f1 = scientific::stft(x, 2.0, "hann", 8, 4);
+    assert(f1.kind == scientific::F_NONE && zr.shape[0] == 5 && zr.shape[1] == 11);
+    assert(near(t.data[1], 2.0) && near(f.data[1], 0.25));
+    assert(loose(zr.data[0 * 11 + 2], 0.03263936287197537) && loose(zr.data[1 * 11 + 2], 0.12002113379413716) && loose(zr.data[2 * 11 + 2], -0.13099301275623057));
+    assert(loose(zi.data[1 * 11 + 2], 0.424366549395401) && loose(zi.data[2 * 11 + 2], -0.17456594372523282) && loose(zi.data[3 * 11 + 2], -0.007774043387693164));
+    let f2, t2, wr, wi, g2 = scientific::stft(x, 1.0, "hann", 8, 4, false, false);
+    assert(g2.kind == scientific::F_NONE && wr.shape[1] == 9);
+    assert(loose(wr.data[0 * 9 + 1], 0.03263936287197537) && loose(wi.data[1 * 9 + 1], 0.424366549395401) && loose(wr.data[4 * 9 + 1], -0.0019199752318358326));
+    let a, b, c, d, g3 = scientific::stft(x, 1.0, "hann", 64, 4);
+    assert(g3.kind == scientific::F_NONE);
+    let a2, b2, c2, d2, g4 = scientific::stft(x, 1.0, "hann", 8, 8);
+    assert(g4.kind == scientific::F_RANGE);
+    return;
+}
+
 fn main() {
+    test_stft();
     test_spectral();
     test_firwin2();
     test_decimate();

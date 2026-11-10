@@ -295,3 +295,86 @@ fn welch_psd(x: f64[:], fs: f64 = 1.0, window: const u8[:] = "hann", nperseg: i6
     }
     return fr, line_arr(copy(p)), no_fault();
 }
+
+// stft gives the short time transform of a signal. It gives the
+// frequencies, the times, and the real and the imaginary parts of the
+// matrix of the transform, with one row per frequency. With boundary
+// true the signal gets nperseg / 2 zeros at both ends. With padded true
+// zeros at the end fill the last part. The window is a name of
+// get_window. The overlap of minus one takes half of the size. No
+// trend leaves the parts, and the values scale by one over the sum of
+// the window, as SciPy does.
+fn stft(x: f64[:], fs: f64 = 1.0, window: const u8[:] = "hann", nperseg: i64 = 256, noverlap: i64 = -1, boundary: bool = true, padded: bool = true) -> Arr, Arr, Arr, Arr, Fault {
+    var ov = noverlap;
+    if ov < 0 { ov = nperseg / 2; }
+    if !(fs > 0.0) || !(fs - fs == 0.0) {
+        return empty_arr(), empty_arr(), empty_arr(), empty_arr(), fault(F_VALUE, "stft", "the rate must be above zero");
+    }
+    if nperseg < 2 || nperseg > 4194304 || ov < 0 || ov >= nperseg {
+        return empty_arr(), empty_arr(), empty_arr(), empty_arr(), fault(F_RANGE, "stft", "the size of a part or the overlap stands outside the range");
+    }
+    if x.len < 1 || x.len > MAX_DSP_LENGTH {
+        return empty_arr(), empty_arr(), empty_arr(), empty_arr(), fault(F_SHAPE, "stft", "the signal holds no value or too many values");
+    }
+    var sig: f64[>..] = [];
+    var k: i64 = 0;
+    var edge: i64 = 0;
+    if boundary { edge = nperseg / 2; }
+    while k < edge { sig.push(0.0); k += 1; }
+    k = 0;
+    while k < x.len {
+        if !(x[k] - x[k] == 0.0) {
+            return empty_arr(), empty_arr(), empty_arr(), empty_arr(), fault(F_VALUE, "stft", "the signal holds a value that is not finite");
+        }
+        sig.push(x[k]);
+        k += 1;
+    }
+    k = 0;
+    while k < edge { sig.push(0.0); k += 1; }
+    let step = nperseg - ov;
+    if padded {
+        let rem = (sig.len - nperseg) % step;
+        if sig.len >= nperseg && rem != 0 {
+            var add = step - rem;
+            while add > 0 { sig.push(0.0); add -= 1; }
+        }
+        if sig.len < nperseg {
+            while sig.len < nperseg { sig.push(0.0); }
+        }
+    }
+    if sig.len < nperseg {
+        return empty_arr(), empty_arr(), empty_arr(), empty_arr(), fault(F_RANGE, "stft", "the signal is shorter than a part");
+    }
+    let w, wf = get_window(window, nperseg, true);
+    if wf.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), empty_arr(), wf; }
+    var sw: f64 = 0.0;
+    k = 0;
+    while k < nperseg { sw += w.data[k]; k += 1; }
+    let nseg = (sig.len - nperseg) / step + 1;
+    let bins = nperseg / 2 + 1;
+    var mr: f64[>..] = [];
+    var mi: f64[>..] = [];
+    k = 0;
+    while k < bins * nseg { mr.push(0.0); mi.push(0.0); k += 1; }
+    var tm: f64[>..] = [];
+    var s: i64 = 0;
+    while s < nseg {
+        var part: f64[>..] = [];
+        k = 0;
+        while k < nperseg { part.push(sig[s * step + k] * w.data[k]); k += 1; }
+        let re, im, f = fft(part);
+        if f.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), empty_arr(), f; }
+        k = 0;
+        while k < bins {
+            mr[k * nseg + s] = re.data[k] / sw;
+            mi[k * nseg + s] = im.data[k] / sw;
+            k += 1;
+        }
+        tm.push((s * step + nperseg / 2 - edge) / fs);
+        s += 1;
+    }
+    var fr: f64[>..] = [];
+    k = 0;
+    while k < bins { fr.push(k * fs / nperseg); k += 1; }
+    return line_arr(copy(fr)), line_arr(copy(tm)), mat2(copy(mr), bins, nseg), mat2(copy(mi), bins, nseg), no_fault();
+}
