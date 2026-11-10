@@ -4339,6 +4339,29 @@ fn test_cubic_hermite() {
 
 // The periodic condition and the given end slopes of cubic_spline are
 // pinned against SciPy.
+// Cubic splines with a slope or a second derivative at each end.
+fn test_spline_mixed_ends() {
+    let kx = [0.0, 0.7, 1.5, 2.4, 4.0];
+    let ky = [1.0, 2.0, 0.5, 3.0, 2.2];
+    let q = [0.3, 1.0, 3.0, 5.0];
+    let a, fa = scientific::cubic_spline_ends(kx, ky, 2, 1.5, 2, -0.5);
+    let va, ea = scientific::spline_eval(a, q, 0);
+    assert(fa.kind == scientific::F_NONE && ea.kind == scientific::F_NONE && all_near(va, [1.6730996537914262, 1.4331011255339694, 3.7385485741574564, 0.1614514258425448]));
+    let b, fb = scientific::cubic_spline_ends(kx, ky, 1, 0.3, 2, 0.8);
+    let vb, eb = scientific::spline_eval(b, q, 0);
+    assert(fb.kind == scientific::F_NONE && all_near(vb, [1.4392747194115743, 1.5077575474634295, 3.6484652194211025, 1.551534780578896]));
+    let c, fc = scientific::cubic_spline_ends(kx, ky, 2, -1.0, 1, 0.2);
+    let vc, ec = scientific::spline_eval(c, q, 0);
+    assert(fc.kind == scientific::F_NONE && all_near(vc, [1.7380019563098024, 1.400141276736955, 3.2582375136809136, 6.394029225950629]));
+    let d, fd = scientific::cubic_spline_ends([0.0, 0.7], [1.0, 2.0], 2, 1.0, 2, 2.0);
+    let vd, ed = scientific::spline_eval(d, [0.2, 0.5], 0);
+    assert(fd.kind == scientific::F_NONE && all_near(vd, [1.2142857142857142, 1.635714285714286]));
+    let x1, g1 = scientific::cubic_spline_ends(kx, ky, 3, 0.0, 1, 0.0);
+    assert(g1.kind == scientific::F_VALUE);
+    let x2, g2 = scientific::cubic_spline_ends(kx, ky, 1, 1.0 / 0.0, 1, 0.0);
+    assert(g2.kind == scientific::F_VALUE);
+}
+
 fn test_spline_ends() {
     let x = [0.0, 1.0, 2.5, 4.0, 5.0];
     let c, f = scientific::cubic_spline(x, [1.0, 3.0, 2.0, 5.0, 1.0], "periodic");
@@ -6329,6 +6352,7 @@ fn main() {
     test_bdf();
     test_radau();
     test_fht();
+    test_spline_mixed_ends();
     test_cumulative_simpson_initial();
     test_bspline();
     test_spline_ends();

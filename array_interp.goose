@@ -192,6 +192,62 @@ fn cubic_spline(x: f64[:], y: f64[:], bc: const u8[:] = "not-a-knot", left: f64 
     return spline_from_slopes(x, y, b), no_fault();
 }
 
+// cubic_spline_ends builds the interpolating cubic spline with a
+// derivative at each end. The order of an end is 1 for a slope or 2 for
+// a second derivative. This is the bc_type of SciPy with the pairs
+// (1, value) and (2, value).
+fn cubic_spline_ends(x: f64[:], y: f64[:], left_order: i64, left: f64, right_order: i64, right: f64) -> Cubics, Fault {
+    let f = spline_knots(x, y, "cubic_spline_ends");
+    if f.kind != F_NONE { return Cubics { n: 0, extrap: true, buf: [] }, f; }
+    if (left_order != 1 && left_order != 2) || (right_order != 1 && right_order != 2) {
+        return Cubics { n: 0, extrap: true, buf: [] }, fault(F_VALUE, "cubic_spline_ends", "the order of an end must be 1 or 2");
+    }
+    if !(left - left == 0.0) || !(right - right == 0.0) {
+        return Cubics { n: 0, extrap: true, buf: [] }, fault(F_VALUE, "cubic_spline_ends", "an end value is not finite");
+    }
+    let n = x.len;
+    var dx: f64[>..] = [];
+    var sl: f64[>..] = [];
+    var lo: f64[>..] = [];
+    var di: f64[>..] = [];
+    var up: f64[>..] = [];
+    var b: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n { lo.push(0.0); di.push(0.0); up.push(0.0); b.push(0.0); i += 1; }
+    i = 0;
+    while i + 1 < n {
+        dx.push(x[i + 1] - x[i]);
+        sl.push((y[i + 1] - y[i]) / dx[i]);
+        i += 1;
+    }
+    i = 1;
+    while i < n - 1 {
+        lo[i] = dx[i];
+        di[i] = 2.0 * (dx[i - 1] + dx[i]);
+        up[i] = dx[i - 1];
+        b[i] = 3.0 * (dx[i] * sl[i - 1] + dx[i - 1] * sl[i]);
+        i += 1;
+    }
+    if left_order == 1 {
+        di[0] = 1.0;
+        b[0] = left;
+    } else {
+        di[0] = 2.0;
+        up[0] = 1.0;
+        b[0] = 3.0 * sl[0] - 0.5 * dx[0] * left;
+    }
+    if right_order == 1 {
+        di[n - 1] = 1.0;
+        b[n - 1] = right;
+    } else {
+        lo[n - 1] = 1.0;
+        di[n - 1] = 2.0;
+        b[n - 1] = 3.0 * sl[n - 2] + 0.5 * dx[n - 2] * right;
+    }
+    tridiag(lo, di, up, b);
+    return spline_from_slopes(x, y, b), no_fault();
+}
+
 // cubic_hermite builds the cubic that passes through the values with
 // the given slopes at the knots. The slopes must be finite.
 fn cubic_hermite(x: f64[:], y: f64[:], dydx: f64[:]) -> Cubics, Fault {
