@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.39.0";
+import scientific from "rekanalar/goose-scientific@v0.40.0";
 ```
 
 ## API
@@ -71,6 +71,7 @@ import scientific from "rekanalar/goose-scientific@v0.39.0";
 | Covariance and NaN statistics | `cov`, `cov_with`, `corrcoef`, `corrcoef_with`, `nanmedian`, `nanpercentile`, `nanquantile`, `nanargmax`, `nanargmin`, `nancumsum`, `nancumprod`, `cumulative_sum`, `cumulative_prod`, `ediff1d`, `histogram_bin_edges` |
 | The rest of the elementwise math | `fmax`, `fmin`, `heaviside`, `logaddexp`, `logaddexp2`, `ldexp`, `frexp`, `modf`, `sinc`, `i0`, `gcd`, `lcm`, `bitwise_and`, `bitwise_or`, `bitwise_xor`, `invert`, `left_shift`, `right_shift`, `bitwise_count`, `unwrap`, and the names `float_power`, `pow`, `remainder`, `radians`, `degrees`, `acos`, `asin`, `atan`, `atan2`, `acosh`, `asinh`, `atanh`, `bitwise_not`, `bitwise_invert`, `bitwise_left_shift`, `bitwise_right_shift`, `concat`, `amax`, `amin`, `ndim` |
 | Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
+| Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -101,6 +102,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- `choose` takes the choices stacked along the first axis, and the
+  index must hold the shape of one choice. `piecewise` takes constants
+  in place of functions. `compress` and `extract` give a fault when no
+  element stays, because the package holds no empty array.
+- `argpartition` gives the stable sort order. NumPy leaves the order
+  inside each side of `kth` open, so only the side of each place is
+  the same. The result holds the places inside each row of the last axis.
+- The `unique_*` functions keep each NaN apart, as NumPy 2 does for
+  them. `unique` and `unique_sorted` keep the old rule. `setxor1d` keeps
+  a NaN that stands in both arrays twice, as NumPy does.
+- `lexsort` takes the keys as the rows of a matrix. The last row is the
+  main key.
 - `pad` and `block` are keywords of Goose, so NumPy `pad` is `pad_modes`
   and NumPy `block` is `block_grid`. `pad_modes` takes one count per axis
   in two lists and the modes `constant`, `edge`, `reflect`, `symmetric`
