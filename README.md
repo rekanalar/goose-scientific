@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.63.0";
+import scientific from "rekanalar/goose-scientific@v0.64.0";
 ```
 
 ## API
@@ -68,7 +68,7 @@ import scientific from "rekanalar/goose-scientific@v0.63.0";
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
 | Filters | `butter`, `lfilter`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
-| Covariance and NaN statistics | `cov`, `cov_with`, `corrcoef`, `corrcoef_with`, `nanmedian`, `nanpercentile`, `nanquantile`, `nanargmax`, `nanargmin`, `nancumsum`, `nancumprod`, `cumulative_sum`, `cumulative_prod`, `ediff1d`, `histogram_bin_edges` |
+| Covariance and NaN statistics | `cov`, `cov_weights`, `cov_with`, `corrcoef`, `corrcoef_with`, `nanmedian`, `nanpercentile`, `nanquantile`, `nanargmax`, `nanargmin`, `nancumsum`, `nancumprod`, `cumulative_sum`, `cumulative_prod`, `ediff1d`, `histogram_bin_edges` |
 | The rest of the elementwise math | `fmax`, `fmin`, `heaviside`, `logaddexp`, `logaddexp2`, `ldexp`, `frexp`, `modf`, `sinc`, `i0`, `gcd`, `lcm`, `bitwise_and`, `bitwise_or`, `bitwise_xor`, `invert`, `left_shift`, `right_shift`, `bitwise_count`, `unwrap`, and the names `float_power`, `pow`, `remainder`, `radians`, `degrees`, `acos`, `asin`, `atan`, `atan2`, `acosh`, `asinh`, `atanh`, `bitwise_not`, `bitwise_invert`, `bitwise_left_shift`, `bitwise_right_shift`, `concat`, `amax`, `amin`, `ndim` |
 | Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
@@ -318,7 +318,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   default `discont` is half the period, as in NumPy. `frexp` and `modf`
   give two arrays, because the package holds no tuple of arrays.
 - `cov` takes `ddof` in place of `bias`: `bias=true` equals `ddof=0`.
-  It takes no weights yet. The second array of NumPy goes through
+  `cov_weights` takes the frequency weights and the analysis weights.
+  The second array of NumPy goes through
   `cov_with` and `corrcoef_with`. A vector gives a matrix of one row
   and one column, because the package holds no array of zero
   dimensions.
@@ -326,8 +327,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   an array of only NaN. `nanargmax` and `nanargmin` refuse such an
   array with a fault, as NumPy raises an error.
 - `cumulative_sum` and `cumulative_prod` take an axis. They take no
-  flat form. `histogram_bin_edges` takes a count of bins and no rule
-  by name.
+  flat form. `histogram_bin_edges` takes a count of bins.
+- `histogram_rule` and `histogram_edges_rule` choose the count of bins
+  by a rule: `auto`, `fd`, `sturges`, `doane`, `scott`, `rice`, `sqrt`
+  or `stone`. The rule of Stone searches the count of bins and is slow
+  for a long array. The count of bins stays at one million or below.
+  A rule with weights holds no meaning, as in NumPy.
 - The type `Polynomial` holds the coefficients from the lowest
   power. The functions carry the name of the type, because the
   namespace holds no methods. The functions of array_poly keep the
