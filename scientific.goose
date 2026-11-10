@@ -26,6 +26,8 @@ import array_index;
 import array_sort;
 import array_linalg;
 import array_solve;
+import array_decomp;
+import array_eig;
 
 // The kinds of a fault. A fault holds a kind, the name of the check
 // and a short detail.

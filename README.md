@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.6.0";
+import scientific from "rekanalar/goose-scientific@v0.7.0";
 ```
 
 ## API
@@ -37,6 +37,8 @@ import scientific from "rekanalar/goose-scientific@v0.6.0";
 | Order statistics | `median`, `percentile` |
 | Products | `matmul`, `dot`, `inner`, `outer`, `kron`, `trace`, `norm` |
 | Solving | `solve`, `inv`, `det`, `slogdet`, `matrix_power` |
+| Decompositions | `cholesky`, `qr` |
+| Eigenvalues | `eigvals`, `eig`, `eigvalsh`, `eigh` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -124,6 +126,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   a matrix is zero, so `slogdet` gives zero and no fault.
 - `matrix_power` takes a whole power. A power below zero gives the
   inverse of the matrix.
+- `cholesky` gives the lower factor, as NumPy does under its default.
+- `qr` gives the reduced form, as NumPy does under its default. The
+  orthogonal matrix holds as many columns as the smaller dimension.
+- The eigenvalues of a symmetric matrix come from the Jacobi method.
+  They come in the order of their value, from the smallest to the
+  largest.
+- The eigenvalues of a matrix that is not symmetric come from the QR
+  algorithm with a shift. They come in no particular order.
+- The package holds real numbers only. A matrix with a complex pair of
+  eigenvalues is a fault for `eig` and `eigvals`.
+- The eigenvectors of a matrix that is not symmetric come from an
+  iteration. A matrix whose eigenvalues hold no vector is a fault.
 
 ## Security
 
@@ -146,6 +160,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   large array waits.
 - The elimination is not scaled. A matrix whose rows hold values of
   different sizes loses some digits.
+- The QR algorithm with a shift is slow for a large matrix. It holds
+  a small and a middle matrix well.
 - A position outside the array is a fault in `take` and in `put`. The
   check of `put` runs over every position before the first write.
   A bad index leaves the array as it was.

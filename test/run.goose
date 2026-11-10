@@ -1,6 +1,11 @@
 import scientific from "..";
 
 // close tells whether two numbers agree to a small tolerance.
+fn mathshim_abs(x: f64) -> f64 {
+    if x < 0.0 { return -x; }
+    return x;
+}
+
 fn close(a: f64, b: f64) -> bool {
     let d = a - b;
     if d < 0.0 { return -d < 0.0000001; }
@@ -596,6 +601,63 @@ fn test_linalg() {
     assert(f33.kind == scientific::F_NONE && close(pwn.data[0], 0.6));
 }
 
+// The Cholesky, the QR and the eigenvalues.
+fn test_decomp_and_eig() {
+    // The Cholesky factor of a symmetric matrix.
+    let m, f = scientific::from_rows(2, 2, [4.0, 2.0, 2.0, 3.0]);
+    let ch, f1 = scientific::cholesky(m);
+    assert(f1.kind == scientific::F_NONE);
+    assert(close(ch.data[0], 2.0) && close(ch.data[2], 1.0) && close(ch.data[3], 1.41421356));
+    // A matrix with a negative value holds no Cholesky factor.
+    let neg, f2 = scientific::from_rows(2, 2, [1.0, 2.0, 2.0, 1.0]);
+    let bad, f3 = scientific::cholesky(neg);
+    assert(f3.kind == scientific::F_VALUE && bad.data.len == 0);
+    let ns, f4 = scientific::from_rows(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let bad2, f5 = scientific::cholesky(ns);
+    assert(f5.kind == scientific::F_SHAPE);
+    // The QR decomposition gives an orthogonal matrix and an upper
+    // triangle. The product of the two gives the matrix.
+    let q, r, f6 = scientific::qr(ns);
+    assert(f6.kind == scientific::F_NONE && q.shape[0] == 2 && q.shape[1] == 2 && r.shape[0] == 2 && r.shape[1] == 3);
+    let qr_prod, f7 = scientific::matmul(q, r);
+    assert(f7.kind == scientific::F_NONE);
+    assert(close(qr_prod.data[0], 1.0) && close(qr_prod.data[2], 3.0) && close(qr_prod.data[3], 4.0) && close(qr_prod.data[5], 6.0));
+    let qn, rn, f8 = scientific::qr(m);
+    assert(f8.kind == scientific::F_NONE);
+    // The eigenvalues of a symmetric matrix come in the order of their
+    // value.
+    let sym, f9 = scientific::from_rows(2, 2, [2.0, 1.0, 1.0, 2.0]);
+    let ev, f10 = scientific::eigvalsh(sym);
+    assert(f10.kind == scientific::F_NONE && close(ev.data[0], 1.0) && close(ev.data[1], 3.0));
+    // The eigenvectors are the columns of the result.
+    let vals, vecs, f11 = scientific::eigh(sym);
+    assert(f11.kind == scientific::F_NONE && close(vals.data[0], 1.0) && close(vals.data[1], 3.0));
+    assert(close(mathshim_abs(vecs.data[1]), 0.70710678));
+    // The eigenvalues of a matrix that is not symmetric.
+    let gen, f12 = scientific::from_rows(2, 2, [4.0, 1.0, 2.0, 3.0]);
+    let gev, f13 = scientific::eigvals(gen);
+    assert(f13.kind == scientific::F_NONE && gev.data.len == 2);
+    let sum = gev.data[0] + gev.data[1];
+    assert(close(sum, 7.0));
+    // The vector of an eigenvalue holds the matrix near zero.
+    let gvals, gvecs, f12b = scientific::eig(gen);
+    assert(f12b.kind == scientific::F_NONE);
+    let g0 = gvecs.data[0];
+    let g1 = gvecs.data[2];
+    let av0 = gen.data[0] * g0 + gen.data[1] * g1;
+    let av1 = gen.data[2] * g0 + gen.data[3] * g1;
+    assert(close(av0, gvals.data[0] * g0) && close(av1, gvals.data[0] * g1));
+    // A matrix with a complex pair holds no real eigenvalues.
+    let rot, f14 = scientific::from_rows(2, 2, [0.0, -1.0, 1.0, 0.0]);
+    let bad3, f15 = scientific::eigvals(rot);
+    assert(f15.kind == scientific::F_VALUE);
+    // A matrix that is not square is a fault.
+    let bad4, f16 = scientific::eigvalsh(ns);
+    assert(f16.kind == scientific::F_SHAPE);
+    let bad5, bad6, f17 = scientific::eigh(ns);
+    assert(f17.kind == scientific::F_SHAPE);
+}
+
 fn main() {
     test_create();
     test_shape();
@@ -606,6 +668,7 @@ fn main() {
     test_indexing();
     test_sort_and_search();
     test_linalg();
+    test_decomp_and_eig();
     print("ok\n");
     return;
 }
