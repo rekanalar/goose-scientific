@@ -304,12 +304,18 @@ fn spline_integrate_up(s, a: f64, b: f64) -> f64 {
 }
 
 // interp1d interpolates the values y at the knots x for the points xs.
-// The kind is "linear", "nearest", "previous", "next" or "cubic". The
+// The kind is "linear", "slinear", "nearest", "previous", "zero", "next"
+// or "cubic". With fill, a point outside the knots takes fill_low below
+// them and fill_high above them, as fill_value does in SciPy. The
 // kind "nearest" takes the lower knot at a tie. A point outside the
 // knots is a fault unless extrapolate holds true. Then "linear" and
 // "cubic" extend their end pieces, and the other kinds hold the end
 // value.
-fn interp1d(x: f64[:], y: f64[:], xs: f64[:], kind: const u8[:] = "linear", extrapolate: bool = false) -> Arr, Fault {
+fn interp1d(x: f64[:], y: f64[:], xs: f64[:], kind0: const u8[:] = "linear", extrapolate: bool = false, fill: bool = false, fill_low: f64 = 0.0, fill_high: f64 = 0.0) -> Arr, Fault {
+    // SciPy names the same kinds "slinear" and "zero".
+    var kind = kind0;
+    if kind0 == "slinear" { kind = "linear"; }
+    if kind0 == "zero" { kind = "previous"; }
     let f = spline_knots(x, y, "interp1d");
     if f.kind != F_NONE { return empty_arr(), f; }
     if kind != "linear" && kind != "nearest" && kind != "previous" && kind != "next" && kind != "cubic" {
@@ -321,7 +327,7 @@ fn interp1d(x: f64[:], y: f64[:], xs: f64[:], kind: const u8[:] = "linear", extr
     var k: i64 = 0;
     while k < xs.len {
         if xs[k] != xs[k] { k += 1; continue; }
-        if !extrapolate && (xs[k] < x[0] || xs[k] > x[x.len - 1]) {
+        if !extrapolate && !fill && (xs[k] < x[0] || xs[k] > x[x.len - 1]) {
             return empty_arr(), fault(F_RANGE, "interp1d", "a point lies outside the knots");
         }
         k += 1;
@@ -329,13 +335,24 @@ fn interp1d(x: f64[:], y: f64[:], xs: f64[:], kind: const u8[:] = "linear", extr
     if kind == "cubic" {
         let sp, e = cubic_spline(x, y);
         if e.kind != F_NONE { return empty_arr(), e; }
-        return spline_eval(sp, xs);
+        let r, e2 = spline_eval(sp, xs);
+        if e2.kind != F_NONE || !fill || extrapolate { return r, e2; }
+        var rd = copy_slice(r.data);
+        var q: i64 = 0;
+        while q < xs.len {
+            if xs[q] < x[0] { rd[q] = fill_low; }
+            else if xs[q] > x[x.len - 1] { rd[q] = fill_high; }
+            q += 1;
+        }
+        return line_arr(copy(rd)), no_fault();
     }
     var out: f64[>..] = [];
     k = 0;
     while k < xs.len {
         let v = xs[k];
         if v != v { out.push(v); k += 1; continue; }
+        if fill && !extrapolate && v < x[0] { out.push(fill_low); k += 1; continue; }
+        if fill && !extrapolate && v > x[x.len - 1] { out.push(fill_high); k += 1; continue; }
         var i = spline_find(x, x.len, v);
         if kind == "linear" {
             let t = (v - x[i]) / (x[i + 1] - x[i]);

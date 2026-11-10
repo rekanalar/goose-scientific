@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.67.0";
+import scientific from "rekanalar/goose-scientific@v0.68.0";
 ```
 
 ## API
@@ -222,11 +222,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   derivative orders zero to three. A point outside the knots takes the
   end cubic for `cubic_spline` and `pchip`. A spline of `akima` gives
   NaN there, as SciPy does.
-- `interp1d` takes the kinds `linear`, `nearest`, `previous`, `next`
-  and `cubic`. The kinds `zero`, `slinear`, `quadratic` and the
-  argument `fill_value` stay out. A point outside the knots is a fault
-  unless `extrapolate` holds true. The older `spline` of the package
-  stays a natural spline with its own type.
+- `interp1d` takes the kinds `linear`, `slinear`, `nearest`, `previous`,
+  `zero`, `next` and `cubic`. The kind `quadratic` stays out. A point
+  outside the knots is a fault unless `extrapolate` holds true. The
+  argument `fill` with `fill_low` and `fill_high` gives the values of
+  SciPy `fill_value` for such a point. The older `spline` of the
+  package stays a natural spline with its own type.
 - The spatial functions follow `scipy.spatial`. `cosine` and `hamming`
   already name other functions here. The distances carry the names
   `cosine_distance` and `hamming_distance`.

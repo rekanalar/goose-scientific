@@ -4380,7 +4380,27 @@ fn test_matrix_trig() {
     return;
 }
 
+// interp1d takes the names zero and slinear and the fill values of SciPy.
+fn test_interp1d_kinds() {
+    let x = [0.0, 1.0, 2.5, 3.0, 4.5];
+    let y = [1.0, 3.0, 2.0, 5.0, 4.0];
+    let xs = [0.0, 0.4, 1.0, 1.7, 2.5, 2.9, 3.6, 4.5];
+    let z, f1 = scientific::interp1d(x, y, xs, "zero");
+    assert(f1.kind == scientific::F_NONE && all_near(z, [1.0, 1.0, 3.0, 3.0, 2.0, 2.0, 5.0, 4.0]));
+    let sl, f2 = scientific::interp1d(x, y, xs, "slinear");
+    assert(f2.kind == scientific::F_NONE && all_loose(sl, [1.0, 1.8, 3.0, 2.53333333, 2.0, 4.4, 4.6, 4.0]));
+    let out = [-1.0, 5.0];
+    let a, f3 = scientific::interp1d(x, y, out, "linear", false, true, -7.0, -8.0);
+    assert(f3.kind == scientific::F_NONE && all_near(a, [-7.0, -8.0]));
+    let b, f4 = scientific::interp1d(x, y, out, "zero", true);
+    assert(f4.kind == scientific::F_NONE && all_near(b, [1.0, 4.0]));
+    let c, f5 = scientific::interp1d(x, y, out, "linear");
+    assert(f5.kind == scientific::F_RANGE);
+    return;
+}
+
 fn main() {
+    test_interp1d_kinds();
     test_matrix_trig();
     test_create();
     test_shape();
