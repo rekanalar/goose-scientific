@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.48.0";
+import scientific from "rekanalar/goose-scientific@v0.49.0";
 ```
 
 ## API
@@ -80,6 +80,7 @@ import scientific from "rekanalar/goose-scientific@v0.48.0";
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `solve_ivp` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `freqz`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `resample` |
+| Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `spsolve`, `cg` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -110,6 +111,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- The sparse type holds compressed rows only, in the type `Csr`. The
+  types `csc_array`, `coo_array`, `lil_array`, `dok_array`, `dia_array`
+  and `bsr_array` stay out. Build a matrix from a list of entries with
+  `csr_from_triplets`, which adds the entries of one place. A sparse
+  result keeps the stored zeros that a sum or a product makes.
+- `csr_diags` takes one diagonal for each call. Add the results to get
+  several diagonals. `kron`, `hstack`, `vstack`, slicing and `norm`
+  stay out.
+- `spsolve` turns the matrix dense. The side stays at 4096 or below.
+  The cost equals the cost of a dense solve. `cg` takes the
+  start zero and no preconditioner. `gmres`, `bicgstab`, `splu`,
+  `eigsh` and `svds` stay out.
 - `solve` with a vector on the right side gave a wrong answer when
   the elimination swapped rows. The forward substitution read the
   rows in the wrong order. The answer now equals LAPACK. `inv` took
