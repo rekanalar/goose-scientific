@@ -241,35 +241,6 @@ fn digitize(values: f64[:], edges: f64[:]) -> Arr, Fault {
     return Arr { ndim: 1, shape: s, data: d }, no_fault();
 }
 
-// median gives the middle value. An even count gives the mean of the
-// two middle values, as NumPy does.
-fn median(a) -> f64, Fault {
-    let v, f = sort(a);
-    if f.kind != F_NONE { return 0.0, f; }
-    let n = v.data.len;
-    if n == 0 { return 0.0, fault(F_VALUE, "median", "the array holds no element"); }
-    if n % 2 == 1 { return v.data[n / 2], no_fault(); }
-    return (v.data[n / 2 - 1] + v.data[n / 2]) / 2.0, no_fault();
-}
-
-// percentile gives a value of a percentage. The percentage lies
-// between zero and one hundred.
-fn percentile(a, q: f64) -> f64, Fault {
-    if q < 0.0 || q > 100.0 {
-        return 0.0, fault(F_VALUE, "percentile", "the percentage lies outside the range");
-    }
-    let v, f = sort(a);
-    if f.kind != F_NONE { return 0.0, f; }
-    let n = v.data.len;
-    if n == 0 { return 0.0, fault(F_VALUE, "percentile", "the array holds no element"); }
-    let pos = q / 100.0 * (n - 1) as f64;
-    let lo = pos as i64;
-    let hi = lo + 1;
-    if hi >= n { return v.data[n - 1], no_fault(); }
-    let frac = pos - lo as f64;
-    return v.data[lo] + (v.data[hi] - v.data[lo]) * frac, no_fault();
-}
-
 // roll moves the elements along one axis by a number of places.
 fn roll(a, count: i64, axis: i64) -> Arr, Fault {
     if axis < 0 || axis >= a.ndim {

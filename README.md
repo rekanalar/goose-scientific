@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.19.0";
+import scientific from "rekanalar/goose-scientific@v0.20.0";
 ```
 
 ## API
@@ -36,7 +36,7 @@ import scientific from "rekanalar/goose-scientific@v0.19.0";
 | Indexing | `slice_axis`, `take`, `put`, `nonzero`, `mask`, `take_along_axis`, `repeat`, `tile`, `flatten`, `partition` |
 | Sorting | `sort`, `argsort`, `sort_axis`, `unique`, `unique_sorted`, `roll` |
 | Search | `searchsorted`, `histogram`, `histogram_edges`, `bincount`, `digitize` |
-| Order statistics | `median`, `percentile` |
+| Order statistics | `median`, `percentile`, `quantile`, `mode`, `average`, `median_axis`, `quantile_axis`, `percentile_axis`, `average_axis` |
 | Products | `matmul`, `dot`, `inner`, `outer`, `kron`, `trace`, `norm` |
 | Solving | `solve`, `inv`, `det`, `slogdet`, `matrix_power` |
 | Decompositions | `cholesky`, `qr` |
@@ -183,6 +183,23 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The histogram holds equal bins between the smallest and the largest
   value. An array of one value is a fault, because it holds no bin.
 - `median` and `percentile` sort a copy of the array.
+- `quantile` takes a fraction from zero to one. `percentile` takes a
+  percentage from zero to one hundred. Both take the name of a
+  method. The names are `linear`, `lower`, `higher`, `nearest`,
+  `midpoint`, `inverted_cdf`, `averaged_inverted_cdf`,
+  `closest_observation`, `interpolated_inverted_cdf`, `hazen`,
+  `weibull`, `median_unbiased` and `normal_unbiased`. The default is
+  `linear`. A name outside this list is a fault.
+- `mode` gives the value that comes most often and its count. Of two
+  values with the same count, the smaller one wins. A NaN is no
+  value, so it stays out of the count.
+- `average` takes a weight for each value. The weights hold the
+  shape of the values. `average_axis` takes one weight for each place
+  of the axis. Weights that add up to zero are a fault.
+- The order statistics along an axis drop the axis, as the other
+  reductions do.
+- `nanmedian`, `nanpercentile`, `nanargmin` and `nanargmax` stay
+  out.
 - A matrix is an array with two dimensions. The package holds one
   array type.
 - `dot` of two rows gives a number. It is held in an array of no
@@ -374,6 +391,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   the value.
 - `nextafter` and `spacing` give the smallest number of the machine
   for a value of zero. No fault comes from the value.
+- `mode` and `average` read the whole array. A large array takes a
+  long time.
 - A NaN reduction never faults on a value. An array of only NaN gives
   a neutral value or NaN. A caller that needs a number checks the
   result with `is_nan` of the standard library.

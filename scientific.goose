@@ -23,6 +23,7 @@ import array_shape;
 import array_ops;
 import array_logic;
 import array_nan;
+import array_order;
 import array_index;
 import array_sort;
 import array_linalg;
