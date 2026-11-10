@@ -503,3 +503,71 @@ fn signm(a) -> Arr, Fault {
     }
     return empty_arr(), fault(F_VALUE, "signm", "the iteration did not converge: the matrix holds an eigenvalue on the imaginary axis");
 }
+
+// funm gives the function of a matrix through the Schur form. The
+// caller hands over a function of one number. The method applies the
+// function to the diagonal of the triangular form and fills the rest
+// with the Parlett recurrence. A pair of complex values on the
+// diagonal is a fault, and so is a difference of two diagonal values
+// that is too small for the recurrence.
+fn funm<F: fn(f64) -> f64>(a) -> Arr, Fault {
+    let fs = mf_square(a, "funm");
+    if fs.kind != F_NONE { return empty_arr(), fs; }
+    let t, z, fq = schur(a);
+    if fq.kind != F_NONE { return empty_arr(), fq; }
+    let n = t.shape[0];
+    var i: i64 = 0;
+    while i < n {
+        if i > 0 && t.data[i * n + (i - 1)] != 0.0 {
+            return empty_arr(), fault(F_VALUE, "funm", "the matrix holds a complex pair of eigenvalues");
+        }
+        i += 1;
+    }
+    var scale: f64 = 0.0;
+    i = 0;
+    while i < n {
+        var v = mathshim::root(t.data[i * n + i] * t.data[i * n + i]);
+        if v > scale { scale = v; }
+        i += 1;
+    }
+    if scale == 0.0 { scale = 1.0; }
+    var fm: f64[>..] = [];
+    i = 0;
+    while i < n * n { fm.push(0.0); i += 1; }
+    i = 0;
+    while i < n {
+        fm[i * n + i] = F(t.data[i * n + i]);
+        i += 1;
+    }
+    // The recurrence walks over the difference of the indexes, so
+    // every value it needs is in place.
+    var d: i64 = 1;
+    while d < n {
+        i = 0;
+        while i + d < n {
+            let j = i + d;
+            let den = t.data[j * n + j] - t.data[i * n + i];
+            if mathshim::root(den * den) <= 1.0e-12 * scale {
+                return empty_arr(), fault(F_VALUE, "funm", "the matrix holds two diagonal values that are too close");
+            }
+            var s: f64 = t.data[i * n + j] * (fm[j * n + j] - fm[i * n + i]);
+            var k: i64 = i + 1;
+            while k < j {
+                s += t.data[i * n + k] * fm[k * n + j] - fm[i * n + k] * t.data[k * n + j];
+                k += 1;
+            }
+            fm[i * n + j] = s / den;
+            i += 1;
+        }
+        d += 1;
+    }
+    var farr: i64[..8] = [];
+    farr.push(n);
+    farr.push(n);
+    let fz = Arr { ndim: 2, shape: farr, data: copy(fm) };
+    let left, fl = matmul(z, fz);
+    if fl.kind != F_NONE { return empty_arr(), fl; }
+    let zt, ft = transpose(z);
+    if ft.kind != F_NONE { return empty_arr(), ft; }
+    return matmul(left, zt);
+}

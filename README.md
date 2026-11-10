@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.80.0";
+import scientific from "rekanalar/goose-scientific@v0.81.0";
 ```
 
 ## API
@@ -48,7 +48,7 @@ import scientific from "rekanalar/goose-scientific@v0.80.0";
 | Order statistics | `median`, `percentile`, `quantile`, `mode`, `average`, `median_axis`, `quantile_axis`, `percentile_axis`, `average_axis` |
 | Products | `matmul`, `dot`, `inner`, `outer`, `kron`, `trace`, `norm` |
 | Solving | `solve`, `inv`, `det`, `slogdet`, `matrix_power` |
-| Decompositions | `cholesky`, `qr` |
+| Decompositions | `cholesky`, `qr`, `schur`, `ldl` |
 | Eigenvalues | `eigvals`, `eig`, `eigvalsh`, `eigh` |
 | Singular values | `svd`, `svdvals`, `lstsq`, `matrix_rank`, `cond`, `pinv(a, rtol=-1)` |
 | Polynomials | `polyval`, `polyfit`, `roots` |
@@ -81,7 +81,7 @@ import scientific from "rekanalar/goose-scientific@v0.80.0";
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `firwin2`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
-| Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
+| Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
@@ -120,7 +120,7 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   solves `a v = w v`. The eigenvalues did not change.
 - `sqrtm` and `logm` take real matrices without an eigenvalue on the
   negative real axis. A result that needs a complex number is a fault.
-  `sqrtm` takes a side up to 512. `schur`, `funm` and `ldl` stay out.
+  `sqrtm` takes a side up to 512.
 - `sinm`, `cosm` and `tanm` use the real block form of `exp(iA)`, so
   the side stops at 128. `signm` takes a matrix with no eigenvalue on
   the imaginary axis. Else it gives a fault.
@@ -136,6 +136,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `cifft` take one dimension.
 - `solve_sylvester` and the two Lyapunov solvers build the Kronecker
   form. The product of the sides stays at 4096 or below.
+- `schur` holds the real form. The form is not unique, so the signs
+  of the columns of Z and the rows of T stay unpinned. A side above
+  4096 exceeds the turn limit and gives a fault.
+- `funm` takes the function of the caller as a block. A pair of
+  complex eigenvalues gives a fault. Two diagonal values closer than
+  1e-12 of the scale give a fault too. The caller needs a matrix with
+  distinct real values.
+- `ldl` holds no pivoting. A matrix that needs pivoting gives a
+  fault, while SciPy returns a permutation with it. A symmetric
+  matrix with a zero leading minor gives that fault.
 - `eig_banded` and `eigvals_banded` expand the matrix, so the side
   stays at 2048 or below. They take the whole range of eigenvalues
   only, with no `select` and no `lower`-form `a_band` of a general
@@ -311,7 +321,7 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `solve_banded` takes the band form of SciPy. It expands the band to
   a full matrix. The cost grows with the cube of the side. The side
   stops at 4096.
-- `schur`, `logm`, `sqrtm` and `eig_banded` stay out.
+- `logm`, `sqrtm` and `eig_banded` stay out.
 - `vecdot` takes two arrays of one shape and does not broadcast.
   `matvec` and `vecmat` take one matrix and one row, with no batch axes.
   `tensordot_n` is `tensordot` with the count form of `axes`.
