@@ -545,3 +545,85 @@ fn idstn(a, axes: i64[:] = [1000], kind: i64 = 2, norm: const u8[:] = "backward"
     if axes.len == 1 && axes[0] == 1000 { return sct_axes(a, all_axes(a.ndim), kind, norm, true, true, "idstn"); }
     return sct_axes(a, axes, kind, norm, true, true, "idstn");
 }
+
+// hfftn gives the real array of a signal that holds the positive half
+// of a Hermitian spectrum along the last axis, as scipy.fft.hfftn does.
+// It is the inverse real transform of the conjugate, scaled by the
+// count of places of the result. The length of the last axis of the
+// result is n_last, or 2 (m - 1) when n_last is zero.
+fn hfftn(re, im, n_last: i64 = 0) -> Arr, Fault {
+    if re.ndim != im.ndim || re.data.len != im.data.len {
+        return empty_arr(), fault(F_SHAPE, "hfftn", "the parts hold different shapes");
+    }
+    let m = re.shape[re.ndim - 1];
+    var len = n_last;
+    if len == 0 { len = 2 * (m - 1); }
+    if len < 1 {
+        return empty_arr(), fault(F_VALUE, "hfftn", "the length holds a value below one");
+    }
+    // The last axis keeps len / 2 + 1 places: SciPy crops or pads it.
+    let need = len / 2 + 1;
+    let rows = re.data.len / m;
+    var cr: f64[>..] = [];
+    var ci: f64[>..] = [];
+    var r: i64 = 0;
+    while r < rows {
+        var c: i64 = 0;
+        while c < need {
+            if c < m {
+                cr.push(re.data[r * m + c]);
+                ci.push(-im.data[r * m + c]);
+            } else {
+                cr.push(0.0);
+                ci.push(0.0);
+            }
+            c += 1;
+        }
+        r += 1;
+    }
+    var s: i64[..8] = [];
+    var i: i64 = 0;
+    while i < re.ndim { s.push(re.shape[i]); i += 1; }
+    s[re.ndim - 1] = need;
+    let xr = Arr { ndim: re.ndim, shape: s, data: copy(cr) };
+    let xi = Arr { ndim: re.ndim, shape: s, data: copy(ci) };
+    let out, f = irfftn(xr, xi, len);
+    if f.kind != F_NONE { return empty_arr(), fault(f.kind, "hfftn", f.detail); }
+    var d: f64[>..] = [];
+    i = 0;
+    while i < out.data.len { d.push(out.data[i] * out.data.len); i += 1; }
+    return Arr { ndim: out.ndim, shape: out.shape, data: copy(d) }, no_fault();
+}
+
+// hfft2 is hfftn of a matrix.
+fn hfft2(re, im, n_last: i64 = 0) -> Arr, Fault {
+    if re.ndim != 2 {
+        return empty_arr(), fault(F_SHAPE, "hfft2", "the operand is not a matrix");
+    }
+    return hfftn(re, im, n_last);
+}
+
+// ihfftn gives the positive half, along the last axis, of the
+// Hermitian spectrum of a real array. It is the conjugate of the real
+// transform, divided by the count of places.
+fn ihfftn(a) -> Arr, Arr, Fault {
+    let r, i, f = rfftn(a);
+    if f.kind != F_NONE { return empty_arr(), empty_arr(), fault(f.kind, "ihfftn", f.detail); }
+    var dr: f64[>..] = [];
+    var di: f64[>..] = [];
+    var k: i64 = 0;
+    while k < r.data.len {
+        dr.push(r.data[k] / a.data.len);
+        di.push(-i.data[k] / a.data.len);
+        k += 1;
+    }
+    return Arr { ndim: r.ndim, shape: r.shape, data: copy(dr) }, Arr { ndim: i.ndim, shape: i.shape, data: copy(di) }, no_fault();
+}
+
+// ihfft2 is ihfftn of a matrix.
+fn ihfft2(a) -> Arr, Arr, Fault {
+    if a.ndim != 2 {
+        return empty_arr(), empty_arr(), fault(F_SHAPE, "ihfft2", "the operand is not a matrix");
+    }
+    return ihfftn(a);
+}

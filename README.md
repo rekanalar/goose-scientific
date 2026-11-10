@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.57.0";
+import scientific from "rekanalar/goose-scientific@v0.58.0";
 ```
 
 ## API
@@ -74,7 +74,7 @@ import scientific from "rekanalar/goose-scientific@v0.57.0";
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
 | Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `null_space`, `orth`, `expm` |
-| Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn` |
+| Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
 | Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `solve_ivp` |
@@ -230,6 +230,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `rfftn`, `irfft2` and `irfftn` take the parts as two arrays. `irfftn`
   takes the length of the last axis, because it cannot tell an even
   length from an odd one.
+- `hfft2` and `hfftn` take the parts as two arrays and the length of
+  the last axis. `ihfft2` and `ihfftn` take a real array and give two
+  arrays. They hold no `s` list for the other axes, no `axes` and no
+  `norm`. The default norm is `backward`.
 - `next_fast_len` follows SciPy. A complex transform takes the factors
   up to 11. A real one takes 2, 3 and 5. The Fast Hankel transform
   `fht` stays out.
