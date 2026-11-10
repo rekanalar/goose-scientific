@@ -207,15 +207,18 @@ fn expand_dims(a, axis: i64) -> Arr, Fault {
     if axis < 0 || axis > a.ndim {
         return empty_arr(), fault(F_RANGE, "expand_dims", "the axis stands outside the shape");
     }
+    // The new dimension takes the place of one. The check runs before
+    // the fill, so the buffer of the shape never holds more than the
+    // limit.
+    if a.ndim + 1 > MAX_DIMS {
+        return empty_arr(), fault(F_LIMIT, "expand_dims", "the shape holds more dimensions than the limit");
+    }
     var s: i64[..8] = [];
     var i: i64 = 0;
     while i <= a.ndim {
         if i == axis { s.push(1); }
         if i < a.ndim { s.push(a.shape[i]); }
         i += 1;
-    }
-    if s.len > MAX_DIMS {
-        return empty_arr(), fault(F_LIMIT, "expand_dims", "the shape holds more dimensions than the limit");
     }
     var d: f64[>..] = [];
     i = 0;
@@ -293,8 +296,11 @@ fn product_after(s: i64[..8], axis: i64) -> i64 {
     return n;
 }
 
-// stack joins two arrays of one shape along a new first dimension.
-fn stack(a, b) -> Arr, Fault {
+// stack joins two arrays of one shape along a new dimension. The
+// axis gives the place of the new dimension, as NumPy gives it. A
+// negative axis counts from the end. The default is the first
+// dimension.
+fn stack(a, b, axis: i64 = 0) -> Arr, Fault {
     if a.ndim != b.ndim {
         return empty_arr(), fault(F_SHAPE, "stack", "the arrays hold different counts of dimensions");
     }
@@ -308,18 +314,22 @@ fn stack(a, b) -> Arr, Fault {
     if a.ndim + 1 > MAX_DIMS {
         return empty_arr(), fault(F_LIMIT, "stack", "the shape holds more dimensions than the limit");
     }
-    var s: i64[..8] = [];
-    s.push(2);
-    i = 0;
-    while i < a.ndim { s.push(a.shape[i]); i += 1; }
-    let cf = check_shape(s);
-    if cf.kind != F_NONE { return empty_arr(), cf; }
-    var d: f64[>..] = [];
-    i = 0;
-    while i < a.data.len { d.push(a.data[i]); i += 1; }
-    i = 0;
-    while i < b.data.len { d.push(b.data[i]); i += 1; }
-    return Arr { ndim: s.len, shape: s, data: d }, no_fault();
+    // A negative axis counts from the end of the new shape.
+    var ax = axis;
+    if ax < 0 { ax += a.ndim + 1; }
+    if ax < 0 || ax > a.ndim {
+        return empty_arr(), fault(F_RANGE, "stack", "the axis stands outside the shape");
+    }
+    // Each array gets a dimension of one at the place of the axis.
+    // The join along that axis puts the first array before the
+    // second one.
+    let x, fx = expand_dims(a, ax);
+    if fx.kind != F_NONE { return empty_arr(), fx; }
+    let y, fy = expand_dims(b, ax);
+    if fy.kind != F_NONE { return empty_arr(), fy; }
+    let r, f = concatenate(ax, x, y);
+    if f.kind != F_NONE { return empty_arr(), fault(f.kind, "stack", f.detail); }
+    return r, no_fault();
 }
 
 // index reads one element by its position in every dimension. A

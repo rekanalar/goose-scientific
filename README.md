@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.21.0";
+import scientific from "rekanalar/goose-scientific@v0.22.0";
 ```
 
 ## API
@@ -25,6 +25,7 @@ import scientific from "rekanalar/goose-scientific@v0.21.0";
 | Area | Functions |
 |---|---|
 | Creation | `zeros`, `ones`, `full`, `arange`, `linspace`, `eye`, `identity`, `diag`, `diagflat`, `logspace`, `geomspace`, `from_rows`, `from_values`, `clone` |
+| Stacks | `vstack`, `hstack`, `dstack`, `column_stack` |
 | Shape | `reshape`, `ravel`, `transpose`, `transpose_perm`, `squeeze`, `expand_dims`, `concatenate`, `stack`, `broadcast_shapes`, `index` |
 | Elementwise | `add`, `sub`, `mul`, `div`, `power`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `log2`, `log10`, `scale`, `clip`, `sign`, `floor`, `ceil`, `round`, `trunc`, `rint`, `fix`, `square`, `sin`, `cos`, `tan`, `arcsin`, `arccos`, `arctan`, `arctan2`, `sinh`, `cosh`, `tanh`, `arcsinh`, `arccosh`, `arctanh`, `expm1`, `log1p`, `reciprocal`, `deg2rad`, `rad2deg`, `signbit`, `isneginf`, `isposinf`, `floor_divide`, `mod`, `fmod`, `cbrt`, `hypot`, `exp2`, `nextafter`, `copysign`, `spacing` |
 | Names of NumPy | `array`, `subtract`, `multiply`, `divide`, `true_divide`, `negative`, `positive`, `fabs`, `absolute`, `around` |
@@ -89,6 +90,17 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - One array holds at most `MAX_ELEMENTS` elements, 268435456.
 - Every dimension holds at least one element. The release refuses an
   array of length zero.
+- The stacks join two arrays along an axis. `vstack` joins the rows
+  under one another. `hstack` joins the rows beside each other.
+  `dstack` joins them in a third dimension. `column_stack` joins them
+  as columns.
+- A row of one dimension joins in its own direction under `vstack`
+  and `dstack`. NumPy gives the same result.
+- `dstack` joins an array of three or more dimensions along its third
+  dimension, as NumPy does.
+- `stack` takes the place of the new dimension. The axis gives that
+  place. A negative axis counts from the end. The default is the
+  first dimension.
 - `transpose` swaps the two dimensions of a matrix. `transpose_perm`
   takes any permutation of the axes.
 - An axis reduction drops the reduced axis from the shape. It has no
