@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.96.0";
+import scientific from "rekanalar/goose-scientific@v0.97.0";
 ```
 
 ## API
@@ -72,7 +72,7 @@ import scientific from "rekanalar/goose-scientific@v0.96.0";
 | The rest of the elementwise math | `fmax`, `fmin`, `heaviside`, `logaddexp`, `logaddexp2`, `ldexp`, `frexp`, `modf`, `sinc`, `i0`, `gcd`, `lcm`, `bitwise_and`, `bitwise_or`, `bitwise_xor`, `invert`, `left_shift`, `right_shift`, `bitwise_count`, `unwrap`, and the names `float_power`, `pow`, `remainder`, `radians`, `degrees`, `acos`, `asin`, `atan`, `atan2`, `acosh`, `asinh`, `atanh`, `bitwise_not`, `bitwise_invert`, `bitwise_left_shift`, `bitwise_right_shift`, `concat`, `amax`, `amin`, `ndim` |
 | Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
-| Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `general_cosine`, `general_hamming`, `general_gaussian`, `taylor`, `chebwin`, `kaiser_bessel_derived`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
+| Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `general_cosine`, `general_hamming`, `general_gaussian`, `taylor`, `chebwin`, `kaiser_bessel_derived`, `dpss`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `null_space`, `orth`, `expm` |
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
@@ -382,8 +382,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `get_window` knows 18 names. These are boxcar, triang, bartlett,
   hann, hamming, blackman, blackmanharris, nuttall, flattop, bohman,
   barthann, cosine, lanczos, parzen, kaiser, gaussian, tukey,
-  exponential. The window `dpss` stays out.
+  exponential.
   `kaiser` takes beta up to 700.
+- `dpss` takes the length, `nw`, `kmax` and `sym`. A `kmax` of zero
+  gives one window as a vector, and a positive `kmax` gives that many
+  rows. The norms are `approximate` and `2`. The norm `subsample` and
+  the ratios of the eigenvalues stay out. It solves the tridiagonal
+  problem by bisection, and it takes a length up to 100000.
 - `general_cosine`, `general_hamming`, `general_gaussian`, `taylor`
   and `chebwin` take `sym`, where false gives the periodic window.
   `kaiser_bessel_derived` takes an even length and the symmetric form

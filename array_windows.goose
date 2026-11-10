@@ -236,3 +236,185 @@ fn kaiser_bessel_derived(m: i64, beta: f64) -> Arr, Fault {
     while i >= 0 { out.push(half[i]); i -= 1; }
     return ww_arr(out), no_fault();
 }
+
+// dp_count gives the count of eigenvalues of the tridiagonal matrix
+// that lie below x, by the sequence of Sturm.
+fn dp_count(d: f64[:], e: f64[:], x: f64) -> i64 {
+    var cnt: i64 = 0;
+    var q: f64 = d[0] - x;
+    if q < 0.0 { cnt += 1; }
+    var i: i64 = 1;
+    while i < d.len {
+        if q == 0.0 { q = 1.0e-300; }
+        q = d[i] - x - e[i - 1] * e[i - 1] / q;
+        if q < 0.0 { cnt += 1; }
+        i += 1;
+    }
+    return cnt;
+}
+
+// dp_vector solves the tridiagonal system (T - lambda I) v = b by
+// elimination and gives v.
+fn dp_solve(d: f64[:], e: f64[:], lam: f64, b: f64[:]) -> f64[>..] {
+    let n = d.len;
+    var diag: f64[>..] = [];
+    var rhs: f64[>..] = copy_slice(b);
+    var i: i64 = 0;
+    while i < n { diag.push(d[i] - lam); i += 1; }
+    i = 1;
+    while i < n {
+        if diag[i - 1] == 0.0 { diag[i - 1] = 1.0e-300; }
+        let r = e[i - 1] / diag[i - 1];
+        diag[i] = diag[i] - r * e[i - 1];
+        rhs[i] = rhs[i] - r * rhs[i - 1];
+        i += 1;
+    }
+    var v: f64[>..] = copy_slice(rhs);
+    if diag[n - 1] == 0.0 { diag[n - 1] = 1.0e-300; }
+    v[n - 1] = rhs[n - 1] / diag[n - 1];
+    i = n - 2;
+    while i >= 0 {
+        if diag[i] == 0.0 { diag[i] = 1.0e-300; }
+        v[i] = (rhs[i] - e[i] * v[i + 1]) / diag[i];
+        i -= 1;
+    }
+    return v;
+}
+
+// dpss gives the discrete prolate spheroidal sequences, the windows of
+// Slepian. The value nw is the product of the time and the half
+// bandwidth. A kmax of zero gives the first window as a vector. A
+// positive kmax gives the first kmax windows as rows. The norm is
+// "approximate", "2" or "" for the default of SciPy. The eigenvalue
+// problem is tridiagonal, solved by bisection and inverse iteration.
+fn dpss(m: i64, nw: f64, kmax: i64 = 0, sym: bool = true, norm: const u8[:] = "") -> Arr, Fault {
+    let f = ww_check(m, "dpss");
+    if f.kind != F_NONE { return empty_arr(), f; }
+    if m > 100000 {
+        return empty_arr(), fault(F_LIMIT, "dpss", "the length stands above 100000");
+    }
+    if norm != "" && norm != "approximate" && norm != "2" {
+        return empty_arr(), fault(F_VALUE, "dpss", "the norm must be approximate or 2");
+    }
+    if !(nw > 0.0) || !(nw < m / 2.0) {
+        return empty_arr(), fault(F_RANGE, "dpss", "nw must lie above zero and below half the length");
+    }
+    var single = false;
+    var k = kmax;
+    if k == 0 { single = true; k = 1; }
+    if k < 0 || k > m {
+        return empty_arr(), fault(F_RANGE, "dpss", "kmax must lie from one to the length");
+    }
+    var len = m;
+    if !sym { len = m + 1; }
+    let pi = 3.141592653589793;
+    let w = nw / len;
+    var d: f64[>..] = [];
+    var e: f64[>..] = [];
+    var i: i64 = 0;
+    let cw = mathshim::cosine(2.0 * pi * w);
+    while i < len {
+        let t = (len - 1.0 - 2.0 * i) / 2.0;
+        d.push(t * t * cw);
+        if i > 0 { e.push(i * (len - i) / 2.0); }
+        i += 1;
+    }
+    if len == 1 {
+        var one: f64[>..] = [1.0];
+        return line_arr(copy(one)), no_fault();
+    }
+    // The bounds of Gershgorin.
+    var lo0: f64 = d[0];
+    var hi0: f64 = d[0];
+    i = 0;
+    while i < len {
+        var r: f64 = 0.0;
+        if i > 0 { r += mathshim::abs_of(e[i - 1]); }
+        if i < len - 1 { r += mathshim::abs_of(e[i]); }
+        if d[i] - r < lo0 { lo0 = d[i] - r; }
+        if d[i] + r > hi0 { hi0 = d[i] + r; }
+        i += 1;
+    }
+    var rows: f64[>..] = [];
+    var kk: i64 = 0;
+    while kk < k {
+        let j = len - 1 - kk;
+        var lo = lo0;
+        var hi = hi0;
+        var it: i64 = 0;
+        while it < 200 {
+            let mid = 0.5 * (lo + hi);
+            if mid == lo || mid == hi { break; }
+            if dp_count(d, e, mid) > j { hi = mid; } else { lo = mid; }
+            it += 1;
+        }
+        let lam = 0.5 * (lo + hi);
+        let shift = lam + 1.0e-13 * (1.0 + mathshim::abs_of(lam));
+        var v: f64[>..] = [];
+        i = 0;
+        while i < len { v.push(1.0 + 0.37 * mathshim::sine(1.7 * i + 0.3)); i += 1; }
+        var iter: i64 = 0;
+        while iter < 6 {
+            var nv = dp_solve(d, e, shift, v);
+            // Remove the parts along the earlier vectors.
+            var p: i64 = 0;
+            while p < kk {
+                var dot: f64 = 0.0;
+                i = 0;
+                while i < len { dot += nv[i] * rows[p * len + i]; i += 1; }
+                i = 0;
+                while i < len { nv[i] = nv[i] - dot * rows[p * len + i]; i += 1; }
+                p += 1;
+            }
+            var nrm: f64 = 0.0;
+            i = 0;
+            while i < len { nrm += nv[i] * nv[i]; i += 1; }
+            nrm = mathshim::root(nrm);
+            i = 0;
+            while i < len { nv[i] = nv[i] / nrm; i += 1; }
+            v = copy_slice(nv);
+            iter += 1;
+        }
+        // The signs follow the convention of Percival and Walden.
+        if kk % 2 == 0 {
+            var sum: f64 = 0.0;
+            i = 0;
+            while i < len { sum += v[i]; i += 1; }
+            if sum < 0.0 { i = 0; while i < len { v[i] = -v[i]; i += 1; } }
+        } else {
+            var thresh: f64 = 1.0e-7;
+            if 1.0 / len > thresh { thresh = 1.0 / len; }
+            i = 0;
+            while i < len && v[i] * v[i] <= thresh { i += 1; }
+            if i < len && v[i] < 0.0 { i = 0; while i < len { v[i] = -v[i]; i += 1; } }
+        }
+        i = 0;
+        while i < len { rows.push(v[i]); i += 1; }
+        kk += 1;
+    }
+    var nrm_mode = norm;
+    if nrm_mode == "" {
+        if single { nrm_mode = "approximate"; } else { nrm_mode = "2"; }
+    }
+    if nrm_mode == "approximate" {
+        var mx = rows[0];
+        i = 1;
+        while i < rows.len { if rows[i] > mx { mx = rows[i]; } i += 1; }
+        var corr: f64 = 1.0 / mx;
+        if len % 2 == 0 { corr = corr * len * len / (len * len + nw); }
+        i = 0;
+        while i < rows.len { rows[i] = rows[i] * corr; i += 1; }
+    }
+    var out: f64[>..] = [];
+    kk = 0;
+    while kk < k {
+        i = 0;
+        while i < m { out.push(rows[kk * len + i]); i += 1; }
+        kk += 1;
+    }
+    if single { return ww_arr(out), no_fault(); }
+    var sh: i64[..8] = [];
+    sh.push(k);
+    sh.push(m);
+    return Arr { ndim: 2, shape: sh, data: out }, no_fault();
+}
