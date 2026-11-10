@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.93.0";
+import scientific from "rekanalar/goose-scientific@v0.94.0";
 ```
 
 ## API
@@ -300,9 +300,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   and `first_step` stay out, and so do the methods `DOP853`, `Radau`,
   `BDF` and `LSODA`. A stiff system needs many steps and may reach the
   limit of one million steps.
-- `cubic_spline` takes the conditions `not-a-knot`, `natural` and
-  `clamped`. `clamped` gives zero slope at both ends. The condition
-  `periodic` and given end values stay out. `spline_eval` takes the
+- `cubic_spline` takes the conditions `not-a-knot`, `natural`,
+  `clamped` and `periodic`. `clamped` takes the end slopes `left`
+  and `right`, zero by default. A periodic spline needs equal first
+  and last values, and it repeats outside the knots. End values of
+  the second derivative stay out.
+- `spline_eval` takes the
   derivative orders zero to three. A point outside the knots takes the
   end cubic for `cubic_spline` and `pchip`. A spline of `akima` gives
   NaN there, as SciPy does.

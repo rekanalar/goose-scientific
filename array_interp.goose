@@ -71,12 +71,60 @@ fn tridiag(lo: f64[>..]&, di: f64[>..]&, up: f64[>..]&, b: f64[>..]&) {
     }
 }
 
+// cubic_periodic builds the periodic cubic spline. The first and the
+// last value must agree. The slopes solve a cyclic system of the size
+// n - 1 by a dense solve.
+fn cubic_periodic(x: f64[:], y: f64[:]) -> Cubics, Fault {
+    let n = x.len;
+    if y[0] != y[n - 1] {
+        return Cubics { n: 0, extrap: true, buf: [] }, fault(F_VALUE, "cubic_spline", "a periodic spline needs equal first and last values");
+    }
+    let m = n - 1;
+    var dx: f64[>..] = [];
+    var sl: f64[>..] = [];
+    var i: i64 = 0;
+    while i < m { dx.push(x[i + 1] - x[i]); sl.push((y[i + 1] - y[i]) / dx[i]); i += 1; }
+    var a: f64[>..] = [];
+    i = 0;
+    while i < m * m { a.push(0.0); i += 1; }
+    var b: f64[>..] = [];
+    i = 0;
+    while i < m {
+        let p = (i + m - 1) % m;
+        let q = (i + 1) % m;
+        a[i * m + p] = a[i * m + p] + dx[i];
+        a[i * m + i] = a[i * m + i] + 2.0 * (dx[p] + dx[i]);
+        a[i * m + q] = a[i * m + q] + dx[p];
+        b.push(3.0 * (dx[i] * sl[p] + dx[p] * sl[i]));
+        i += 1;
+    }
+    var sa: i64[..8] = [];
+    sa.push(m);
+    sa.push(m);
+    var sb: i64[..8] = [];
+    sb.push(m);
+    let sol, fs = solve(Arr { ndim: 2, shape: sa, data: copy(a) }, Arr { ndim: 1, shape: sb, data: copy(b) });
+    if fs.kind != F_NONE {
+        return Cubics { n: 0, extrap: true, buf: [] }, fault(F_VALUE, "cubic_spline", "the periodic system holds no solution");
+    }
+    var sv: f64[>..] = copy_slice(sol.data);
+    sv.push(sol.data[0]);
+    var sp = spline_from_slopes(x, y, sv);
+    // One extra element at the end of the buffer marks the period.
+    sp.buf.push(x[n - 1] - x[0]);
+    return sp, no_fault();
+}
+
 // cubic_spline builds the interpolating cubic spline. The condition bc
-// is "not-a-knot", "natural" or "clamped". A clamped spline has zero
-// slope at both ends.
-fn cubic_spline(x: f64[:], y: f64[:], bc: const u8[:] = "not-a-knot") -> Cubics, Fault {
+// is "not-a-knot", "natural", "clamped" or "periodic". A clamped
+// spline takes the slopes left and right at the ends, zero by default.
+fn cubic_spline(x: f64[:], y: f64[:], bc: const u8[:] = "not-a-knot", left: f64 = 0.0, right: f64 = 0.0) -> Cubics, Fault {
     let f = spline_knots(x, y, "cubic_spline");
     if f.kind != F_NONE { return Cubics { n: 0, extrap: true, buf: [] }, f; }
+    if !(left - left == 0.0) || !(right - right == 0.0) {
+        return Cubics { n: 0, extrap: true, buf: [] }, fault(F_VALUE, "cubic_spline", "an end slope is not finite");
+    }
+    if bc == "periodic" { return cubic_periodic(x, y); }
     if bc != "not-a-knot" && bc != "natural" && bc != "clamped" {
         return Cubics { n: 0, extrap: true, buf: [] }, fault(F_VALUE, "cubic_spline", "the condition holds an unknown name");
     }
@@ -91,7 +139,7 @@ fn cubic_spline(x: f64[:], y: f64[:], bc: const u8[:] = "not-a-knot") -> Cubics,
     }
     var s: f64[>..] = [];
     if n == 2 {
-        if bc == "clamped" { s = [0.0, 0.0]; }
+        if bc == "clamped" { s = [left, right]; }
         else if bc == "natural" { s = [sl[0], sl[0]]; }
         else { s = [sl[0], sl[0]]; }
         return spline_from_slopes(x, y, s), no_fault();
@@ -137,6 +185,8 @@ fn cubic_spline(x: f64[:], y: f64[:], bc: const u8[:] = "not-a-knot") -> Cubics,
     } else {
         di[0] = 1.0;
         di[n - 1] = 1.0;
+        b[0] = left;
+        b[n - 1] = right;
     }
     tridiag(lo, di, up, b);
     return spline_from_slopes(x, y, b), no_fault();
@@ -277,7 +327,17 @@ fn spline_eval(s, xs: f64[:], nu: i64 = 0) -> Arr, Fault {
     var out: f64[>..] = [];
     var j: i64 = 0;
     while j < xs.len {
-        let v = xs[j];
+        var v = xs[j];
+        if s.buf.len > s.n + 4 * (s.n - 1) && v == v && (v < s.buf[0] || v > s.buf[s.n - 1]) {
+            // A periodic spline repeats outside the knots.
+            let per = s.buf[s.buf.len - 1];
+            let w = (v - s.buf[0]) / per;
+            var fl = w;
+            let tr = w - (w % 1.0);
+            fl = tr;
+            if w < tr { fl = tr - 1.0; }
+            v = v - fl * per;
+        }
         if v != v || (!s.extrap && (v < s.buf[0] || v > s.buf[s.n - 1])) { out.push(0.0 / 0.0); j += 1; continue; }
         let i = spline_find(s.buf, s.n, v);
         let t = v - s.buf[i];

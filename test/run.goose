@@ -4124,6 +4124,28 @@ fn test_cubic_hermite() {
     assert(g3.kind == scientific::F_VALUE);
 }
 
+// The periodic condition and the given end slopes of cubic_spline are
+// pinned against SciPy.
+fn test_spline_ends() {
+    let x = [0.0, 1.0, 2.5, 4.0, 5.0];
+    let c, f = scientific::cubic_spline(x, [1.0, 3.0, 2.0, 5.0, 1.0], "periodic");
+    assert(f.kind == scientific::F_NONE);
+    let v, fv = scientific::spline_eval(c, [0.0, 0.5, 1.7, 3.3, 5.0, 6.0, -1.0, 11.2]);
+    let ex = [1.0, 1.6375000000000002, 2.6586074074074078, 4.297718518518518, 1.0, 3.0, 5.0, 3.1597925925925923];
+    var i: i64 = 0;
+    while i < 8 { assert(mathshim_abs(v.data[i] - ex[i]) < 1.0e-10); i += 1; }
+    let c2, f2 = scientific::cubic_spline(x, [1.0, 3.0, 2.0, 5.0, 2.0], "clamped", 1.5, -0.5);
+    assert(f2.kind == scientific::F_NONE);
+    let v2, fv2 = scientific::spline_eval(c2, [0.0, 0.5, 1.7, 3.3, 5.0]);
+    let ex2 = [1.0, 2.0993055555555555, 2.477471604938272, 4.180187654320987, 2.0];
+    i = 0;
+    while i < 5 { assert(mathshim_abs(v2.data[i] - ex2[i]) < 1.0e-10); i += 1; }
+    let b1, g1 = scientific::cubic_spline(x, [1.0, 3.0, 2.0, 5.0, 2.0], "periodic");
+    assert(g1.kind == scientific::F_VALUE);
+    let b2, g2 = scientific::cubic_spline(x, [1.0, 3.0, 2.0, 5.0, 2.0], "clamped", 1.0 / 0.0, 0.0);
+    assert(g2.kind == scientific::F_VALUE);
+}
+
 // cov_close tells whether two values of a covariance matrix agree. The
 // comparison uses a scale of 1e-3, because the small values of the
 // matrix lose their digits in the reference library.
@@ -5662,6 +5684,7 @@ fn main() {
     test_dblquad();
     test_curve_fit();
     test_root();
+    test_spline_ends();
     test_cubic_hermite();
     test_global_minimizers();
     test_interpn();
