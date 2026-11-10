@@ -158,3 +158,133 @@ fn clone(a) -> Arr, Fault {
     while i < a.data.len { d.push(a.data[i]); i += 1; }
     return Arr { ndim: a.ndim, shape: s, data: d }, no_fault();
 }
+
+// empty builds an array of a shape with no element set. The package
+// holds no uninitialized memory, so every element holds zero.
+fn empty(shape: i64[:]) -> Arr, Fault {
+    return zeros(shape);
+}
+
+// full_like builds an array of the shape of a with every element
+// set to v.
+fn full_like(a, v: f64) -> Arr, Fault {
+    var s: i64[..8] = [];
+    var i: i64 = 0;
+    while i < a.ndim { s.push(a.shape[i]); i += 1; }
+    return full(s, v);
+}
+
+// zeros_like builds an array of the shape of a with zeros.
+fn zeros_like(a) -> Arr, Fault {
+    var s: i64[..8] = [];
+    var i: i64 = 0;
+    while i < a.ndim { s.push(a.shape[i]); i += 1; }
+    return zeros(s);
+}
+
+// ones_like builds an array of the shape of a with ones.
+fn ones_like(a) -> Arr, Fault {
+    var s: i64[..8] = [];
+    var i: i64 = 0;
+    while i < a.ndim { s.push(a.shape[i]); i += 1; }
+    return ones(s);
+}
+
+// trim_zeros drops the zeros at the start and at the end of a row.
+// A row of only zeros gives a fault, because it holds no element
+// after the cut.
+fn trim_zeros(a) -> Arr, Fault {
+    if a.ndim != 1 {
+        return empty_arr(), fault(F_SHAPE, "trim_zeros", "the array holds a count of dimensions that is not one");
+    }
+    var first: i64 = -1;
+    var last: i64 = -1;
+    var i: i64 = 0;
+    while i < a.data.len {
+        if a.data[i] != 0.0 {
+            if first < 0 { first = i; }
+            last = i;
+        }
+        i += 1;
+    }
+    if first < 0 {
+        return empty_arr(), fault(F_VALUE, "trim_zeros", "every element holds zero");
+    }
+    var d: f64[>..] = [];
+    i = first;
+    while i <= last { d.push(a.data[i]); i += 1; }
+    var s: i64[..8] = [];
+    s.push(d.len);
+    return Arr { ndim: 1, shape: s, data: d }, no_fault();
+}
+
+// insert puts the values at the position of a row. The elements from
+// the position move to the end. A position below zero or above the
+// length is a fault.
+fn insert(a, pos: i64, values: f64[:]) -> Arr, Fault {
+    if a.ndim != 1 {
+        return empty_arr(), fault(F_SHAPE, "insert", "the array holds a count of dimensions that is not one");
+    }
+    if pos < 0 || pos > a.data.len {
+        return empty_arr(), fault(F_RANGE, "insert", "the position stands outside the array");
+    }
+    var d: f64[>..] = [];
+    var i: i64 = 0;
+    while i < pos { d.push(a.data[i]); i += 1; }
+    i = 0;
+    while i < values.len { d.push(values[i]); i += 1; }
+    i = pos;
+    while i < a.data.len { d.push(a.data[i]); i += 1; }
+    var s: i64[..8] = [];
+    s.push(d.len);
+    return Arr { ndim: 1, shape: s, data: d }, no_fault();
+}
+
+// tril holds the lower triangle of a matrix under the diagonal of a
+// count. A count of zero holds the diagonal and below. A count above
+// zero holds diagonals above it too.
+fn tril(a, k: i64) -> Arr, Fault {
+    if a.ndim != 2 {
+        return empty_arr(), fault(F_SHAPE, "tril", "the array holds a count of dimensions that is not two");
+    }
+    let rows = a.shape[0];
+    let cols = a.shape[1];
+    var d: f64[>..] = [];
+    var r: i64 = 0;
+    while r < rows {
+        var c: i64 = 0;
+        while c < cols {
+            if c <= r + k { d.push(a.data[r * cols + c]); } else { d.push(0.0); }
+            c += 1;
+        }
+        r += 1;
+    }
+    var s: i64[..8] = [];
+    s.push(rows);
+    s.push(cols);
+    return Arr { ndim: 2, shape: s, data: d }, no_fault();
+}
+
+// triu holds the upper triangle of a matrix above the diagonal of a
+// count.
+fn triu(a, k: i64) -> Arr, Fault {
+    if a.ndim != 2 {
+        return empty_arr(), fault(F_SHAPE, "triu", "the array holds a count of dimensions that is not two");
+    }
+    let rows = a.shape[0];
+    let cols = a.shape[1];
+    var d: f64[>..] = [];
+    var r: i64 = 0;
+    while r < rows {
+        var c: i64 = 0;
+        while c < cols {
+            if c >= r + k { d.push(a.data[r * cols + c]); } else { d.push(0.0); }
+            c += 1;
+        }
+        r += 1;
+    }
+    var s: i64[..8] = [];
+    s.push(rows);
+    s.push(cols);
+    return Arr { ndim: 2, shape: s, data: d }, no_fault();
+}

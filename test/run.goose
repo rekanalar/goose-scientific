@@ -888,6 +888,117 @@ fn test_random() {
     }
 }
 
+fn test_misc() {
+    // The shape functions.
+    let e, fe = scientific::empty([2, 3]);
+    assert(fe.kind == scientific::F_NONE && e.data.len == 6 && e.data[0] == 0.0);
+    let fl, ffl = scientific::full_like(e, 7.0);
+    assert(ffl.kind == scientific::F_NONE && fl.data[0] == 7.0);
+    assert(fl.shape[0] == 2 && fl.shape[1] == 3);
+    let zz, fzz = scientific::zeros_like(e);
+    assert(fzz.kind == scientific::F_NONE && zz.data[0] == 0.0);
+    let oo, foo = scientific::ones_like(e);
+    assert(foo.kind == scientific::F_NONE && oo.data[0] == 1.0);
+    // The writes through a mask.
+    var m = scientific::from_values([1.0, 2.0, 3.0, 4.0]);
+    let fpm = scientific::putmask(m, scientific::from_values([1.0, 0.0, 1.0, 0.0]), [9.0]);
+    assert(fpm.kind == scientific::F_NONE);
+    assert(m.data[0] == 9.0 && m.data[1] == 2.0 && m.data[2] == 9.0 && m.data[3] == 4.0);
+    var m2 = scientific::from_values([0.0, 0.0, 0.0, 0.0]);
+    let fpl = scientific::place(m2, scientific::from_values([1.0, 0.0, 1.0, 1.0]), [5.0, 6.0]);
+    assert(fpl.kind == scientific::F_NONE);
+    assert(m2.data[0] == 5.0 && m2.data[2] == 6.0 && m2.data[3] == 5.0);
+    // place cycles the values when they run out, as NumPy does.
+    let fplbad = scientific::place(m2, scientific::from_values([1.0, 1.0, 1.0, 0.0]), [7.0]);
+    assert(fplbad.kind == scientific::F_NONE);
+    assert(m2.data[0] == 7.0 && m2.data[1] == 7.0 && m2.data[2] == 7.0);
+    // values that hold no element are a fault, and the array stays.
+    let fplnone = scientific::place(m2, scientific::from_values([1.0, 0.0, 0.0, 0.0]), []);
+    assert(fplnone.kind == scientific::F_VALUE);
+    // a mask of a different count is a fault.
+    let fplshape = scientific::place(m2, scientific::from_values([1.0, 0.0]), [7.0]);
+    assert(fplshape.kind == scientific::F_SHAPE);
+    // The cuts.
+    let a6 = scientific::from_values([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let sp, fsp = scientific::split(a6, 2, 0);
+    assert(fsp.kind == scientific::F_NONE && sp.count == 2);
+    let sp0, fsp0 = scientific::part(sp, 0);
+    let sp1, fsp1 = scientific::part(sp, 1);
+    assert(fsp0.kind == scientific::F_NONE && fsp1.kind == scientific::F_NONE);
+    assert(sp0.data.len == 3 && sp0.data[0] == 1.0 && sp0.data[2] == 3.0);
+    assert(sp1.data.len == 3 && sp1.data[0] == 4.0 && sp1.data[2] == 6.0);
+    let spbad, fspb = scientific::part(sp, 2);
+    assert(fspb.kind == scientific::F_RANGE);
+    let spcut, fspcut = scientific::split(a6, 4, 0);
+    assert(fspcut.kind == scientific::F_VALUE);
+    // The uneven cut gives the first pieces one element more.
+    let asp, fasp = scientific::array_split(a6, 4, 0);
+    assert(fasp.kind == scientific::F_NONE && asp.count == 4);
+    let ap0, fap0 = scientific::part(asp, 0);
+    let ap1, fap1 = scientific::part(asp, 1);
+    let ap2, fap2 = scientific::part(asp, 2);
+    let ap3, fap3 = scientific::part(asp, 3);
+    assert(fap0.kind == scientific::F_NONE);
+    assert(ap0.data.len == 2 && ap0.data[0] == 1.0 && ap0.data[1] == 2.0);
+    assert(ap1.data.len == 2 && ap1.data[0] == 3.0 && ap1.data[1] == 4.0);
+    assert(ap2.data.len == 1 && ap2.data[0] == 5.0);
+    assert(ap3.data.len == 1 && ap3.data[0] == 6.0);
+    let m23 = scientific::from_rows(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let hs, fhs = scientific::hsplit(m23, 3);
+    assert(fhs.kind == scientific::F_NONE && hs.count == 3);
+    let hp0, fhp0 = scientific::part(hs, 0);
+    let hp1, fhp1 = scientific::part(hs, 1);
+    let hp2, fhp2 = scientific::part(hs, 2);
+    assert(fhp0.kind == scientific::F_NONE);
+    assert(hp0.data.len == 2 && hp0.data[0] == 1.0 && hp0.data[1] == 4.0);
+    assert(hp0.shape[0] == 2 && hp0.shape[1] == 1);
+    assert(hp1.data.len == 2 && hp1.data[0] == 2.0 && hp1.data[1] == 5.0);
+    assert(hp2.data.len == 2 && hp2.data[0] == 3.0 && hp2.data[1] == 6.0);
+    let vs, fvs = scientific::vsplit(m23, 2);
+    assert(fvs.kind == scientific::F_NONE && vs.count == 2);
+    let vp0, fvp0 = scientific::part(vs, 0);
+    assert(fvp0.kind == scientific::F_NONE);
+    assert(vp0.data.len == 3 && vp0.data[0] == 1.0 && vp0.data[2] == 3.0);
+    // The growth.
+    let pd, fpd = scientific::pad_value(a6, 0, 2, 1, 0.5);
+    assert(fpd.kind == scientific::F_NONE && pd.data.len == 9);
+    assert(pd.data[0] == 0.5 && pd.data[1] == 0.5 && pd.data[2] == 1.0);
+    assert(pd.data[8] == 0.5);
+    let pdbad, fpdbad = scientific::pad_value(a6, 0, -1, 1, 0.0);
+    assert(fpdbad.kind == scientific::F_VALUE);
+    // The values between points.
+    let ip, fip = scientific::interp([0.0, 10.0, 20.0], [0.0, 1.0, 3.0], [0.5, 2.0, -1.0, 5.0]);
+    assert(fip.kind == scientific::F_NONE);
+    assert(ip.data[0] == 5.0 && ip.data[1] == 15.0 && ip.data[2] == 0.0 && ip.data[3] == 20.0);
+    let ipbad, fipbad = scientific::interp([0.0, 10.0], [1.0, 0.0], [0.5]);
+    assert(fipbad.kind == scientific::F_VALUE);
+    // The derivative.
+    let gr, fgr = scientific::gradient(scientific::from_values([1.0, 4.0, 9.0, 16.0]), 1.0);
+    assert(fgr.kind == scientific::F_NONE);
+    assert(gr.data[0] == 3.0 && gr.data[1] == 4.0 && gr.data[2] == 6.0 && gr.data[3] == 7.0);
+    let grbad, fgrbad = scientific::gradient(a6, 0.0);
+    assert(fgrbad.kind == scientific::F_VALUE);
+    // The trims and the triangles.
+    let tz, ftz = scientific::trim_zeros(scientific::from_values([0.0, 0.0, 3.0, 1.0, 0.0, 2.0, 0.0]));
+    assert(ftz.kind == scientific::F_NONE);
+    assert(tz.data[0] == 3.0 && tz.data[1] == 1.0 && tz.data[2] == 0.0 && tz.data[3] == 2.0);
+    let tzbad, ftzbad = scientific::trim_zeros(scientific::from_values([0.0, 0.0]));
+    assert(ftzbad.kind == scientific::F_VALUE);
+    let ins, fins = scientific::insert(a6, 2, [9.0, 9.5]);
+    assert(fins.kind == scientific::F_NONE && ins.data.len == 8);
+    assert(ins.data[0] == 1.0 && ins.data[1] == 2.0 && ins.data[2] == 9.0 && ins.data[3] == 9.5);
+    assert(ins.data[4] == 3.0 && ins.data[7] == 6.0);
+    let insbad, finsbad = scientific::insert(a6, 7, [1.0]);
+    assert(finsbad.kind == scientific::F_RANGE);
+    let tl, ftl = scientific::tril(m23, 0);
+    let tu, ftu = scientific::triu(m23, 0);
+    assert(ftl.kind == scientific::F_NONE && ftu.kind == scientific::F_NONE);
+    assert(tl.data[0] == 1.0 && tl.data[1] == 0.0 && tl.data[2] == 0.0);
+    assert(tl.data[3] == 4.0 && tl.data[4] == 5.0 && tl.data[5] == 0.0);
+    assert(tu.data[0] == 1.0 && tu.data[1] == 2.0 && tu.data[2] == 3.0);
+    assert(tu.data[3] == 0.0 && tu.data[4] == 5.0 && tu.data[5] == 6.0);
+}
+
 fn main() {
     test_create();
     test_shape();
@@ -902,6 +1013,7 @@ fn main() {
     test_svd_and_poly();
     test_fft();
     test_random();
+    test_misc();
     print("ok\n");
     return;
 }

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.10.0";
+import scientific from "rekanalar/goose-scientific@v0.11.0";
 ```
 
 ## API
@@ -43,6 +43,11 @@ import scientific from "rekanalar/goose-scientific@v0.10.0";
 | Polynomials | `polyval`, `polyfit`, `roots` |
 | Transforms | `fft`, `ifft`, `fft2`, `fftfreq`, `fftshift`, `rfft`, `irfft` |
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
+| Shapes of another array | `empty`, `full_like`, `zeros_like`, `ones_like`, `trim_zeros`, `insert` |
+| Writes | `putmask`, `place`, `put_along_axis` |
+| Cuts | `split`, `array_split`, `hsplit`, `vsplit`, `part` |
+| Triangles | `tril`, `triu` |
+| Between the points | `interp`, `gradient`, `pad_value` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -187,6 +192,32 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `permutation` gives the shuffled order of a count. `shuffled` gives
   a shuffled copy of a row. `shuffle_rows` shuffles the rows of a
   matrix in place, so the array of the caller changes.
+- `empty` gives an array with no element set. The package holds no
+  uninitialized memory, so every element holds zero.
+- `putmask` and `place` write into the array of the caller. Both read
+  the values in a cycle when they run out, as NumPy does. Values that
+  hold no element are a fault.
+- `split` cuts an array into parts of an equal count. A count that
+  does not cut the axis is a fault, as in NumPy. `array_split` cuts
+  it into parts of a count as equal as the axis allows. The first
+  parts hold one element more.
+- The parts of a cut come back in a `Parts` value. `part` gives one
+  of them as an array. A struct of the package holds one growable
+  field. So the buffer of a `Parts` holds the length and the count of
+  every part first. The elements come after them.
+- `pad_value` grows an array along one axis with a value at the
+  start, at the end, or at both. It fills with one value, so it holds
+  no mode of edge or wrap.
+- `interp` takes the values between the points of a rising row. A
+  point below the first point takes the first value. A point above
+  the last point takes the last value. Points that do not rise are a
+  fault.
+- `gradient` takes the difference of the one side at the two ends.
+  It takes the difference of the two neighbours in the middle.
+- `tril` and `triu` take a count of the diagonal. A count of zero
+  holds the diagonal and one side of it.
+- `trim_zeros` drops the zeros at the two ends of a row. A row of
+  only zeros is a fault.
 
 ## Security
 
@@ -233,6 +264,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The generator holds no hidden state outside the `Rng` of the
   caller. Two generators of the same seed give the same numbers. A
   seed that a hostile party can guess gives numbers it can guess.
+- Every write checks its mask and its values before the first write.
+  A mask of a different count is a fault. `place` and `putmask` hold
+  no value outside their buffer. So a bad mask cannot write outside
+  the array of the caller.
+- `put_along_axis` checks every position before the first write. A
+  position outside the axis is a fault, and the array stays as it
+  was.
+- `interp` checks that the points rise before it takes a value. The
+  check runs once. A row of points that does not rise cannot make the
+  search read outside the buffer.
+- `pad_value` computes the count of the result before it allocates.
+  A growth that reaches over `MAX_ELEMENTS` is a fault.
 
 ## License
 

@@ -298,3 +298,78 @@ fn roll(a, count: i64, axis: i64) -> Arr, Fault {
     }
     return Arr { ndim: a.ndim, shape: same_shape(a), data: d }, no_fault();
 }
+
+// interp takes the values between the points of a rising row. A
+// point below the first point takes the first value. A point above
+// the last point takes the last value. A row of points that does not
+// rise is a fault. A row of one point holds that value everywhere.
+fn interp(values: f64[:], points: f64[:], xs: f64[:]) -> Arr, Fault {
+    if points.len < 1 {
+        return empty_arr(), fault(F_VALUE, "interp", "the points hold no element");
+    }
+    var i: i64 = 1;
+    while i < points.len {
+        if points[i] < points[i - 1] {
+            return empty_arr(), fault(F_VALUE, "interp", "the points do not rise");
+        }
+        i += 1;
+    }
+    if points.len == 1 {
+        var one: f64[>..] = [];
+        i = 0;
+        while i < xs.len { one.push(values[0]); i += 1; }
+        var s0: i64[..8] = [];
+        s0.push(one.len);
+        return Arr { ndim: 1, shape: s0, data: one }, no_fault();
+    }
+    var d: f64[>..] = [];
+    i = 0;
+    while i < xs.len {
+        let x = xs[i];
+        if x <= points[0] { d.push(values[0]); }
+        else if x >= points[points.len - 1] { d.push(values[points.len - 1]); }
+        else {
+            var lo: i64 = 0;
+            var hi = points.len;
+            while lo < hi {
+                let mid = (lo + hi) / 2;
+                if points[mid] <= x { lo = mid + 1; } else { hi = mid; }
+            }
+            let k = lo - 1;
+            let t = (x - points[k]) / (points[k + 1] - points[k]);
+            d.push(values[k] + (values[k + 1] - values[k]) * t);
+        }
+        i += 1;
+    }
+    var s: i64[..8] = [];
+    s.push(d.len);
+    return Arr { ndim: 1, shape: s, data: d }, no_fault();
+}
+
+// gradient gives the derivative of a row of values with a spacing.
+// The ends take the difference of the one side. The middle takes the
+// difference of the two neighbours, over twice the spacing. A
+// spacing of zero is a fault.
+fn gradient(a, spacing: f64) -> Arr, Fault {
+    if a.ndim != 1 {
+        return empty_arr(), fault(F_SHAPE, "gradient", "the array holds a count of dimensions that is not one");
+    }
+    if spacing == 0.0 {
+        return empty_arr(), fault(F_VALUE, "gradient", "the spacing holds zero");
+    }
+    let n = a.data.len;
+    if n < 2 {
+        return empty_arr(), fault(F_VALUE, "gradient", "the array holds fewer than two elements");
+    }
+    var d: f64[>..] = [];
+    d.push((a.data[1] - a.data[0]) / spacing);
+    var i: i64 = 1;
+    while i < n - 1 {
+        d.push((a.data[i + 1] - a.data[i - 1]) / (2.0 * spacing));
+        i += 1;
+    }
+    d.push((a.data[n - 1] - a.data[n - 2]) / spacing);
+    var s: i64[..8] = [];
+    s.push(n);
+    return Arr { ndim: 1, shape: s, data: d }, no_fault();
+}

@@ -259,3 +259,231 @@ fn partition(a, pivot: f64) -> Arr, Fault {
     s.push(a.data.len);
     return Arr { ndim: 1, shape: s, data: d }, no_fault();
 }
+
+// putmask writes a value where the mask holds true. The values come
+// in a cycle when they are fewer than the places, as NumPy does. The
+// array of the caller changes. A mask of a different length is a
+// fault, and the check runs before the first write.
+fn putmask(a, mask, values: f64[:]) -> Fault {
+    if mask.data.len != a.data.len {
+        return fault(F_SHAPE, "putmask", "the mask holds a different count");
+    }
+    if values.len == 0 {
+        return fault(F_VALUE, "putmask", "the values hold no element");
+    }
+    var i: i64 = 0;
+    while i < a.data.len {
+        if mask.data[i] != 0.0 {
+            a.data[i] = values[i % values.len];
+        }
+        i += 1;
+    }
+    return no_fault();
+}
+
+// place writes the values where the mask holds true, in their
+// order. The values come in a cycle when they run out, as NumPy
+// does. The array of the caller changes. A mask of a different
+// length is a fault, and the check runs before the first write.
+fn place(a, mask, values: f64[:]) -> Fault {
+    if mask.data.len != a.data.len {
+        return fault(F_SHAPE, "place", "the mask holds a different count");
+    }
+    if values.len == 0 {
+        return fault(F_VALUE, "place", "the values hold no element");
+    }
+    var k: i64 = 0;
+    var i: i64 = 0;
+    while i < a.data.len {
+        if mask.data[i] != 0.0 {
+            a.data[i] = values[k % values.len];
+            k += 1;
+        }
+        i += 1;
+    }
+    return no_fault();
+}
+
+// put_along_axis writes the values at the positions of an index
+// array of the same shape, along one axis. The array of the caller
+// changes. A position outside the axis is a fault, and the check of
+// every position runs before the first write.
+fn put_along_axis(a, index, values, axis: i64) -> Fault {
+    if axis < 0 || axis >= a.ndim {
+        return fault(F_RANGE, "put_along_axis", "the axis stands outside the shape");
+    }
+    if index.ndim != a.ndim || values.ndim != a.ndim {
+        return fault(F_SHAPE, "put_along_axis", "the operands hold a different count of dimensions");
+    }
+    var same = true;
+    var i: i64 = 0;
+    while i < a.ndim {
+        if index.shape[i] != a.shape[i] || values.shape[i] != a.shape[i] { same = false; }
+        i += 1;
+    }
+    if !same {
+        return fault(F_SHAPE, "put_along_axis", "the shapes of the operands do not agree");
+    }
+    // The check of every position runs first, so a bad index leaves
+    // the array as it was.
+    let total = a.data.len;
+    i = 0;
+    while i < total {
+        let pick = index.data[i];
+        let width = a.shape[axis];
+        if pick < 0.0 || pick >= width as f64 {
+            return fault(F_RANGE, "put_along_axis", "a position stands outside the axis");
+        }
+        i += 1;
+    }
+    i = 0;
+    while i < total {
+        let width = a.shape[axis];
+        let inner = product_after_of(a.shape, axis);
+        let outer = product_before_of(a.shape, axis);
+        let flat = i;
+        let j = flat % inner;
+        let rest = flat / inner;
+        let k = rest % width;
+        let o = rest / width;
+        a.data[o * width * inner + (index.data[i] as i64) * inner + j] = values.data[i];
+        i += 1;
+    }
+    return no_fault();
+}
+
+// Parts holds the pieces of a cut. The shape holds the shape of the
+// array that was cut, and the axis holds the axis of the cut. The
+// buffer holds the length of every piece along the axis in two
+// places each, and the count of its elements in the other place. The
+// rest of the buffer holds the elements of the pieces in their order.
+struct Parts { count: i64, ndim: i64, axis: i64, shape: i64[..8], buf: f64[>..] }
+
+// part gives the piece of a number. A number outside the count of
+// the pieces is a fault.
+fn part(p, index: i64) -> Arr, Fault {
+    if index < 0 || index >= p.count {
+        return empty_arr(), fault(F_RANGE, "part", "the number stands outside the pieces");
+    }
+    let width = p.buf[index * 2] as i64;
+    let total = p.buf[index * 2 + 1] as i64;
+    var offset: i64 = 0;
+    var i: i64 = 0;
+    while i < index { offset += p.buf[i * 2 + 1] as i64; i += 1; }
+    var d: f64[>..] = [];
+    i = 0;
+    while i < total { d.push(p.buf[p.count * 2 + offset + i]); i += 1; }
+    // The shape of the piece holds the shape of the array with the
+    // axis of the cut changed.
+    var s: i64[..8] = [];
+    i = 0;
+    while i < p.ndim { s.push(p.shape[i]); i += 1; }
+    s[p.axis] = width;
+    return Arr { ndim: p.ndim, shape: s, data: d }, no_fault();
+}
+
+// split cuts an array along one axis into pieces of an equal count.
+// A count that does not cut the axis is a fault, as in NumPy.
+fn split(a, pieces: i64, axis: i64) -> Parts, Fault {
+    if axis < 0 || axis >= a.ndim {
+        return empty_parts(), fault(F_RANGE, "split", "the axis stands outside the shape");
+    }
+    if pieces < 1 {
+        return empty_parts(), fault(F_VALUE, "split", "the count of pieces holds a value below one");
+    }
+    let width = a.shape[axis];
+    if width % pieces != 0 {
+        return empty_parts(), fault(F_VALUE, "split", "the count of pieces does not cut the axis");
+    }
+    return cut_axis(a, pieces, axis, false);
+}
+
+// array_split cuts an array along one axis into pieces of a count as
+// equal as the axis allows. The first pieces of the cut hold one
+// element more, as NumPy does.
+fn array_split(a, pieces: i64, axis: i64) -> Parts, Fault {
+    if axis < 0 || axis >= a.ndim {
+        return empty_parts(), fault(F_RANGE, "array_split", "the axis stands outside the shape");
+    }
+    if pieces < 1 {
+        return empty_parts(), fault(F_VALUE, "array_split", "the count of pieces holds a value below one");
+    }
+    return cut_axis(a, pieces, axis, true);
+}
+
+// cut_axis does the work of the two cuts. The flag tells whether the
+// pieces may hold different counts.
+fn cut_axis(a, pieces: i64, axis: i64, uneven: bool) -> Parts, Fault {
+    let width = a.shape[axis];
+    let inner = product_after_of(a.shape, axis);
+    let outer = product_before_of(a.shape, axis);
+    // The count of every piece. An even cut gives every piece the
+    // same count. An uneven cut gives the first pieces one more.
+    var sizes: i64[>..] = [];
+    var base = width / pieces;
+    var extra = width % pieces;
+    var p: i64 = 0;
+    while p < pieces {
+        var size = base;
+        if uneven && extra > 0 { size += 1; extra -= 1; }
+        sizes.push(size);
+        p += 1;
+    }
+    var d: f64[>..] = [];
+    var start: i64 = 0;
+    p = 0;
+    while p < pieces {
+        let size = sizes[p];
+        var o: i64 = 0;
+        while o < outer {
+            var k: i64 = 0;
+            while k < size {
+                var j: i64 = 0;
+                while j < inner {
+                    d.push(a.data[o * width * inner + (start + k) * inner + j]);
+                    j += 1;
+                }
+                k += 1;
+            }
+            o += 1;
+        }
+        start += size;
+        p += 1;
+    }
+    // The buffer holds the length and the count of every piece
+    // first, then the elements.
+    var buf: f64[>..] = [];
+    p = 0;
+    while p < pieces {
+        buf.push(sizes[p] as f64);
+        buf.push((sizes[p] * inner * outer) as f64);
+        p += 1;
+    }
+    p = 0;
+    while p < d.len { buf.push(d[p]); p += 1; }
+    var shape: i64[..8] = [];
+    var q: i64 = 0;
+    while q < a.ndim { shape.push(a.shape[q]); q += 1; }
+    return Parts { count: pieces, ndim: a.ndim, axis: axis, shape: shape, buf: buf }, no_fault();
+}
+
+// empty_parts gives the pieces of no array.
+fn empty_parts() -> Parts {
+    return Parts { count: 0, ndim: 0, axis: 0, shape: [], buf: [] };
+}
+
+// hsplit cuts a matrix along its second axis.
+fn hsplit(a, parts: i64) -> Parts, Fault {
+    if a.ndim != 2 {
+        return empty_parts(), fault(F_SHAPE, "hsplit", "the array holds a count of dimensions that is not two");
+    }
+    return split(a, parts, 1);
+}
+
+// vsplit cuts a matrix along its first axis.
+fn vsplit(a, parts: i64) -> Parts, Fault {
+    if a.ndim != 2 {
+        return empty_parts(), fault(F_SHAPE, "vsplit", "the array holds a count of dimensions that is not two");
+    }
+    return split(a, parts, 0);
+}

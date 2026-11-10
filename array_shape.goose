@@ -341,3 +341,43 @@ fn index(a, pos: i64[:]) -> f64, Fault {
     }
     return a.data[flat], no_fault();
 }
+
+// pad grows an array along one axis with a count of a value at the
+// start, at the end, or at both. A negative count is a fault. The
+// count of growth that passes the limit is a fault.
+fn pad_value(a, axis: i64, before: i64, after: i64, value: f64) -> Arr, Fault {
+    if axis < 0 || axis >= a.ndim {
+        return empty_arr(), fault(F_RANGE, "pad_value", "the axis stands outside the shape");
+    }
+    if before < 0 || after < 0 {
+        return empty_arr(), fault(F_VALUE, "pad_value", "a count of growth holds a value below zero");
+    }
+    let width = a.shape[axis];
+    let inner = product_after_of(a.shape, axis);
+    let outer = product_before_of(a.shape, axis);
+    let new_width = width + before + after;
+    if new_width * inner * outer > MAX_ELEMENTS {
+        return empty_arr(), fault(F_LIMIT, "pad_value", "the result holds more elements than the limit");
+    }
+    var d: f64[>..] = [];
+    var o: i64 = 0;
+    while o < outer {
+        var k: i64 = 0;
+        while k < new_width {
+            var j: i64 = 0;
+            while j < inner {
+                let src = k - before;
+                if src < 0 || src >= width { d.push(value); }
+                else { d.push(a.data[o * width * inner + src * inner + j]); }
+                j += 1;
+            }
+            k += 1;
+        }
+        o += 1;
+    }
+    var s: i64[..8] = [];
+    var i: i64 = 0;
+    while i < a.ndim { s.push(a.shape[i]); i += 1; }
+    s[axis] = new_width;
+    return Arr { ndim: a.ndim, shape: s, data: d }, no_fault();
+}
