@@ -483,3 +483,42 @@ fn dblquad<G: fn(f64) -> f64, H: fn(f64) -> f64, F: fn(f64, f64) -> f64>(a: f64,
     if bad.kind != F_NONE { return 0.0, 0.0, bad; }
     return sgn * v, e + err, f;
 }
+
+// odeint integrates dy/dt = f(y, t) from the start y0 and gives the
+// state at each time in t, one row per time. The first row is y0. The
+// function is a block { y, t => ... }, with the arguments in the order
+// of SciPy odeint. Each segment between two times runs the RK45 method
+// of solve_ivp with the tolerances rtol and atol. The times rise or
+// fall without change of direction.
+fn odeint<F: fn(f64[:], f64) -> f64[:]>(y0: f64[:], t: f64[:], rtol: f64 = 1.49012e-8, atol: f64 = 1.49012e-8) -> Arr, Fault {
+    let n = y0.len;
+    let m = t.len;
+    if n < 1 || m < 2 {
+        return empty_arr(), fault(F_SHAPE, "odeint", "the start or the times hold too few values");
+    }
+    if m * n > MAX_ELEMENTS {
+        return empty_arr(), fault(F_LIMIT, "odeint", "the result holds more elements than the limit");
+    }
+    var i: i64 = 1;
+    var up = t[1] > t[0];
+    while i < m {
+        if !(t[i] - t[i] == 0.0) || t[i] == t[i - 1] || (t[i] > t[i - 1]) != up {
+            return empty_arr(), fault(F_VALUE, "odeint", "the times do not move in one direction");
+        }
+        i += 1;
+    }
+    var out: f64[>..] = [];
+    var cur: f64[>..] = [];
+    i = 0;
+    while i < n { out.push(y0[i]); cur.push(y0[i]); i += 1; }
+    var k: i64 = 1;
+    while k < m {
+        let ts, ys, f = solve_ivp(t[k - 1], t[k], cur, rtol, atol, "RK45", 1.0e308) { tt, yy => F(copy(yy), tt) };
+        if f.kind != F_NONE { return empty_arr(), fault(f.kind, "odeint", f.detail); }
+        let rows = ts.data.len;
+        i = 0;
+        while i < n { cur[i] = ys.data[(rows - 1) * n + i]; out.push(cur[i]); i += 1; }
+        k += 1;
+    }
+    return mat2(copy(out), m, n), no_fault();
+}

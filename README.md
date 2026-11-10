@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.60.0";
+import scientific from "rekanalar/goose-scientific@v0.61.0";
 ```
 
 ## API
@@ -77,7 +77,7 @@ import scientific from "rekanalar/goose-scientific@v0.60.0";
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
 | Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
-| Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `solve_ivp` |
+| Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `solve_ivp`, `odeint` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `freqz`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `spsolve`, `cg`, `bicgstab`, `gmres` |
@@ -192,6 +192,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   holds no extrapolation. A hard integrand ends with the fault
   `F_LIMIT` when the limit of intervals is reached. `tplquad`,
   `nquad`, `quad_vec` and the weights of `quad` stay out.
+- `odeint` runs the RK45 method of `solve_ivp` between the times and
+  gives one row per time. SciPy runs LSODA, so values agree only to the
+  tolerance. It holds no Jacobian, no stiff method, no `args` and no
+  `full_output`. The function takes `y` first, then `t`.
 - `dblquad` takes the function as a block `{ y, x => ... }`, as SciPy
   orders the arguments. The limits of y are two named functions. They
   come last in the call, after the tolerances. Every limit is
