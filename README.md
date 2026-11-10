@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.28.0";
+import scientific from "rekanalar/goose-scientific@v0.29.0";
 ```
 
 ## API
@@ -50,7 +50,7 @@ import scientific from "rekanalar/goose-scientific@v0.28.0";
 | Eigenvalues | `eigvals`, `eig`, `eigvalsh`, `eigh` |
 | Singular values | `svd`, `svdvals`, `lstsq`, `matrix_rank`, `cond`, `pinv(a, rtol=-1)` |
 | Polynomials | `polyval`, `polyfit`, `roots` |
-| Transforms | `fft`, `ifft`, `fft2`, `fftfreq`, `fftshift`, `rfft`, `irfft` |
+| Transforms | `fft`, `ifft`, `fft2`, `fft2c`, `ifft2`, `fftn`, `ifftn`, `fftfreq`, `rfftfreq`, `fftshift`, `ifftshift`, `rfft`, `irfft` |
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
 | Shapes of another array | `empty`, `full_like`, `zeros_like`, `ones_like`, `trim_zeros`, `insert` |
 | Writes | `putmask`, `place`, `put_along_axis` |
@@ -327,8 +327,15 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   half is the length divided by two, plus one.
 - `irfft` takes the parts of that half and the length of the signal.
   A count of the parts that does not hold the length is a fault.
-- `fftshift` moves the zero frequency to the middle. It holds a flat
-  array of frequencies, so it takes no axis.
+- `fftshift` and `ifftshift` roll every axis, as NumPy does with its
+  default. For an odd length the two differ. They take no `axes`
+  option.
+- `fftn`, `ifftn`, `fft2c` and `ifft2` take the real parts and the
+  imaginary parts as two arrays of one shape. `fft2` takes a real
+  matrix only. `fft2c` takes both parts. The transforms take no `s`
+  option for padding or cropping, and no `axes` option.
+- `rfftfreq` gives the frequencies from zero to half the rate. A step
+  of zero or a length below one is a fault.
 - The generator comes from the standard library. A seed gives the
   same numbers on every run and on both supported versions. The
   package holds no entropy of the machine, so the caller gives the

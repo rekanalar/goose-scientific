@@ -287,21 +287,9 @@ fn fftfreq(n: i64, d: f64) -> Arr, Fault {
 }
 
 // fftshift moves the zero frequency to the middle of the
-// frequencies.
+// frequencies, along every axis.
 fn fftshift(a) -> Arr, Fault {
-    let n = a.data.len;
-    var d: f64[>..] = [];
-    var half = n / 2;
-    var i: i64 = 0;
-    while i < n {
-        var k = i + half;
-        if k >= n { k = k - n; }
-        d.push(a.data[k]);
-        i += 1;
-    }
-    let s: i64[..8] = [];
-    s.push(n);
-    return Arr { ndim: 1, shape: s, data: d }, no_fault();
+    return shift_axes(a, false);
 }
 
 // fft2 gives the transform of a matrix along both axes.
