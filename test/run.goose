@@ -4110,6 +4110,29 @@ fn test_sparse_join() {
     return;
 }
 
+// bicgstab and gmres are pinned against the dense solution of NumPy.
+fn test_krylov() {
+    let a, fa = scientific::csr_from_dense(mx(8, 8, [4.0, -1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, -2.0, 4.1, -0.95, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, -2.0, 4.2, -0.9, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, -2.0, 4.3, -0.85, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, -2.0, 4.4, -0.8, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, -2.0, 4.5, -0.75, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.0, 4.6, -0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.0, 4.7]));
+    assert(fa.kind == scientific::F_NONE);
+    let b = [1.0, -2.0, 3.0, 0.5, -1.0, 2.0, 1.5, -0.5];
+    let want = [0.1387735113564285, -0.28519591834488306, 0.5824268411536323, 0.31942007245880555, 0.00031157404565690866, 0.541786991355806, 0.5832244173464183, 0.14179762440273116];
+    let x1, c1, f1 = scientific::bicgstab(a, b, 1.0e-12);
+    assert(f1.kind == scientific::F_NONE && c1 == 0 && all_near(x1, want));
+    let x2, c2, f2 = scientific::gmres(a, b, 1.0e-12);
+    assert(f2.kind == scientific::F_NONE && c2 == 0 && all_near(x2, want));
+    // A restart shorter than the side still reaches the answer.
+    let x3, c3, f3 = scientific::gmres(a, b, 1.0e-12, 3);
+    assert(f3.kind == scientific::F_NONE && c3 == 0 && all_near(x3, want));
+    // The right side must fit the matrix.
+    let e1, k1, g1 = scientific::gmres(a, [1.0, 2.0]);
+    assert(g1.kind == scientific::F_SHAPE);
+    let e2, k2, g2 = scientific::bicgstab(a, [1.0, 2.0]);
+    assert(g2.kind == scientific::F_SHAPE);
+    let e3, k3, g3 = scientific::gmres(a, b, 1.0e-5, 0);
+    assert(g3.kind == scientific::F_VALUE);
+    return;
+}
+
 fn test_matfun() {
     let eg, egf = scientific::from_rows(3, 3, [4.0, 1.0, 0.0, 1.0, 3.0, 0.5, 0.0, 0.5, 2.0]);
     let ew, ev, evf = scientific::eigh(eg);
@@ -4220,6 +4243,7 @@ fn main() {
     test_cheby1();
     test_hfftn();
     test_sparse_join();
+    test_krylov();
     test_generators();
     test_indexing();
     test_sort_and_search();

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.59.0";
+import scientific from "rekanalar/goose-scientific@v0.60.0";
 ```
 
 ## API
@@ -80,7 +80,7 @@ import scientific from "rekanalar/goose-scientific@v0.59.0";
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `solve_ivp` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `freqz`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `resample` |
-| Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `spsolve`, `cg` |
+| Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `spsolve`, `cg`, `bicgstab`, `gmres` |
 | Functions of matrices | `sqrtm`, `logm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
@@ -138,6 +138,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   stays at 2048 or below. They take the whole range of eigenvalues
   only, with no `select` and no `lower`-form `a_band` of a general
   band. The sign of an eigenvector may differ from SciPy.
+- `bicgstab` and `gmres` solve a square system from a start of zero.
+  They give the solution and a count: zero on success. They take no
+  preconditioner, no start vector and no callback. The path of the
+  iteration may differ from SciPy, so only the solution matches.
 - `csr_hstack` and `csr_vstack` join two matrices, not a list. Call them
   again for more. `csr_kron` takes two matrices.
 - The sparse type holds compressed rows only, in the type `Csr`. The
