@@ -49,6 +49,7 @@ import array_stats;
 import array_ufunc;
 import array_assemble;
 import array_select;
+import array_products;
 import array_grid;
 import array_buffer;
 import array_fftn;

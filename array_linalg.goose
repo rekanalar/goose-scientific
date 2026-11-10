@@ -44,7 +44,7 @@ fn matmul(a, b) -> Arr, Fault {
 }
 
 // dot gives the product of two arrays. Two rows give a number. A row
-// and a matrix give a row. A matrix and a row give a column.
+// and a matrix give a row. A matrix and a row give a row.
 fn dot(a, b) -> Arr, Fault {
     if a.ndim == 1 && b.ndim == 1 {
         if a.data.len != b.data.len {
@@ -61,25 +61,25 @@ fn dot(a, b) -> Arr, Fault {
         return Arr { ndim: 0, shape: [], data: d }, no_fault();
     }
     if a.ndim == 2 && b.ndim == 1 {
-        if a.shape[0] != b.data.len {
+        if a.shape[1] != b.data.len {
             return empty_arr(), fault(F_SHAPE, "dot", "the inner dimensions do not agree");
         }
         let m = a.shape[0];
         let n = a.shape[1];
         var d: f64[>..] = [];
-        var j: i64 = 0;
-        while j < n {
+        var i: i64 = 0;
+        while i < m {
             var t: f64 = 0.0;
             var p: i64 = 0;
-            while p < m {
-                t += a.data[p * n + j] * b.data[p];
+            while p < n {
+                t += a.data[i * n + p] * b.data[p];
                 p += 1;
             }
             d.push(t);
-            j += 1;
+            i += 1;
         }
         var s: i64[..8] = [];
-        s.push(n);
+        s.push(m);
         return Arr { ndim: 1, shape: s, data: d }, no_fault();
     }
     if a.ndim == 1 && b.ndim == 2 {

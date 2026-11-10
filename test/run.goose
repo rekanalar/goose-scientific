@@ -540,9 +540,11 @@ fn test_linalg() {
     let u, f8a = scientific::from_values([1.0, 2.0]);
     let dr, f8 = scientific::dot(u, a);
     assert(f8.kind == scientific::F_NONE && dr.data.len == 3 && dr.data[0] == 9.0 && dr.data[1] == 12.0 && dr.data[2] == 15.0);
-    // dot of a matrix and a row gives a column.
-    let dc, f9 = scientific::dot(a, u);
-    assert(f9.kind == scientific::F_NONE && dc.data.len == 3 && dc.data[0] == 9.0 && dc.data[1] == 12.0 && dc.data[2] == 15.0);
+    // dot of a matrix and a row sums over the last axis of the matrix.
+    let dc, f9 = scientific::dot(a, v);
+    assert(f9.kind == scientific::F_NONE && dc.data.len == 2 && dc.data[0] == 14.0 && dc.data[1] == 32.0);
+    let dcb, f9b = scientific::dot(a, u);
+    assert(f9b.kind == scientific::F_SHAPE && dcb.data.len == 0);
     // The lengths must agree.
     let dw, f9a = scientific::dot(v, w);
     assert(f9a.kind == scientific::F_NONE && dw.data[0] == 32.0);
@@ -3028,6 +3030,131 @@ fn test_select() {
     assert(g28.kind == scientific::F_RANGE && pb.data.len == 0);
 }
 
+fn all_near(a: scientific::Arr&, v: f64[:]) -> bool {
+    if a.data.len != v.len { return false; }
+    var i: i64 = 0;
+    while i < v.len { if !near(a.data[i], v[i]) { return false; } i += 1; }
+    return true;
+}
+
+fn win_is(name: const u8[:], n: i64, fftbins: bool, p: f64, v: f64[:]) -> bool {
+    let w, f = scientific::get_window(name, n, fftbins, p);
+    assert(f.kind == scientific::F_NONE);
+    return all_near(w, v);
+}
+
+// The products, the windows and the old polynomial functions.
+fn test_products() {
+    let nan = 0.0 / 0.0;
+    // products
+    let vd, g0 = scientific::vdot(av([1.0, 2.0, 3.0]), av([4.0, 5.0, 6.0]));
+    assert(g0.kind == scientific::F_NONE && vd == 32.0);
+    let vx, g1 = scientific::vander([1.0, 2.0, 3.0], 4);
+    assert(g1.kind == scientific::F_NONE && same_vals(vx, [3, 4], [1.0, 1.0, 1.0, 1.0, 8.0, 4.0, 2.0, 1.0, 27.0, 9.0, 3.0, 1.0]));
+    let vi, g2 = scientific::vander([1.0, 2.0, 3.0], 0, true);
+    assert(g2.kind == scientific::F_NONE && same_vals(vi, [3, 3], [1.0, 1.0, 1.0, 1.0, 2.0, 4.0, 1.0, 3.0, 9.0]));
+    let a, ga = scientific::reshape(seq(6), [2, 3]);
+    let b, gb = scientific::reshape(seq(12), [3, 4]);
+    let c3, gc = scientific::reshape(seq(24), [2, 3, 4]);
+    assert(ga.kind == scientific::F_NONE && gb.kind == scientific::F_NONE && gc.kind == scientific::F_NONE);
+    let td, g3 = scientific::tensordot(c3, b, [1, 2], [0, 1]);
+    assert(g3.kind == scientific::F_NONE && same_vals(td, [2], [506.0, 1298.0]));
+    let tn, g4 = scientific::tensordot_n(a, b, 1);
+    assert(g4.kind == scientific::F_NONE && same_vals(tn, [2, 4], [20.0, 23.0, 26.0, 29.0, 56.0, 68.0, 80.0, 92.0]));
+    let tb, g5 = scientific::tensordot(a, b, [0], [0]);
+    assert(g5.kind == scientific::F_SHAPE && tb.data.len == 0);
+    let vc, g6 = scientific::vecdot(a, a);
+    assert(g6.kind == scientific::F_NONE && same_vals(vc, [2], [5.0, 50.0]));
+    let mv, g7 = scientific::matvec(a, av([1.0, 0.0, 1.0]));
+    assert(g7.kind == scientific::F_NONE && same_vals(mv, [2], [2.0, 8.0]));
+    let es, g8 = scientific::einsum("ij,jk->ik", a, b);
+    assert(g8.kind == scientific::F_NONE && same_vals(es, [2, 4], [20.0, 23.0, 26.0, 29.0, 56.0, 68.0, 80.0, 92.0]));
+    let sq, gq = scientific::reshape(seq(9), [3, 3]);
+    assert(gq.kind == scientific::F_NONE);
+    let e1, g9 = scientific::einsum1("ii", sq);
+    assert(g9.kind == scientific::F_NONE && same_vals(e1, [1], [12.0]));
+    let e2, g10 = scientific::einsum1("ij->ji", a);
+    assert(g10.kind == scientific::F_NONE && same_vals(e2, [3, 2], [0.0, 3.0, 1.0, 4.0, 2.0, 5.0]));
+    let e3, g11 = scientific::einsum("i,i", av([0.0, 1.0, 2.0]), av([0.0, 1.0, 2.0]));
+    assert(g11.kind == scientific::F_NONE && same_vals(e3, [1], [5.0]));
+    let e4, g12 = scientific::einsum("ij,kj", a, a);
+    assert(g12.kind == scientific::F_NONE && same_vals(e4, [2, 2], [5.0, 14.0, 14.0, 50.0]));
+    let e5, g13 = scientific::einsum1("ii->i", sq);
+    assert(g13.kind == scientific::F_NONE && same_vals(e5, [3], [0.0, 4.0, 8.0]));
+    let e6, g14 = scientific::einsum1("ij", a);
+    assert(g14.kind == scientific::F_NONE && same_vals(e6, [2, 3], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]));
+    let e7, g15 = scientific::einsum("ij,jk", a, a);
+    assert(g15.kind == scientific::F_SHAPE && e7.data.len == 0);
+    let e8, g16 = scientific::einsum1("i...", a);
+    assert(g16.kind == scientific::F_VALUE && e8.data.len == 0);
+    // windows
+    assert(win_is("hann", 6, false, nan, [0.0, 0.34549150281252633, 0.9045084971874737, 0.9045084971874737, 0.34549150281252633, 0.0]));
+    assert(win_is("hamming", 5, true, nan, [0.08000000000000007, 0.3978521825875243, 0.9121478174124759, 0.9121478174124759, 0.3978521825875243]));
+    assert(win_is("triang", 6, false, nan, [0.16666666666666666, 0.5, 0.8333333333333334, 0.8333333333333334, 0.5, 0.16666666666666666]));
+    assert(win_is("bartlett", 6, false, nan, [0.0, 0.4, 0.8, 0.8, 0.4, 0.0]));
+    assert(win_is("blackman", 6, false, nan, [0.0, 0.2007701432625305, 0.8492298567374694, 0.8492298567374694, 0.2007701432625305, 0.0]));
+    assert(win_is("blackmanharris", 6, false, nan, [6.0000000000001025e-05, 0.10301148934566379, 0.7938335106543363, 0.7938335106543363, 0.10301148934566379, 6.0000000000001025e-05]));
+    assert(win_is("nuttall", 6, false, nan, [0.0003628000000000381, 0.11051525304987181, 0.7982580969501283, 0.7982580969501283, 0.11051525304987181, 0.0003628000000000381]));
+    assert(win_is("flattop", 6, false, nan, [-0.0004210510000000013, -0.06771425207621193, 0.606872152576212, 0.606872152576212, -0.06771425207621193, -0.0004210510000000013]));
+    assert(win_is("bohman", 6, false, nan, [0.0, 0.1791238937062839, 0.8343114522576858, 0.8343114522576855, 0.1791238937062838, 0.0]));
+    assert(win_is("barthann", 6, false, nan, [0.0, 0.35857354213752, 0.8794264578624801, 0.8794264578624801, 0.3585735421375199, 0.0]));
+    assert(win_is("cosine", 6, false, nan, [0.25881904510252074, 0.7071067811865475, 0.9659258262890682, 0.9659258262890683, 0.7071067811865476, 0.258819045102521]));
+    assert(win_is("lanczos", 6, false, nan, [0.0, 0.5045511524271046, 0.935489283788639, 0.935489283788639, 0.5045511524271046, 0.0]));
+    assert(win_is("parzen", 6, false, nan, [0.009259259259259254, 0.25, 0.8611111111111112, 0.8611111111111112, 0.25, 0.009259259259259254]));
+    assert(win_is("kaiser", 6, false, 5.0, [0.036710892271286676, 0.4149036392433668, 0.9138124838692001, 0.9138124838692001, 0.4149036392433668, 0.036710892271286676]));
+    assert(win_is("gaussian", 6, false, 1.5, [0.24935220877729622, 0.6065306597126334, 0.9459594689067654, 0.9459594689067654, 0.6065306597126334, 0.24935220877729622]));
+    assert(win_is("tukey", 6, false, 0.4, [0.0, 1.0, 1.0, 1.0, 1.0, 0.0]));
+    assert(win_is("tukey", 7, false, nan, [0.0, 0.75, 1.0, 1.0, 1.0, 0.75, 0.0]));
+    assert(win_is("exponential", 6, false, 2.0, [0.2865047968601901, 0.4723665527410147, 0.7788007830714049, 0.7788007830714049, 0.4723665527410147, 0.2865047968601901]));
+    let hn, g17 = scientific::hanning(5);
+    assert(g17.kind == scientific::F_NONE && all_near(hn, [0.0, 0.5, 1.0, 0.5, 0.0]));
+    let hm, g18 = scientific::hamming(5);
+    assert(g18.kind == scientific::F_NONE && all_near(hm, [0.08, 0.54, 1.0, 0.54, 0.08]));
+    let bl, g19 = scientific::blackman(5);
+    assert(g19.kind == scientific::F_NONE && all_near(bl, [0.0, 0.34, 1.0, 0.34, 0.0]));
+    let ba, g20 = scientific::bartlett(5);
+    assert(g20.kind == scientific::F_NONE && all_near(ba, [0.0, 0.5, 1.0, 0.5, 0.0]));
+    let ka, g21 = scientific::kaiser(5, 8.6);
+    assert(g21.kind == scientific::F_NONE && all_near(ka, [0.0013325139979024198, 0.34039362244018856, 1.0, 0.34039362244018856, 0.0013325139979024198]));
+    let h1, g22 = scientific::hanning(1);
+    assert(g22.kind == scientific::F_NONE && same_vals(h1, [1], [1.0]));
+    let h0, g23 = scientific::hanning(0);
+    assert(g23.kind == scientific::F_RANGE && h0.data.len == 0);
+    let kb, g24 = scientific::kaiser(5, 701.0);
+    assert(g24.kind == scientific::F_RANGE && kb.data.len == 0);
+    let wn, g25 = scientific::get_window("nope", 5);
+    assert(g25.kind == scientific::F_VALUE && wn.data.len == 0);
+    // the old polynomial functions
+    let pa, h0a = scientific::polyadd([1.0, 2.0], [0.0, 0.0, 3.0]);
+    assert(h0a.kind == scientific::F_NONE && same_vals(pa, [3], [0.0, 1.0, 5.0]));
+    let ps, h1a = scientific::polysub([1.0, 2.0, 3.0], [1.0, 2.0]);
+    assert(h1a.kind == scientific::F_NONE && same_vals(ps, [3], [1.0, 1.0, 1.0]));
+    let pm, h2a = scientific::polymul([1.0, 2.0], [1.0, -2.0, 0.0]);
+    assert(h2a.kind == scientific::F_NONE && same_vals(pm, [4], [1.0, 0.0, -4.0, 0.0]));
+    let q1, r1, h3a = scientific::polydiv([1.0, 0.0, -1.0], [1.0, 1.0]);
+    assert(h3a.kind == scientific::F_NONE && same_vals(q1, [2], [1.0, -1.0]) && same_vals(r1, [1], [0.0]));
+    let q2, r2, h4a = scientific::polydiv([2.0, 3.0], [1.0, 0.0, 0.0]);
+    assert(h4a.kind == scientific::F_NONE && same_vals(q2, [1], [0.0]) && same_vals(r2, [2], [2.0, 3.0]));
+    let q3, r3, h5a = scientific::polydiv([0.0, 0.0, 1.0], [2.0]);
+    assert(h5a.kind == scientific::F_NONE && same_vals(q3, [3], [0.0, 0.0, 0.5]) && same_vals(r3, [1], [0.0]));
+    let q4, r4, h6a = scientific::polydiv([1.0], [0.0, 1.0]);
+    assert(h6a.kind == scientific::F_VALUE && q4.data.len == 0 && r4.data.len == 0);
+    let d1, h7a = scientific::polyder([3.0, 2.0, 1.0]);
+    assert(h7a.kind == scientific::F_NONE && same_vals(d1, [2], [6.0, 2.0]));
+    let d2, h8a = scientific::polyder([3.0, 2.0, 1.0], 2);
+    assert(h8a.kind == scientific::F_NONE && same_vals(d2, [1], [6.0]));
+    let d3, h9a = scientific::polyder([3.0, 2.0, 1.0], 3);
+    assert(h9a.kind == scientific::F_NONE && same_vals(d3, [1], [0.0]));
+    let i1, h10a = scientific::polyint([3.0, 2.0, 1.0]);
+    assert(h10a.kind == scientific::F_NONE && all_near(i1, [1.0, 1.0, 1.0, 0.0]));
+    let i2, h11a = scientific::polyint([3.0, 2.0, 1.0], 2, [1.0, 2.0]);
+    assert(h11a.kind == scientific::F_NONE && all_near(i2, [0.25, 1.0 / 3.0, 0.5, 1.0, 2.0]));
+    let pr, h12a = scientific::poly([1.0, 2.0, 3.0]);
+    assert(h12a.kind == scientific::F_NONE && same_vals(pr, [4], [1.0, -6.0, 11.0, -6.0]));
+    let pre, pim, h13a = scientific::poly_cplx([1.0, 1.0, 3.0], [1.0, -1.0, 0.0]);
+    assert(h13a.kind == scientific::F_NONE && all_near(pre, [1.0, -5.0, 8.0, -6.0]) && all_near(pim, [0.0, 0.0, 0.0, 0.0]));
+}
+
 fn main() {
     test_create();
     test_shape();
@@ -3058,6 +3185,7 @@ fn main() {
     test_ufunc();
     test_assemble();
     test_select();
+    test_products();
     test_generators();
     test_indexing();
     test_sort_and_search();

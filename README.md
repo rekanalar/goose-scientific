@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.40.0";
+import scientific from "rekanalar/goose-scientific@v0.41.0";
 ```
 
 ## API
@@ -72,6 +72,7 @@ import scientific from "rekanalar/goose-scientific@v0.40.0";
 | The rest of the elementwise math | `fmax`, `fmin`, `heaviside`, `logaddexp`, `logaddexp2`, `ldexp`, `frexp`, `modf`, `sinc`, `i0`, `gcd`, `lcm`, `bitwise_and`, `bitwise_or`, `bitwise_xor`, `invert`, `left_shift`, `right_shift`, `bitwise_count`, `unwrap`, and the names `float_power`, `pow`, `remainder`, `radians`, `degrees`, `acos`, `asin`, `atan`, `atan2`, `acosh`, `asinh`, `atanh`, `bitwise_not`, `bitwise_invert`, `bitwise_left_shift`, `bitwise_right_shift`, `concat`, `amax`, `amin`, `ndim` |
 | Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
+| Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -102,6 +103,22 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- `vecdot` takes two arrays of one shape and does not broadcast.
+  `matvec` and `vecmat` take one matrix and one row, with no batch axes.
+  `tensordot_n` is `tensordot` with the count form of `axes`.
+- `einsum` takes two operands and `einsum1` takes one. The rule holds
+  letters, a comma and an arrow, but no ellipsis. It holds at most 8
+  distinct letters. A length of one broadcasts.
+- `get_window` knows 18 names. They are boxcar, triang, bartlett,
+  hann, hamming, blackman, blackmanharris, nuttall, flattop, bohman,
+  barthann, cosine, lanczos, parzen, kaiser, gaussian, tukey and
+  exponential. The windows chebwin, dpss, taylor, general_cosine and
+  the others stay out.
+  `kaiser` takes beta up to 700.
+- `polyder` of a constant gives `[0]`, where NumPy gives an empty
+  array, because the package holds no empty array. `polyint` takes the
+  constants of the integration as a list. `poly_cplx` takes the roots
+  as two lists and gives both parts, which NumPy would hold in one array.
 - `choose` takes the choices stacked along the first axis, and the
   index must hold the shape of one choice. `piecewise` takes constants
   in place of functions. `compress` and `extract` give a fault when no
@@ -405,16 +422,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   of the axis. Weights that add up to zero are a fault.
 - The order statistics along an axis drop the axis, as the other
   reductions do.
-- `nanmedian`, `nanpercentile`, `nanargmin` and `nanargmax` stay
-  out.
 - A matrix is an array with two dimensions. The package holds one
   array type.
 - `dot` of two rows gives a number. It is held in an array of no
   dimension.
-- `dot` of a row and a matrix takes the last axis of the row.
-  It also takes the first axis of the matrix.
-- `dot` of a matrix and a row takes the first axis of the matrix.
-  It also takes the last axis of the row.
+- `dot` of a row and a matrix sums over the row and the first axis of
+  the matrix. `dot` of a matrix and a row sums over the last axis of
+  both, as NumPy does. The old form summed over the first axis of the
+  matrix. The old form was wrong.
 - `norm` gives the Frobenius norm of a matrix and the second norm of
   a row. Both are the square root of the sum of the squares.
 - `solve`, `inv` and `det` use a Gaussian elimination with a partial
