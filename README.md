@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.18.0";
+import scientific from "rekanalar/goose-scientific@v0.19.0";
 ```
 
 ## API
@@ -31,6 +31,7 @@ import scientific from "rekanalar/goose-scientific@v0.18.0";
 | Logic | `equal`, `not_equal`, `less`, `less_equal`, `greater`, `greater_equal`, `logical_and`, `logical_or`, `logical_xor`, `logical_not`, `isnan`, `isinf`, `isfinite`, `all`, `any`, `count_nonzero`, `where` |
 | Reductions | `sum`, `prod`, `min`, `max`, `mean`, `argmin`, `argmax` |
 | Reductions along an axis | `sum_axis`, `prod_axis`, `min_axis`, `max_axis`, `mean_axis`, `var_axis`, `std_axis` |
+| Reductions that skip NaN | `nansum`, `nanprod`, `nanmin`, `nanmax`, `nanmean`, `nanvar`, `nanstd`, `nansum_axis`, `nanprod_axis`, `nanmin_axis`, `nanmax_axis`, `nanmean_axis`, `nanvar_axis`, `nanstd_axis`, `nan_to_num` |
 | Running and spread | `cumsum`, `cumprod`, `diff`, `flip`, `variance`, `std`, `ptp` |
 | Indexing | `slice_axis`, `take`, `put`, `nonzero`, `mask`, `take_along_axis`, `repeat`, `tile`, `flatten`, `partition` |
 | Sorting | `sort`, `argsort`, `sort_axis`, `unique`, `unique_sorted`, `roll` |
@@ -91,6 +92,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   takes any permutation of the axes.
 - An axis reduction drops the reduced axis from the shape. It has no
   `keepdims` option. Use `expand_dims` on the result instead.
+- The reductions that skip NaN work on the values that are not NaN.
+  `nansum` and `nanprod` give 0 and 1 for an array of only NaN. The
+  other five give NaN, as NumPy does, and they raise no warning.
+- `nanvar` and `nanstd` divide by the count of the values that are
+  not NaN, less `ddof`. A divisor below one gives NaN. A `ddof` below
+  zero is a fault.
+- `nan_to_num` takes a value for NaN, one for the positive infinity
+  and one for the negative infinity. The defaults are zero, the
+  largest double and the least double. `nanmedian`, `nanpercentile`,
+  `nanargmin` and `nanargmax` stay out.
 - `argmin` and `argmax` give the flat position of the first extreme.
   They take no axis.
 - The elementwise math holds the functions of this table. The
@@ -363,6 +374,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   the value.
 - `nextafter` and `spacing` give the smallest number of the machine
   for a value of zero. No fault comes from the value.
+- A NaN reduction never faults on a value. An array of only NaN gives
+  a neutral value or NaN. A caller that needs a number checks the
+  result with `is_nan` of the standard library.
 - A bad axis, or a permutation that repeats an axis, is a fault. The
   check runs before any element moves.
 - The sort of a large array takes a long time. A caller that sorts a
