@@ -4084,6 +4084,32 @@ fn test_hfftn() {
     return;
 }
 
+// csr_kron, csr_hstack and csr_vstack are pinned against SciPy.
+fn test_sparse_join() {
+    let a, fa = scientific::csr_from_dense(mx(2, 3, [1.0, 0.0, 2.0, 0.0, 0.0, 3.0]));
+    let b, fb = scientific::csr_from_dense(mx(3, 2, [0.0, 4.0, 5.0, 6.0, 0.0, 7.0]));
+    let bt, fbt = scientific::csr_from_dense(mx(2, 3, [0.0, 5.0, 0.0, 4.0, 6.0, 7.0]));
+    let c, fc = scientific::csr_from_dense(mx(2, 3, [2.0, 0.0, 0.0, 0.0, -1.0, 1.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE && fbt.kind == scientific::F_NONE && fc.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kron(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 6 && k.cols == 6 && k.nnz == 12);
+    let kd, fkd = scientific::csr_to_dense(k);
+    assert(fkd.kind == scientific::F_NONE && all_near(kd, [0.0, 4.0, 0.0, 0.0, 0.0, 8.0, 5.0, 6.0, 0.0, 0.0, 10.0, 12.0, 0.0, 7.0, 0.0, 0.0, 0.0, 14.0, 0.0, 0.0, 0.0, 0.0, 0.0, 12.0, 0.0, 0.0, 0.0, 0.0, 15.0, 18.0, 0.0, 0.0, 0.0, 0.0, 0.0, 21.0]));
+    let h, fh = scientific::csr_hstack(a, bt);
+    assert(fh.kind == scientific::F_NONE && h.cols == 6);
+    let hd, fhd = scientific::csr_to_dense(h);
+    assert(fhd.kind == scientific::F_NONE && all_near(hd, [1.0, 0.0, 2.0, 0.0, 5.0, 0.0, 0.0, 0.0, 3.0, 4.0, 6.0, 7.0]));
+    let v, fv = scientific::csr_vstack(a, c);
+    assert(fv.kind == scientific::F_NONE && v.rows == 4);
+    let vd, fvd = scientific::csr_to_dense(v);
+    assert(fvd.kind == scientific::F_NONE && all_near(vd, [1.0, 0.0, 2.0, 0.0, 0.0, 3.0, 2.0, 0.0, 0.0, 0.0, -1.0, 1.0]));
+    let e1, g1 = scientific::csr_hstack(a, b);
+    assert(g1.kind == scientific::F_SHAPE);
+    let e2, g2 = scientific::csr_vstack(a, b);
+    assert(g2.kind == scientific::F_SHAPE);
+    return;
+}
+
 fn test_matfun() {
     let eg, egf = scientific::from_rows(3, 3, [4.0, 1.0, 0.0, 1.0, 3.0, 0.5, 0.0, 0.5, 2.0]);
     let ew, ev, evf = scientific::eigh(eg);
@@ -4193,6 +4219,7 @@ fn main() {
     test_interpn();
     test_cheby1();
     test_hfftn();
+    test_sparse_join();
     test_generators();
     test_indexing();
     test_sort_and_search();

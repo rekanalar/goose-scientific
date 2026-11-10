@@ -446,3 +446,93 @@ fn cg(s, b: f64[:], rtol: f64 = 1.0e-5, maxiter: i64 = 0) -> Arr, i64, Fault {
     if mathshim::root(rs) <= rtol * bn { return line_arr(copy(x)), 0, no_fault(); }
     return line_arr(copy(x)), turn, no_fault();
 }
+
+// csr_kron gives the Kronecker product of two sparse matrices.
+fn csr_kron(a, b) -> Csr, Fault {
+    let rows = a.rows * b.rows;
+    let cols = a.cols * b.cols;
+    let c = csr_check(rows, cols, "csr_kron");
+    if c.kind != F_NONE { return csr_empty(), c; }
+    if a.nnz * b.nnz > MAX_SPARSE_NNZ {
+        return csr_empty(), fault(F_LIMIT, "csr_kron", "the count of stored values is above the limit");
+    }
+    var ri: f64[>..] = [];
+    var ci: f64[>..] = [];
+    var v: f64[>..] = [];
+    var i: i64 = 0;
+    while i < a.rows {
+        var p = csr_ptr(a, i);
+        while p < csr_ptr(a, i + 1) {
+            var k: i64 = 0;
+            while k < b.rows {
+                var q = csr_ptr(b, k);
+                while q < csr_ptr(b, k + 1) {
+                    ri.push((i * b.rows + k) as f64);
+                    ci.push((csr_col(a, p) * b.cols + csr_col(b, q)) as f64);
+                    v.push(csr_val(a, p) * csr_val(b, q));
+                    q += 1;
+                }
+                k += 1;
+            }
+            p += 1;
+        }
+        i += 1;
+    }
+    return csr_from_triplets(rows, cols, ri, ci, v);
+}
+
+// csr_hstack joins two sparse matrices side by side. They hold the same
+// count of rows.
+fn csr_hstack(a, b) -> Csr, Fault {
+    if a.rows != b.rows {
+        return csr_empty(), fault(F_SHAPE, "csr_hstack", "the matrices differ in rows");
+    }
+    var ri: f64[>..] = [];
+    var ci: f64[>..] = [];
+    var v: f64[>..] = [];
+    var i: i64 = 0;
+    while i < a.rows {
+        var p = csr_ptr(a, i);
+        while p < csr_ptr(a, i + 1) {
+            ri.push(i as f64);
+            ci.push(csr_col(a, p) as f64);
+            v.push(csr_val(a, p));
+            p += 1;
+        }
+        p = csr_ptr(b, i);
+        while p < csr_ptr(b, i + 1) {
+            ri.push(i as f64);
+            ci.push((a.cols + csr_col(b, p)) as f64);
+            v.push(csr_val(b, p));
+            p += 1;
+        }
+        i += 1;
+    }
+    return csr_from_triplets(a.rows, a.cols + b.cols, ri, ci, v);
+}
+
+// csr_vstack joins two sparse matrices one above the other. They hold
+// the same count of columns.
+fn csr_vstack(a, b) -> Csr, Fault {
+    if a.cols != b.cols {
+        return csr_empty(), fault(F_SHAPE, "csr_vstack", "the matrices differ in columns");
+    }
+    var ri: f64[>..] = [];
+    var ci: f64[>..] = [];
+    var v: f64[>..] = [];
+    var i: i64 = 0;
+    while i < a.rows + b.rows {
+        var p: i64 = 0;
+        var end: i64 = 0;
+        if i < a.rows { p = csr_ptr(a, i); end = csr_ptr(a, i + 1); }
+        else { p = csr_ptr(b, i - a.rows); end = csr_ptr(b, i - a.rows + 1); }
+        while p < end {
+            ri.push(i as f64);
+            if i < a.rows { ci.push(csr_col(a, p) as f64); v.push(csr_val(a, p)); }
+            else { ci.push(csr_col(b, p) as f64); v.push(csr_val(b, p)); }
+            p += 1;
+        }
+        i += 1;
+    }
+    return csr_from_triplets(a.rows + b.rows, a.cols, ri, ci, v);
+}
