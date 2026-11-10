@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.85.0";
+import scientific from "rekanalar/goose-scientific@v0.86.0";
 ```
 
 ## API
@@ -79,7 +79,7 @@ import scientific from "rekanalar/goose-scientific@v0.85.0";
 | Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `odeint` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
-| Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `residue`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
+| Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `residue`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
@@ -489,7 +489,17 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - Poles of one size, such as a complex pair, may come in the other
   order than in SciPy. Each pole keeps its own residue.
 - `residue` takes at most 257 coefficients in a polynomial.
-- `bessel` and `residuez` stay missing.
+- `residuez` takes real coefficients from the constant term up. The
+  poles stay the roots of the denominator in z. Its limits follow
+  `residue`.
+- `invres` and `invresz` take the residues and the poles as real
+  parts and imaginary parts. They give real coefficients. A result
+  with a complex coefficient is a fault. The residues and the poles
+  must hold the same count, and a group of poles must sit side by
+  side.
+- `unique_roots` takes the roots as real parts and imaginary parts
+  and gives the same form. It takes at most 4096 roots.
+- `bessel` stays missing.
 - `lfilter` takes no initial state and no axis. `filtfilt` takes the
   odd extension of SciPy. The pad holds three times the coefficient
   count. No other pad option exists.
@@ -1027,6 +1037,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   faults on an unknown rule and on more than 257 coefficients. SciPy lets a
   negative `tol` give an empty group and an error deep in the call.
   The checks also bound the work of the root finder.
+- `invres`, `invresz`, `residuez` and `unique_roots` check their input
+  as `residue` does. They fault on a value that is not finite.
+  They also fault on a bad `tol`, a bad rule and a count above the
+  limit.
 - `cheby1`, `cheby2` and `ellip` fault on a ripple outside zero to
   one million. They also fault on an order above 32. A large value
   cannot make the design overflow into infinite coefficients.
