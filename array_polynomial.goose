@@ -223,7 +223,7 @@ fn polynomial_integ(p) -> Polynomial {
 // polynomial_roots gives the roots of the polynomial. The method is
 // the companion matrix of array_poly, so the roots of a polynomial
 // with a double root hold few digits.
-fn polynomial_roots(p) -> Arr, Fault {
+fn polynomial_roots(p) -> Arr, Arr, Fault {
     var c: f64[>..] = [];
     poly_low(p.coe, c);
     return roots(c);

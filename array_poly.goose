@@ -63,63 +63,6 @@ fn polyfit(x: f64[:], y: f64[:], deg: i64) -> Arr, Fault {
     s.push(deg + 1);
     return Arr { ndim: 1, shape: s, data: out }, no_fault();
 }
-
-// roots gives the roots of a polynomial. The coefficients come from
-// the highest power to the lowest. A root that holds a complex number
-// is a fault.
-fn roots(coeffs: f64[:]) -> Arr, Fault {
-    // The leading coefficient must not be zero.
-    var i: i64 = 0;
-    while i < coeffs.len {
-        if coeffs[i] != 0.0 { break; }
-        i += 1;
-    }
-    if i >= coeffs.len {
-        return empty_arr(), fault(F_VALUE, "roots", "the polynomial holds no term");
-    }
-    // The polynomial without its leading zeros.
-    var c: f64[>..] = [];
-    var j: i64 = i;
-    while j < coeffs.len {
-        c.push(coeffs[j]);
-        j += 1;
-    }
-    let n = c.len - 1;
-    if n == 0 {
-        // The polynomial holds no root.
-        var s0: i64[..8] = [];
-        s0.push(0);
-        return Arr { ndim: 1, shape: s0, data: [] }, no_fault();
-    }
-    // The companion matrix holds the roots as its eigenvalues.
-    var mat: f64[>..] = [];
-    var r: i64 = 0;
-    while r < n * n { mat.push(0.0); r += 1; }
-    r = 0;
-    while r < n - 1 {
-        mat[r * n + r + 1] = 1.0;
-        r += 1;
-    }
-    r = 0;
-    while r < n {
-        mat[(n - 1) * n + r] = -c[n - r] / c[0];
-        r += 1;
-    }
-    let vals, vecs, f = eig(mat2(copy(mat), n, n));
-    if f.kind != F_NONE { return empty_arr(), f; }
-    // The values of the iteration hold few digits. A turn of the
-    // Newton method gives the full digits.
-    var out: f64[>..] = [];
-    var i: i64 = 0;
-    while i < n {
-        out.push(newton_root(c, vals.data[i]));
-        i += 1;
-    }
-    var s: i64[..8] = [];
-    s.push(n);
-    return Arr { ndim: 1, shape: s, data: out }, no_fault();
-}
-
 // mat2 builds a matrix from a buffer of elements.
 fn mat2(d: f64[>..], rows: i64, cols: i64) -> Arr {
     var s: i64[..8] = [];
@@ -136,25 +79,3 @@ fn vec1(d: f64[>..]) -> Arr {
 }
 
 // newton_root gives the root of a polynomial that lies near a value.
-// The coefficients come from the highest power to the lowest.
-fn newton_root(c: f64[:], x: f64) -> f64 {
-    var r = x;
-    var pass: i64 = 0;
-    while pass < 8 {
-        // The value of the polynomial and its derivative.
-        var t: f64 = 0.0;
-        var dt: f64 = 0.0;
-        var i: i64 = 0;
-        while i < c.len {
-            dt = dt * r + t;
-            t = t * r + c[i];
-            i += 1;
-        }
-        if dt == 0.0 { break; }
-        let step = t / dt;
-        r = r - step;
-        if step < 0.0000000000000001 && step > -0.0000000000000001 { break; }
-        pass += 1;
-    }
-    return r;
-}

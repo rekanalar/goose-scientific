@@ -715,14 +715,40 @@ fn test_svd_and_poly() {
     let ys, f15 = scientific::from_values([1.0, 3.0, 5.0]);
     let fit, f16 = scientific::polyfit(xs.data, ys.data, 1);
     assert(f16.kind == scientific::F_NONE && close(fit.data[0], 2.0) && close(fit.data[1], 1.0));
-    // The roots of a polynomial.
-    let rt, f17 = scientific::roots([1.0, -3.0, 2.0]);
+    // The roots of a polynomial. The parts come in two arrays.
+    let rt, rti, f17 = scientific::roots([1.0, -3.0, 2.0]);
     assert(f17.kind == scientific::F_NONE && rt.data.len == 2);
     assert(close(rt.data[0], 1.0) || close(rt.data[0], 2.0));
     assert(close(rt.data[1], 1.0) || close(rt.data[1], 2.0));
     // A polynomial with no term is a fault.
-    let bad, f18 = scientific::roots([0.0, 0.0]);
+    let bad, badi, f18 = scientific::roots([0.0, 0.0]);
     assert(f18.kind == scientific::F_VALUE);
+    // The roots of a polynomial with complex roots. The values come
+    // from numpy.roots.
+    let cr, cri, f20 = scientific::roots([1.0, 0.0, 1.0]);
+    assert(f20.kind == scientific::F_NONE && cr.data.len == 2);
+    assert(close(cr.data[0], 0.0) && close(cr.data[1], 0.0));
+    assert((close(cri.data[0], 1.0) && close(cri.data[1], -1.0)) || (close(cri.data[0], -1.0) && close(cri.data[1], 1.0)));
+    let cr2, cri2, f21 = scientific::roots([1.0, 0.0, 0.0, -1.0]);
+    assert(f21.kind == scientific::F_NONE && cr2.data.len == 3);
+    // The roots come in no fixed order.
+    var one: i64 = -1;
+    var k: i64 = 0;
+    while k < 3 {
+        if close(cr2.data[k], 1.0) { one = k; }
+        k += 1;
+    }
+    assert(one >= 0 && close(cri2.data[one], 0.0));
+    var j1: i64 = 0;
+    while j1 == one { j1 += 1; }
+    var j2 = j1 + 1;
+    while j2 == one { j2 += 1; }
+    assert(close(cr2.data[j1], -0.5) && close(cr2.data[j2], -0.5));
+    assert((close(cri2.data[j1], 0.8660254037844386) && close(cri2.data[j2], -0.8660254037844386)) || (close(cri2.data[j1], -0.8660254037844386) && close(cri2.data[j2], 0.8660254037844386)));
+    let cr3, cri3, f22 = scientific::roots([2.0, 3.0, 5.0]);
+    assert(f22.kind == scientific::F_NONE && cr3.data.len == 2);
+    assert(close(cr3.data[0], -0.75) && close(cr3.data[1], -0.75));
+    assert((close(cri3.data[0], 1.3919410907075054) && close(cri3.data[1], -1.3919410907075054)) || (close(cri3.data[0], -1.3919410907075054) && close(cri3.data[1], 1.3919410907075054)));
     // A degree below zero is a fault.
     let bad2, f19 = scientific::polyfit(xs.data, ys.data, -1);
     assert(f19.kind == scientific::F_VALUE);
@@ -1863,9 +1889,10 @@ fn test_polynomial() {
     assert(d2.coe.len == 1 && d2.coe[0] == 6.0);
     let ig = scientific::polynomial_integ(p);
     assert(ig.coe.len == 4 && ig.coe[0] == 0.0 && close(ig.coe[3], 1.0));
-    let rp, fr = scientific::polynomial_roots(scientific::polynomial([-1.0, 0.0, 1.0]));
+    let rp, rpi, fr = scientific::polynomial_roots(scientific::polynomial([-1.0, 0.0, 1.0]));
     assert(fr.kind == scientific::F_NONE);
-    assert(close(rp.data[0], -1.0) && close(rp.data[1], 1.0));
+    assert((close(rp.data[0], -1.0) && close(rp.data[1], 1.0)) || (close(rp.data[0], 1.0) && close(rp.data[1], -1.0)));
+    assert(close(rpi.data[0], 0.0) && close(rpi.data[1], 0.0));
     let frp = scientific::polynomial_fromroots([1.0, -1.0]);
     assert(close(frp.coe[0], -1.0) && frp.coe[1] == 0.0 && close(frp.coe[2], 1.0));
     let pw, f3 = scientific::polynomial_pow(q, 2);

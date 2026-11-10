@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.34.0";
+import scientific from "rekanalar/goose-scientific@v0.35.0";
 ```
 
 ## API
@@ -52,6 +52,7 @@ import scientific from "rekanalar/goose-scientific@v0.34.0";
 | Eigenvalues | `eigvals`, `eig`, `eigvalsh`, `eigh` |
 | Singular values | `svd`, `svdvals`, `lstsq`, `matrix_rank`, `cond`, `pinv(a, rtol=-1)` |
 | Polynomials | `polyval`, `polyfit`, `roots` |
+| Complex numbers | `Cplx`, `c_add`, `c_sub`, `c_mul`, `c_div`, `c_abs`, `c_conj`, `c_scale`, `c_value`, `roots_of` |
 | Polynomial type | `polynomial`, `polynomial_call`, `polynomial_degree`, `polynomial_add`, `polynomial_sub`, `polynomial_mul`, `polynomial_pow`, `polynomial_divmod`, `polynomial_der`, `polynomial_integ`, `polynomial_roots`, `polynomial_fromroots`, `polynomial_fit`, `polynomial_cutdeg`, `polynomial_linspace` |
 | Transforms | `fft`, `ifft`, `fft2`, `fft2c`, `ifft2`, `fftn`, `ifftn`, `fftfreq`, `rfftfreq`, `fftshift`, `ifftshift`, `rfft`, `irfft` |
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
@@ -106,8 +107,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   class of NumPy holds none by default.
 - `polynomial_linspace` takes the range and the count. The linspace
   of NumPy takes them from the domain with a count of 100.
-- `polynomial_roots` gives the roots of a polynomial with real
-  coefficients. A double root holds few digits.
+- `polynomial_roots` gives the real parts and the imaginary parts of
+  the roots in two arrays. The old form gave one array. A repeated
+  root holds fewer digits.
 - The names of NumPy take the generator as the first argument,
   because the package holds no global state. `seed` returns a
   generator. `bytes` fills a buffer of the caller and returns no
@@ -385,8 +387,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   of exact rank deficiency gives the result of NumPy to about 1e-14.
 - The coefficients of a polynomial come from the highest power to the
   lowest, as NumPy holds them.
-- `roots` uses the eigenvalues of the companion matrix. A root that
-  holds a complex number is a fault.
+- `roots` uses the rule of Durand and Kerner, so it finds real and
+  complex roots. It gives the real parts and the imaginary parts in
+  two arrays, as `fft` does. The old form gave one array and made a
+  complex root a fault. The new form gives `re, im, fault`. The
+  roots come in no fixed order, and a repeated root holds fewer
+  digits.
 - The transform works on two arrays: one holds the real parts and one
   holds the imaginary parts. The package holds no complex type.
 - `fft` takes every length. A power of two takes the radix-2 method.
