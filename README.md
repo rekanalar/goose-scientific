@@ -100,7 +100,7 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `argwhere` gives one row of positions per element that is not zero,
   and one column per dimension. No match gives zero rows. NumPy gives
   the same shape.
-- `isclose` holds the rule of NumPy: the difference sits under the
+- `isclose` holds the rule of NumPy. The difference sits under the
   absolute size plus the relative size times the second number. The
   infinity equals itself. The missing value matches itself only under
   the flag.
