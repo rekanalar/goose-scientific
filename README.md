@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.46.0";
+import scientific from "rekanalar/goose-scientific@v0.47.0";
 ```
 
 ## API
@@ -78,6 +78,7 @@ import scientific from "rekanalar/goose-scientific@v0.46.0";
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
 | Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `solve_ivp` |
+| Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -108,6 +109,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- `linprog` takes flat lists by row for the matrices and runs the two
+  phase simplex with the rule of Bland. The cost is dense, and a side
+  holds up to 2048 values. A problem with no point or with no least
+  value is a fault. The simplex gives a vertex. When the optimum is
+  not unique, SciPy may give another vertex. The arguments `method`,
+  `callback`, `options` and the integer variables stay out.
+- `nnls` solves the passive system by the normal equations, so a
+  matrix with a large condition number loses digits.
+- `linear_sum_assignment` takes a finite cost. When several pairings
+  hold the same total, the pairing may differ from SciPy.
+- `approx_fprime` takes the forward difference. `bisect` and `ridder`
+  stop by the absolute tolerance only.
 - `quad` uses the rule of Gauss and Kronrod of 21 points and bisects
   the interval of the largest error. The ends may be infinite. The
   estimate of the error differs from QUADPACK, because the package
