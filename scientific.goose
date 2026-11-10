@@ -42,6 +42,7 @@ import array_integrate;
 import array_interpolate;
 import array_signal;
 import array_grid;
+import array_buffer;
 
 // The kinds of a fault. A fault holds a kind, the name of the check
 // and a short detail.

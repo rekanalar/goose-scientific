@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.26.0";
+import scientific from "rekanalar/goose-scientific@v0.27.0";
 ```
 
 ## API
@@ -29,6 +29,7 @@ import scientific from "rekanalar/goose-scientific@v0.26.0";
 | Grids | `meshgrid(x, y, indexing="xy", sparse=false)`, `cross` |
 | Positions | `argwhere`, `flatnonzero` |
 | Histograms of two dimensions | `histogram2d(x, y, xbins=10, ybins=10)`, `histogramdd(points, bins=10)` |
+| Buffer | `frombuffer(data, count=-1, offset=0)`, `fromfile(path, count=-1)` |
 | Closeness | `isclose(a, b, rtol=1e-05, atol=1e-08, equal_nan=false)`, `allclose(...)`, `array_equal(a, b, equal_nan=false)` |
 | Shape | `reshape`, `ravel`, `transpose`, `transpose_perm`, `squeeze`, `expand_dims`, `concatenate`, `stack`, `broadcast_shapes`, `index` |
 | Elementwise | `add`, `sub`, `mul`, `div`, `power`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `log2`, `log10`, `scale`, `clip`, `sign`, `floor`, `ceil`, `round`, `trunc`, `rint`, `fix`, `square`, `sin`, `cos`, `tan`, `arcsin`, `arccos`, `arctan`, `arctan2`, `sinh`, `cosh`, `tanh`, `arcsinh`, `arccosh`, `arctanh`, `expm1`, `log1p`, `reciprocal`, `deg2rad`, `rad2deg`, `signbit`, `isneginf`, `isposinf`, `floor_divide`, `mod`, `fmod`, `cbrt`, `hypot`, `exp2`, `nextafter`, `copysign`, `spacing` |
@@ -113,6 +114,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `histogramdd` takes rows of points. Each column holds one dimension.
   The edges come back as one row per dimension. The counts sit in the
   order of the rows of the grid, so the last dimension runs fastest.
+- `frombuffer` and `fromfile` decode numbers of 64 bits, least
+  significant byte first, as the NumPy default does. The package holds
+  no other type of number, so there is no `dtype` option. A buffer
+  that holds no whole count of numbers is a fault.
+- `fromfile` drops a rest of fewer than eight bytes at the end, as
+  NumPy does. A count above the file takes what the file holds. A file
+  that does not read is a value fault. It reads the whole file into
+  memory first, so the caller bounds the size of the file.
 - `array_equal` takes one shape and equal elements. It takes no
   broadcast, as NumPy does not.
 - `flatnonzero` gives the flat positions of the elements that are not
