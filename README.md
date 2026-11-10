@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.64.0";
+import scientific from "rekanalar/goose-scientific@v0.65.0";
 ```
 
 ## API
@@ -64,7 +64,7 @@ import scientific from "rekanalar/goose-scientific@v0.64.0";
 | Between the points | `interp`, `gradient`, `pad_value` |
 | Root finding | `brentq`, `brenth`, `newton`, `fsolve`, `root_scalar` |
 | Minimization | `minimize_scalar`, `minimize`, `least_squares`, `curve_fit` |
-| Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `romberg` |
+| Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `cumulative_simpson`, `cumulative_simpson_dx`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
 | Filters | `butter`, `lfilter`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
@@ -766,6 +766,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   last part, as NumPy does.
 - `cumulative_trapezoid` takes the running total. The result holds
   one value fewer than the signal, as NumPy does.
+- `cumulative_simpson` takes the signal and the places and gives the
+  integral up to every point. The intervals may differ in width. The
+  rule of Simpson of Cartwright gives each of them. A signal of two
+  values falls back to the trapezoid. The result holds one value fewer
+  than the signal.
+- `cumulative_simpson_dx` takes one spacing for every interval. Neither
+  function takes an axis, a start value or a shape other than one
+  dimension.
 - `romberg` takes the extrapolation of Romberg. The count of the
   parts of the grid holds a power of two, as the method of the
   references holds. A count that holds no power of two is a fault.

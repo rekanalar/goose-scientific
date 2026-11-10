@@ -166,3 +166,92 @@ fn four_power(k: i64) -> f64 {
     while i < k { p *= 4.0; i += 1; }
     return p;
 }
+
+// simpson_unequal gives the integral over the interval from the first
+// value to the second, when the two spacings differ. The three values
+// are the values of the function at the three points.
+fn simpson_unequal(f1: f64, f2: f64, f3: f64, x21: f64, x32: f64) -> f64 {
+    let x31 = x21 + x32;
+    let c1 = 3.0 - x21 / x31;
+    let c2 = 3.0 + (x21 / x31) * (x21 / x32) + x21 / x31;
+    let c3 = -(x21 / x31) * (x21 / x32);
+    return x21 / 6.0 * (c1 * f1 + c2 * f2 + c3 * f3);
+}
+
+// simpson_equal gives the integral over the interval from the first
+// value to the second, when every spacing is the same.
+fn simpson_equal(f1: f64, f2: f64, f3: f64, d: f64) -> f64 {
+    return d / 3.0 * (5.0 * f1 / 4.0 + 2.0 * f2 - f3 / 4.0);
+}
+
+// cumulative_simpson gives the integral of the values up to every
+// point. The signal holds the values and the places hold the
+// coordinates. The places must rise. The result holds one value less
+// than the signal, as SciPy gives it without a start value. The
+// intervals are unequal, so the rule of Simpson of Cartwright gives
+// each of them. A signal of two values falls back to the rule of the
+// trapezoid.
+fn cumulative_simpson(y: f64[:], places: f64[:]) -> Arr, Fault {
+    let n = y.len;
+    if n < 2 || places.len != n {
+        return empty_arr(), fault(F_SHAPE, "cumulative_simpson", "the signal and the places differ in count");
+    }
+    var i: i64 = 1;
+    while i < n {
+        if !(places[i] > places[i - 1]) {
+            return empty_arr(), fault(F_VALUE, "cumulative_simpson", "the places do not rise");
+        }
+        i += 1;
+    }
+    if n == 2 {
+        let t, f = cumulative_trapezoid(y, places[1] - places[0]);
+        if f.kind != F_NONE { return empty_arr(), f; }
+        return t, no_fault();
+    }
+    // The integrals over the intervals of the first kind and of the
+    // second kind. The second kind runs from the last value backwards.
+    var h1: f64[>..] = [];
+    var h2: f64[>..] = [];
+    i = 0;
+    while i < n - 2 {
+        h1.push(simpson_unequal(y[i], y[i + 1], y[i + 2], places[i + 1] - places[i], places[i + 2] - places[i + 1]));
+        h2.push(simpson_unequal(y[i + 2], y[i + 1], y[i], places[i + 2] - places[i + 1], places[i + 1] - places[i]));
+        i += 1;
+    }
+    // The intervals take turns: the first kind, the second kind, and so
+    // on. The last interval takes the second kind.
+    var sub: f64[>..] = [];
+    i = 0;
+    while i < n - 1 {
+        if i % 2 == 0 && i < n - 2 { sub.push(h1[i]); }
+        else { sub.push(h2[i - 1]); }
+        i += 1;
+    }
+    var out: f64[>..] = [];
+    var total: f64 = 0.0;
+    i = 0;
+    while i < n - 1 {
+        total += sub[i];
+        out.push(total);
+        i += 1;
+    }
+    var s: i64[..8] = [];
+    s.push(out.len);
+    return Arr { ndim: 1, shape: s, data: copy(out) }, no_fault();
+}
+
+// cumulative_simpson_dx gives the integral of the values up to every
+// point, when every spacing is the same.
+fn cumulative_simpson_dx(y: f64[:], dx: f64) -> Arr, Fault {
+    let n = y.len;
+    if n < 2 {
+        return empty_arr(), fault(F_SHAPE, "cumulative_simpson", "the signal holds fewer than two values");
+    }
+    if !(dx > 0.0) {
+        return empty_arr(), fault(F_VALUE, "cumulative_simpson", "the spacing holds zero or a negative value");
+    }
+    var places: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n { places.push(i * dx); i += 1; }
+    return cumulative_simpson(y, places);
+}

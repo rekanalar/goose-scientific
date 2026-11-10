@@ -4241,6 +4241,28 @@ fn test_bins_and_weights() {
     return;
 }
 
+// cumulative_simpson is pinned against SciPy.
+fn test_cumulative_simpson() {
+    let x = [0.0, 1.0, 2.5, 4.0, 6.0, 9.5];
+    let y = [1.0, 2.0, 0.5, 3.0, 2.0, 4.0];
+    let r1, f1 = scientific::cumulative_simpson(y, x);
+    assert(f1.kind == scientific::F_NONE && r1.data.len == 5);
+    assert(all_near(r1, [1.6333333333333333, 3.958333333333333, 6.931547619047619, 12.756944444444445, 21.86489898989899]));
+    let r2, f2 = scientific::cumulative_simpson_dx(y, 2.0);
+    assert(f2.kind == scientific::F_NONE && all_near(r2, [3.4166666666666665, 6.333333333333333, 10.416666666666666, 16.0, 21.5]));
+    // A signal of two values falls back to the trapezoid.
+    let r3, f3 = scientific::cumulative_simpson([1.0, 3.0], [0.0, 2.0]);
+    assert(f3.kind == scientific::F_NONE && all_near(r3, [4.0]));
+    // The places must rise.
+    let b1, g1 = scientific::cumulative_simpson(y, [0.0, 1.0, 1.0, 4.0, 6.0, 9.5]);
+    assert(g1.kind == scientific::F_VALUE);
+    let b2, g2 = scientific::cumulative_simpson(y, [0.0, 1.0]);
+    assert(g2.kind == scientific::F_SHAPE);
+    let b3, g3 = scientific::cumulative_simpson_dx(y, 0.0);
+    assert(g3.kind == scientific::F_VALUE);
+    return;
+}
+
 fn test_matfun() {
     let eg, egf = scientific::from_rows(3, 3, [4.0, 1.0, 0.0, 1.0, 3.0, 0.5, 0.0, 0.5, 2.0]);
     let ew, ev, evf = scientific::eigh(eg);
@@ -4356,6 +4378,7 @@ fn main() {
     test_root_scalar();
     test_cheby2();
     test_bins_and_weights();
+    test_cumulative_simpson();
     test_generators();
     test_indexing();
     test_sort_and_search();
