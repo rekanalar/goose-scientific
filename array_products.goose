@@ -17,59 +17,131 @@ fn vdot(a, b) -> f64, Fault {
     return t, no_fault();
 }
 
-// vecdot sums the products of two arrays of one shape along an axis.
-// The result drops the axis. A row gives a row of one element. The
-// package does not broadcast the two shapes.
+// vecdot sums the products of two arrays along an axis. The other
+// dimensions broadcast. The result drops the axis.
 fn vecdot(a, b, axis: i64 = -1) -> Arr, Fault {
-    if a.ndim != b.ndim {
-        return empty_arr(), fault(F_SHAPE, "vecdot", "the arrays hold different counts of dimensions");
-    }
-    var i: i64 = 0;
-    while i < a.ndim {
-        if a.shape[i] != b.shape[i] {
-            return empty_arr(), fault(F_SHAPE, "vecdot", "the shapes differ");
-        }
-        i += 1;
+    if a.ndim < 1 || b.ndim < 1 {
+        return empty_arr(), fault(F_SHAPE, "vecdot", "an operand holds no dimension");
     }
     let ax = fix_axis(axis, a.ndim);
-    if ax < 0 {
+    let bx = fix_axis(axis, b.ndim);
+    if ax < 0 || bx < 0 {
         return empty_arr(), fault(F_RANGE, "vecdot", "the axis stands outside the shape");
     }
+    if a.shape[ax] != b.shape[bx] {
+        return empty_arr(), fault(F_SHAPE, "vecdot", "the lengths of the axis do not agree");
+    }
     let width = a.shape[ax];
-    let inner = product_after_of(a.shape, ax);
-    let outer = product_before_of(a.shape, ax);
+    // The dimensions that the arrays keep when they drop the axis.
+    var ab: i64[..8] = [];
+    var bb: i64[..8] = [];
+    var i: i64 = 0;
+    while i < a.ndim { if i != ax { ab.push(a.shape[i]); } i += 1; }
+    i = 0;
+    while i < b.ndim { if i != bx { bb.push(b.shape[i]); } i += 1; }
+    let cb, fb = batch_shape(ab, bb);
+    if fb.kind != F_NONE { return empty_arr(), fb; }
+    var astr: i64[>..] = [];
+    var bstr: i64[>..] = [];
+    batch_strides(a.shape, ax, astr);
+    batch_strides(b.shape, bx, bstr);
+    let astep = product_after_of(a.shape, ax);
+    let bstep = product_after_of(b.shape, bx);
+    let batch = batch_count(cb);
+    var idx: i64[>..] = [];
+    i = 0;
+    while i < cb.len { idx.push(0); i += 1; }
     var d: f64[>..] = [];
-    var o: i64 = 0;
-    while o < outer {
-        var j: i64 = 0;
-        while j < inner {
-            var t: f64 = 0.0;
-            var k: i64 = 0;
-            while k < width {
-                let at = o * width * inner + k * inner + j;
-                t += a.data[at] * b.data[at];
-                k += 1;
-            }
-            d.push(t);
-            j += 1;
+    var bi: i64 = 0;
+    while bi < batch {
+        batch_step(cb, idx, bi);
+        let aoff = batch_off(ab, astr, idx, cb.len);
+        let boff = batch_off(bb, bstr, idx, cb.len);
+        var t: f64 = 0.0;
+        var k: i64 = 0;
+        while k < width {
+            t = t + a.data[aoff + k * astep] * b.data[boff + k * bstep];
+            k += 1;
         }
-        o += 1;
+        d.push(t);
+        bi += 1;
     }
     var s: i64[..8] = [];
     i = 0;
-    while i < a.ndim { if i != ax { s.push(a.shape[i]); } i += 1; }
-    if s.len == 0 { s.push(1); }
+    while i < cb.len { s.push(cb[i]); i += 1; }
     return Arr { ndim: s.len, shape: s, data: d }, no_fault();
 }
 
-// matvec multiplies a matrix by a row. The result is a row.
-fn matvec(a, v) -> Arr, Fault {
-    if a.ndim != 2 || v.ndim != 1 {
+// matvec multiplies a matrix by a row. The last two dimensions of the
+// first operand give the matrices. The row is the last dimension of the
+// second operand. The other dimensions broadcast.
+fn matvec(a, b) -> Arr, Fault {
+    if a.ndim < 2 || b.ndim < 1 {
         return empty_arr(), fault(F_SHAPE, "matvec", "the operands are not a matrix and a row");
     }
-    let r, f = dot(a, v);
-    if f.kind != F_NONE { return empty_arr(), fault(f.kind, "matvec", f.detail); }
-    return ravel(r);
+    let m = a.shape[a.ndim - 2];
+    let n = a.shape[a.ndim - 1];
+    if b.shape[b.ndim - 1] != n {
+        return empty_arr(), fault(F_SHAPE, "matvec", "the inner dimensions do not agree");
+    }
+    // The dimensions that the arrays keep before the matrix.
+    var ab: i64[..8] = [];
+    var bb: i64[..8] = [];
+    var i: i64 = 0;
+    while i < a.ndim - 2 { ab.push(a.shape[i]); i += 1; }
+    i = 0;
+    while i < b.ndim - 1 { bb.push(b.shape[i]); i += 1; }
+    let cb, fb = batch_shape(ab, bb);
+    if fb.kind != F_NONE { return empty_arr(), fb; }
+    // The steps of the batch dimensions.
+    var astr: i64[>..] = [];
+    var bstr: i64[>..] = [];
+    i = 0;
+    while i < ab.len { astr.push(0); i += 1; }
+    i = 0;
+    while i < bb.len { bstr.push(0); i += 1; }
+    var acc: i64 = m * n;
+    i = ab.len - 1;
+    while i >= 0 { astr[i] = acc; acc = acc * ab[i]; i -= 1; }
+    acc = n;
+    i = bb.len - 1;
+    while i >= 0 { bstr[i] = acc; acc = acc * bb[i]; i -= 1; }
+    var batch: i64 = 1;
+    i = 0;
+    while i < cb.len {
+        if cb[i] > 0 && batch > MAX_ELEMENTS / cb[i] {
+            return empty_arr(), fault(F_LIMIT, "matvec", "the result holds more elements than the limit");
+        }
+        batch = batch * cb[i];
+        i += 1;
+    }
+    var idx: i64[>..] = [];
+    i = 0;
+    while i < cb.len { idx.push(0); i += 1; }
+    var d: f64[>..] = [];
+    var bi: i64 = 0;
+    while bi < batch {
+        batch_step(cb, idx, bi);
+        let aoff = batch_off(ab, astr, idx, cb.len);
+        let boff = batch_off(bb, bstr, idx, cb.len);
+        var r: i64 = 0;
+        while r < m {
+            var t: f64 = 0.0;
+            var p: i64 = 0;
+            while p < n {
+                t = t + a.data[aoff + r * n + p] * b.data[boff + p];
+                p += 1;
+            }
+            d.push(t);
+            r += 1;
+        }
+        bi += 1;
+    }
+    var s: i64[..8] = [];
+    i = 0;
+    while i < cb.len { s.push(cb[i]); i += 1; }
+    s.push(m);
+    return Arr { ndim: s.len, shape: s, data: d }, no_fault();
 }
 
 // vecmat multiplies a row by a matrix. The result is a row.
@@ -197,236 +269,6 @@ fn tensordot_n(a, b, n: i64) -> Arr, Fault {
     var i: i64 = 0;
     while i < n { xa.push(a.ndim - n + i); xb.push(i); i += 1; }
     return tensordot(a, b, xa, xb);
-}
-
-// ein_label turns a letter into a number of 0 to 51. Another character
-// gives -1.
-fn ein_label(c: i64) -> i64 {
-    if c >= 65 && c <= 90 { return c - 65; }
-    if c >= 97 && c <= 122 { return c - 97 + 26; }
-    return -1;
-}
-
-// einsum_run sums the products of one or two arrays by a rule of
-// letters, as einsum of NumPy does. The caller passes the first array
-// again for the second place when the rule holds one operand.
-fn einsum_run(spec: const u8[:], a, b, nops: i64) -> Arr, Fault {
-    var labs: i64[..16] = [];
-    var cut: i64[..4] = [];
-    var outl: i64[..16] = [];
-    var part: i64 = 0;
-    var arrow = false;
-    cut.push(0);
-    var i: i64 = 0;
-    while i < spec.len {
-        let c = spec[i] as i64;
-        if c == 32 { i += 1; continue; }
-        if c == 44 {
-            if arrow || part + 1 >= nops {
-                return empty_arr(), fault(F_VALUE, "einsum", "the rule holds more operands than the call");
-            }
-            part += 1;
-            cut.push(labs.len);
-        } else if c == 45 {
-            if arrow || i + 1 >= spec.len || spec[i + 1] != 62 {
-                return empty_arr(), fault(F_VALUE, "einsum", "the rule holds a broken arrow");
-            }
-            arrow = true;
-            i += 1;
-        } else {
-            let l = ein_label(c);
-            if l < 0 {
-                return empty_arr(), fault(F_VALUE, "einsum", "the rule holds a character that is no letter");
-            }
-            if arrow { outl.push(l); }
-            else {
-                if labs.len >= 16 {
-                    return empty_arr(), fault(F_LIMIT, "einsum", "the rule holds too many letters");
-                }
-                labs.push(l);
-            }
-        }
-        i += 1;
-    }
-    if part + 1 != nops {
-        return empty_arr(), fault(F_VALUE, "einsum", "the rule holds fewer operands than the call");
-    }
-    cut.push(labs.len);
-    if cut.len < 2 || cut[1] - cut[0] != a.ndim || (nops == 2 && cut[2] - cut[1] != b.ndim) {
-        return empty_arr(), fault(F_SHAPE, "einsum", "the letters do not match the dimensions");
-    }
-    // The distinct letters and their lengths.
-    var ids: i64[..8] = [];
-    var size: i64[..8] = [];
-    var count: i64[..8] = [];
-    var op: i64 = 0;
-    while op < nops {
-        var p = cut[op];
-        while p < cut[op + 1] {
-            var dim = a.shape[p - cut[op]];
-            if op == 1 { dim = b.shape[p - cut[op]]; }
-            var at: i64 = -1;
-            var q: i64 = 0;
-            while q < ids.len { if ids[q] == labs[p] { at = q; } q += 1; }
-            if at < 0 {
-                if ids.len >= 8 {
-                    return empty_arr(), fault(F_LIMIT, "einsum", "the rule holds too many distinct letters");
-                }
-                ids.push(labs[p]);
-                size.push(dim);
-                count.push(1);
-            } else {
-                count[at] += 1;
-                if size[at] == 1 { size[at] = dim; }
-                else if dim != 1 && dim != size[at] {
-                    return empty_arr(), fault(F_SHAPE, "einsum", "a letter holds two different lengths");
-                }
-            }
-            p += 1;
-        }
-        op += 1;
-    }
-    // The letters of the result.
-    var ord: i64[..8] = [];
-    if arrow {
-        var q: i64 = 0;
-        while q < outl.len {
-            var at: i64 = -1;
-            var r: i64 = 0;
-            while r < ids.len { if ids[r] == outl[q] { at = r; } r += 1; }
-            if at < 0 {
-                return empty_arr(), fault(F_VALUE, "einsum", "a letter of the result stands in no operand");
-            }
-            r = 0;
-            while r < ord.len {
-                if ord[r] == at {
-                    return empty_arr(), fault(F_VALUE, "einsum", "a letter of the result repeats");
-                }
-                r += 1;
-            }
-            ord.push(at);
-            q += 1;
-        }
-    } else {
-        // The letters that stand once, in the order of the alphabet.
-        var l: i64 = 0;
-        while l < 52 {
-            var q: i64 = 0;
-            while q < ids.len {
-                if ids[q] == l && count[q] == 1 { ord.push(q); }
-                q += 1;
-            }
-            l += 1;
-        }
-    }
-    let nout = ord.len;
-    var rest: i64[..8] = [];
-    var q: i64 = 0;
-    while q < ids.len {
-        var in_out = false;
-        var r: i64 = 0;
-        while r < nout { if ord[r] == q { in_out = true; } r += 1; }
-        if !in_out { rest.push(q); }
-        q += 1;
-    }
-    var all: i64[..8] = [];
-    q = 0;
-    while q < nout { all.push(ord[q]); q += 1; }
-    q = 0;
-    while q < rest.len { all.push(rest[q]); q += 1; }
-    // The strides of every operand for every letter of the loop.
-    var sa: i64[>..] = [];
-    strides_of(a.shape, sa);
-    var sb: i64[>..] = [];
-    strides_of(b.shape, sb);
-    var stride_a: i64[..8] = [];
-    var stride_b: i64[..8] = [];
-    var total: i64 = 1;
-    var o_stride: i64[..8] = [];
-    var ototal: i64 = 1;
-    q = nout - 1;
-    while q >= 0 { o_stride.push(0); q -= 1; }
-    q = 0;
-    while q < all.len {
-        var ta: i64 = 0;
-        var tb: i64 = 0;
-        var p: i64 = 0;
-        while p < cut[1] - cut[0] {
-            if labs[p] == ids[all[q]] && a.shape[p] != 1 { ta += sa[p]; }
-            p += 1;
-        }
-        if nops == 2 {
-            p = 0;
-            while p < cut[2] - cut[1] {
-                if labs[cut[1] + p] == ids[all[q]] && b.shape[p] != 1 { tb += sb[p]; }
-                p += 1;
-            }
-        }
-        stride_a.push(ta);
-        stride_b.push(tb);
-        total *= size[all[q]];
-        if total > MAX_ELEMENTS {
-            return empty_arr(), fault(F_LIMIT, "einsum", "the loop holds more steps than the limit");
-        }
-        q += 1;
-    }
-    var os: i64[..8] = [];
-    var run: i64 = 1;
-    q = nout - 1;
-    var rev: i64[..8] = [];
-    while q >= 0 { rev.push(run); run *= size[ord[q]]; q -= 1; }
-    ototal = run;
-    q = 0;
-    while q < nout { os.push(rev[nout - 1 - q]); q += 1; }
-    var d: f64[>..] = [];
-    q = 0;
-    while q < ototal { d.push(0.0); q += 1; }
-    var pos: i64[..8] = [];
-    q = 0;
-    while q < all.len { pos.push(0); q += 1; }
-    var step: i64 = 0;
-    while step < total {
-        var ia: i64 = 0;
-        var ib: i64 = 0;
-        var io: i64 = 0;
-        q = 0;
-        while q < all.len {
-            ia += pos[q] * stride_a[q];
-            ib += pos[q] * stride_b[q];
-            if q < nout { io += pos[q] * os[q]; }
-            q += 1;
-        }
-        var t = a.data[ia];
-        if nops == 2 { t = t * b.data[ib]; }
-        d[io] = d[io] + t;
-        q = all.len - 1;
-        while q >= 0 {
-            pos[q] += 1;
-            if pos[q] < size[all[q]] { break; }
-            pos[q] = 0;
-            q -= 1;
-        }
-        step += 1;
-    }
-    var s: i64[..8] = [];
-    q = 0;
-    while q < nout { s.push(size[ord[q]]); q += 1; }
-    if s.len == 0 { s.push(1); }
-    return Arr { ndim: s.len, shape: s, data: d }, no_fault();
-}
-
-// einsum sums the products of two arrays by a rule of letters, such as
-// "ij,jk->ik". A letter that repeats inside one operand walks its
-// diagonal. A result with no letter is a row of one element. The rule
-// holds no ellipsis.
-fn einsum(spec: const u8[:], a, b) -> Arr, Fault {
-    return einsum_run(spec, a, b, 2);
-}
-
-// einsum1 applies a rule of letters to one array, such as "ii" or
-// "ij->ji".
-fn einsum1(spec: const u8[:], a) -> Arr, Fault {
-    return einsum_run(spec, a, a, 1);
 }
 
 // The windows. The symmetric window of m points comes first.

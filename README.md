@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.101.0";
+import scientific from "rekanalar/goose-scientific@v0.102.0";
 ```
 
 ## API
@@ -72,7 +72,7 @@ import scientific from "rekanalar/goose-scientific@v0.101.0";
 | The rest of the elementwise math | `fmax`, `fmin`, `heaviside`, `logaddexp`, `logaddexp2`, `ldexp`, `frexp`, `modf`, `sinc`, `i0`, `gcd`, `lcm`, `bitwise_and`, `bitwise_or`, `bitwise_xor`, `invert`, `left_shift`, `right_shift`, `bitwise_count`, `unwrap`, and the names `float_power`, `pow`, `remainder`, `radians`, `degrees`, `acos`, `asin`, `atan`, `atan2`, `acosh`, `asinh`, `atanh`, `bitwise_not`, `bitwise_invert`, `bitwise_left_shift`, `bitwise_right_shift`, `concat`, `amax`, `amin`, `ndim` |
 | Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
-| Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `general_cosine`, `general_hamming`, `general_gaussian`, `taylor`, `chebwin`, `kaiser_bessel_derived`, `dpss`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
+| Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `einsum3`, `einsum_set`, `ESet`, `eset_new`, `eset_add`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `general_cosine`, `general_hamming`, `general_gaussian`, `taylor`, `chebwin`, `kaiser_bessel_derived`, `dpss`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `null_space`, `orth`, `expm` |
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
@@ -375,12 +375,21 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   partial pivoting, as LAPACK does, so the cost grows with the side and
   the band. A singular matrix is a fault.
 - `logm`, `sqrtm` and `eig_banded` stay out.
-- `vecdot` takes two arrays of one shape and does not broadcast.
-  `matvec` and `vecmat` take one matrix and one row, with no batch axes.
+- `matmul`, `matvec` and `vecdot` follow the batch rule of NumPy. The
+  batch dimensions broadcast. A row operand of `matmul` takes the place
+  of a matrix with one row or one column.
+- `matmul` of two rows and `vecdot` of two rows give an array of no
+  dimension. Old code that read a shape of `[1]` there must read `[]`.
+- `vecmat` takes one row and one matrix, with no batch axes.
   `tensordot_n` is `tensordot` with the count form of `axes`.
-- `einsum` takes two operands and `einsum1` takes one. The rule holds
-  letters, a comma and an arrow, but no ellipsis. It holds at most 8
-  distinct letters. A length of one broadcasts.
+- `einsum` takes two operands, `einsum1` takes one and `einsum3` takes
+  three. For more operands, build an `ESet` with `eset_new` and
+  `eset_add`. Then call `einsum_set`.
+- A set holds at most 8 operands of at most 8 axes each. The rule
+  holds letters, a comma, an arrow and one ellipsis per operand.
+- A rule holds at most 24 distinct letters. A length of one broadcasts.
+- A rule with no letter in the result gives an array of no dimension.
+  Old code that read `[1]` there must read `[]`.
 - `get_window` knows 18 names. These are boxcar, triang, bartlett,
   hann, hamming, blackman, blackmanharris, nuttall, flattop, bohman,
   barthann, cosine, lanczos, parzen, kaiser, gaussian, tukey,

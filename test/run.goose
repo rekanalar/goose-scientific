@@ -544,8 +544,10 @@ fn test_linalg() {
     let bad, f2 = scientific::matmul(a, a);
     assert(f2.kind == scientific::F_SHAPE);
     let row, f3 = scientific::from_values([1.0, 2.0, 3.0]);
-    let bad2, f4 = scientific::matmul(a, row);
-    assert(f4.kind == scientific::F_SHAPE);
+    let col, f4 = scientific::matmul(a, row);
+    assert(f4.kind == scientific::F_NONE && same_vals(col, [2], [14.0, 32.0]));
+    let rowp, f4b = scientific::matmul(row, b);
+    assert(f4b.kind == scientific::F_NONE && same_vals(rowp, [2], [22.0, 28.0]));
     // dot of two rows gives a number.
     let v, f5 = scientific::from_values([1.0, 2.0, 3.0]);
     let w, f6 = scientific::from_values([4.0, 5.0, 6.0]);
@@ -3110,11 +3112,11 @@ fn test_products() {
     let sq, gq = scientific::reshape(seq(9), [3, 3]);
     assert(gq.kind == scientific::F_NONE);
     let e1, g9 = scientific::einsum1("ii", sq);
-    assert(g9.kind == scientific::F_NONE && same_vals(e1, [1], [12.0]));
+    assert(g9.kind == scientific::F_NONE && same_vals(e1, [], [12.0]));
     let e2, g10 = scientific::einsum1("ij->ji", a);
     assert(g10.kind == scientific::F_NONE && same_vals(e2, [3, 2], [0.0, 3.0, 1.0, 4.0, 2.0, 5.0]));
     let e3, g11 = scientific::einsum("i,i", av([0.0, 1.0, 2.0]), av([0.0, 1.0, 2.0]));
-    assert(g11.kind == scientific::F_NONE && same_vals(e3, [1], [5.0]));
+    assert(g11.kind == scientific::F_NONE && same_vals(e3, [], [5.0]));
     let e4, g12 = scientific::einsum("ij,kj", a, a);
     assert(g12.kind == scientific::F_NONE && same_vals(e4, [2, 2], [5.0, 14.0, 14.0, 50.0]));
     let e5, g13 = scientific::einsum1("ii->i", sq);
@@ -3124,7 +3126,106 @@ fn test_products() {
     let e7, g15 = scientific::einsum("ij,jk", a, a);
     assert(g15.kind == scientific::F_SHAPE && e7.data.len == 0);
     let e8, g16 = scientific::einsum1("i...", a);
-    assert(g16.kind == scientific::F_VALUE && e8.data.len == 0);
+    assert(g16.kind == scientific::F_NONE && same_vals(e8, [3, 2], [0.0, 3.0, 1.0, 4.0, 2.0, 5.0]));
+    // The rule of letters with an ellipsis and with three operands.
+    let v3a, f_v3a = scientific::reshape(seq(3), [3]);
+    assert(f_v3a.kind == scientific::F_NONE);
+    let v4a, f_v4a = scientific::reshape(seq(4), [4]);
+    assert(f_v4a.kind == scientific::F_NONE);
+    let v45a, f_v45a = scientific::reshape(seq(20), [4, 5]);
+    assert(f_v45a.kind == scientific::F_NONE);
+    let v52a, f_v52a = scientific::reshape(seq(10), [5, 2]);
+    assert(f_v52a.kind == scientific::F_NONE);
+    let v42a, f_v42a = scientific::reshape(seq(8), [4, 2]);
+    assert(f_v42a.kind == scientific::F_NONE);
+    let v22a, f_v22a = scientific::reshape(seq(4), [2, 2]);
+    assert(f_v22a.kind == scientific::F_NONE);
+    let v245a, f_v245a = scientific::reshape(seq(40), [2, 4, 5]);
+    assert(f_v245a.kind == scientific::F_NONE);
+    let v145a, f_v145a = scientific::reshape(seq(20), [1, 4, 5]);
+    assert(f_v145a.kind == scientific::F_NONE);
+    let v345a, f_v345a = scientific::reshape(seq(60), [3, 4, 5]);
+    assert(f_v345a.kind == scientific::F_NONE);
+    let v24a, f_v24a = scientific::reshape(seq(8), [2, 4]);
+    assert(f_v24a.kind == scientific::F_NONE);
+    let v14a, f_v14a = scientific::reshape(seq(4), [1, 4]);
+    assert(f_v14a.kind == scientific::F_NONE);
+    let v214a, f_v214a = scientific::reshape(seq(8), [2, 1, 4]);
+    assert(f_v214a.kind == scientific::F_NONE);
+    let v13a, f_v13a = scientific::reshape(seq(3), [1, 3]);
+    assert(f_v13a.kind == scientific::F_NONE);
+    let v31a, f_v31a = scientific::reshape(seq(3), [3, 1]);
+    assert(f_v31a.kind == scientific::F_NONE);
+    let v11a, f_v11a = scientific::reshape(seq(1), [1, 1]);
+    assert(f_v11a.kind == scientific::F_NONE);
+
+    let e9, g17 = scientific::einsum("...i,...i->...", a, sq);
+    assert(g17.kind == scientific::F_SHAPE);
+    let e10, g18 = scientific::einsum("...j,...j->...", a, v3a);
+    assert(g18.kind == scientific::F_NONE && same_vals(e10, [2], [5.0, 14.0]));
+    let e11, g19 = scientific::einsum("i...j,...j->i...", a, v3a);
+    assert(g19.kind == scientific::F_NONE && same_vals(e11, [2], [5.0, 14.0]));
+    let e12, g20 = scientific::einsum("...ij,...jk->...ik", c3, v45a);
+    assert(g20.kind == scientific::F_NONE && same_vals(e12, [2, 3, 5], [70.0, 76.0, 82.0, 88.0, 94.0, 190.0, 212.0, 234.0, 256.0, 278.0, 310.0, 348.0, 386.0, 424.0, 462.0, 430.0, 484.0, 538.0, 592.0, 646.0, 550.0, 620.0, 690.0, 760.0, 830.0, 670.0, 756.0, 842.0, 928.0, 1014.0]));
+    let e13, g21 = scientific::einsum("bc,b", v11a, v3a);
+    assert(g21.kind == scientific::F_NONE && same_vals(e13, [1], [0.0]));
+    let e14, g22 = scientific::einsum("ij,ij->", v13a, v31a);
+    assert(g22.kind == scientific::F_NONE && same_vals(e14, [], [9.0]));
+    let e15, g23 = scientific::einsum3("ij,jk,kl->il", a, b, v42a);
+    assert(g23.kind == scientific::F_NONE && same_vals(e15, [2, 2], [324.0, 422.0, 1008.0, 1304.0]));
+    let e16, g24 = scientific::einsum3("ij,jk,kl", a, b, v42a);
+    assert(g24.kind == scientific::F_NONE && same_vals(e16, [2, 2], [324.0, 422.0, 1008.0, 1304.0]));
+    let e17, g25 = scientific::einsum3("...ij,...jk,...kl->...il", c3, v45a, v52a);
+    assert(g25.kind == scientific::F_NONE && same_vals(e17, [2, 3, 2], [1760.0, 2170.0, 5120.0, 6290.0, 8480.0, 10410.0, 11840.0, 14530.0, 15200.0, 18650.0, 18560.0, 22770.0]));
+    var es = scientific::eset_new();
+    var es1 = scientific::eset_add(es, a);
+    var es2 = scientific::eset_add(es1, b);
+    var es3 = scientific::eset_add(es2, v42a);
+    var es4 = scientific::eset_add(es3, v22a);
+    let e18, g26 = scientific::einsum_set("ij,jk,kl,lm->im", es4);
+    assert(g26.kind == scientific::F_NONE && same_vals(e18, [2, 2], [844.0, 1590.0, 2608.0, 4920.0]));
+
+    // The product of two arrays of matrices with the batch rule.
+    let m1, gm1 = scientific::matmul(c3, v45a);
+    assert(gm1.kind == scientific::F_NONE && same_vals(m1, [2, 3, 5], [70.0, 76.0, 82.0, 88.0, 94.0, 190.0, 212.0, 234.0, 256.0, 278.0, 310.0, 348.0, 386.0, 424.0, 462.0, 430.0, 484.0, 538.0, 592.0, 646.0, 550.0, 620.0, 690.0, 760.0, 830.0, 670.0, 756.0, 842.0, 928.0, 1014.0]));
+    let m2, gm2 = scientific::matmul(c3, v245a);
+    assert(gm2.kind == scientific::F_NONE && same_vals(m2, [2, 3, 5], [70.0, 76.0, 82.0, 88.0, 94.0, 190.0, 212.0, 234.0, 256.0, 278.0, 310.0, 348.0, 386.0, 424.0, 462.0, 1510.0, 1564.0, 1618.0, 1672.0, 1726.0, 1950.0, 2020.0, 2090.0, 2160.0, 2230.0, 2390.0, 2476.0, 2562.0, 2648.0, 2734.0]));
+    let m3, gm3 = scientific::matmul(c3, v145a);
+    assert(gm3.kind == scientific::F_NONE && same_vals(m3, [2, 3, 5], [70.0, 76.0, 82.0, 88.0, 94.0, 190.0, 212.0, 234.0, 256.0, 278.0, 310.0, 348.0, 386.0, 424.0, 462.0, 430.0, 484.0, 538.0, 592.0, 646.0, 550.0, 620.0, 690.0, 760.0, 830.0, 670.0, 756.0, 842.0, 928.0, 1014.0]));
+    let m4, gm4 = scientific::matmul(c3, v345a);
+    assert(gm4.kind == scientific::F_SHAPE);
+    let m5, gm5 = scientific::matmul(v3a, b);
+    assert(gm5.kind == scientific::F_NONE && same_vals(m5, [4], [20.0, 23.0, 26.0, 29.0]));
+    let m6, gm6 = scientific::matmul(a, v3a);
+    assert(gm6.kind == scientific::F_NONE && same_vals(m6, [2], [5.0, 14.0]));
+    let m7, gm7 = scientific::matmul(v3a, v3a);
+    assert(gm7.kind == scientific::F_NONE && same_vals(m7, [], [5.0]));
+    let m8, gm8 = scientific::matmul(c3, v4a);
+    assert(gm8.kind == scientific::F_NONE && same_vals(m8, [2, 3], [14.0, 38.0, 62.0, 86.0, 110.0, 134.0]));
+
+    // The product of a matrix and a row with the batch rule.
+    let w1, gw1 = scientific::matvec(a, v3a);
+    assert(gw1.kind == scientific::F_NONE && same_vals(w1, [2], [5.0, 14.0]));
+    let w2, gw2 = scientific::matvec(c3, v24a);
+    assert(gw2.kind == scientific::F_NONE && same_vals(w2, [2, 3], [14.0, 38.0, 62.0, 302.0, 390.0, 478.0]));
+    let w3, gw3 = scientific::matvec(c3, v14a);
+    assert(gw3.kind == scientific::F_NONE && same_vals(w3, [2, 3], [14.0, 38.0, 62.0, 86.0, 110.0, 134.0]));
+    let w4, gw4 = scientific::matvec(c3, v45a);
+    assert(gw4.kind == scientific::F_SHAPE);
+
+    // The dot product of two arrays along an axis with the batch rule.
+    let u1, gu1 = scientific::vecdot(c3, v4a);
+    assert(gu1.kind == scientific::F_NONE && same_vals(u1, [2, 3], [14.0, 38.0, 62.0, 86.0, 110.0, 134.0]));
+    let u2, gu2 = scientific::vecdot(c3, v14a);
+    assert(gu2.kind == scientific::F_NONE && same_vals(u2, [2, 3], [14.0, 38.0, 62.0, 86.0, 110.0, 134.0]));
+    let u3, gu3 = scientific::vecdot(c3, v214a);
+    assert(gu3.kind == scientific::F_NONE && same_vals(u3, [2, 3], [14.0, 38.0, 62.0, 302.0, 390.0, 478.0]));
+    let u4, gu4 = scientific::vecdot(c3, v24a);
+    assert(gu4.kind == scientific::F_SHAPE);
+    let u5, gu5 = scientific::vecdot(v3a, v3a);
+    assert(gu5.kind == scientific::F_NONE && same_vals(u5, [], [5.0]));
+    let u6, gu6 = scientific::vecdot(c3, c3, 1);
+    assert(gu6.kind == scientific::F_NONE && same_vals(u6, [2, 4], [80.0, 107.0, 140.0, 179.0, 800.0, 899.0, 1004.0, 1115.0]));
     // windows
     assert(win_is("hann", 6, false, nan, [0.0, 0.34549150281252633, 0.9045084971874737, 0.9045084971874737, 0.34549150281252633, 0.0]));
     assert(win_is("hamming", 5, true, nan, [0.08000000000000007, 0.3978521825875243, 0.9121478174124759, 0.9121478174124759, 0.3978521825875243]));

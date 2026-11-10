@@ -37,6 +37,73 @@ fn max_i(a: i64, b: i64) -> i64 {
     return b;
 }
 
+// batch_shape gives the shape that the batch dimensions of two arrays
+// share under the broadcast rule. Two empty lists give an empty shape.
+fn batch_shape(sa: i64[:], sb: i64[:]) -> i64[>..], Fault {
+    let n = max_i(sa.len, sb.len);
+    if n > MAX_DIMS {
+        var none: i64[>..] = [];
+        return none, fault(F_LIMIT, "broadcast", "the shape holds more dimensions than the limit");
+    }
+    var out: i64[>..] = [];
+    var i: i64 = 0;
+    while i < n {
+        let a = at_or_one(sa, sa.len - n + i);
+        let b = at_or_one(sb, sb.len - n + i);
+        if a == b { out.push(a); }
+        else if a == 1 { out.push(b); }
+        else if b == 1 { out.push(a); }
+        else {
+            var bad: i64[>..] = [];
+            return bad, fault(F_SHAPE, "broadcast", "the shapes hold two lengths that are not equal and not one");
+        }
+        i += 1;
+    }
+    return out, no_fault();
+}
+
+// batch_count gives the count of the batches of a batch shape.
+fn batch_count(c: i64[:]) -> i64 {
+    var t: i64 = 1;
+    var i: i64 = 0;
+    while i < c.len { t = t * c[i]; i += 1; }
+    return t;
+}
+
+// batch_step decodes one batch index into the index of every batch
+// dimension.
+fn batch_step(c: i64[:], idx: i64[>..]&, bi: i64) {
+    var rem = bi;
+    var q = c.len - 1;
+    while q >= 0 { idx[q] = rem % c[q]; rem = rem / c[q]; q -= 1; }
+    return;
+}
+
+// batch_off gives the place of one batch in an operand. The dimensions
+// of the operand follow the batch rule.
+fn batch_off(dims: i64[:], strides: i64[:], idx: i64[:], n: i64) -> i64 {
+    var o: i64 = 0;
+    var i: i64 = 0;
+    while i < dims.len {
+        if dims[i] != 1 { o = o + idx[i + n - dims.len] * strides[i]; }
+        i += 1;
+    }
+    return o;
+}
+
+// batch_strides gives the steps of the dimensions that an array keeps
+// when it drops one axis.
+fn batch_strides(shape: i64[:], ax: i64, out: i64[>..]&) {
+    var sa: i64[>..] = [];
+    strides_of(shape, sa);
+    var i: i64 = 0;
+    while i < shape.len {
+        if i != ax { out.push(sa[i]); }
+        i += 1;
+    }
+    return;
+}
+
 // at_or_one gives the length at a position, or 1 when the shape has no
 // position there. A position before the start is a caller error and
 // gives 1.

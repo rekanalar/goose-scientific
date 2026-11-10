@@ -50,6 +50,7 @@ import array_ufunc;
 import array_assemble;
 import array_select;
 import array_products;
+import array_einsum;
 import array_scilinalg;
 import array_dct;
 import array_spatial;

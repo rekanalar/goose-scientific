@@ -6,41 +6,100 @@ namespace scientific;
 
 import mathshim;
 
-// matmul multiplies two matrices. The inner dimensions must agree.
+// matmul multiplies two arrays of matrices. The last two dimensions of
+// each operand give the matrices. The other dimensions are the batch
+// dimensions and they broadcast. A row operand takes the place of a
+// matrix with one row or with one column.
 fn matmul(a, b) -> Arr, Fault {
-    if a.ndim != 2 || b.ndim != 2 {
-        return empty_arr(), fault(F_SHAPE, "matmul", "the operands hold a count of dimensions that is not two");
+    if a.ndim < 1 || b.ndim < 1 {
+        return empty_arr(), fault(F_SHAPE, "matmul", "an operand holds no dimension");
     }
-    let m = a.shape[0];
-    let k = a.shape[1];
-    let k2 = b.shape[0];
-    let n = b.shape[1];
+    var ab: i64[..8] = [];
+    var bb: i64[..8] = [];
+    var m: i64 = 1;
+    var n: i64 = 1;
+    var k: i64 = 0;
+    var k2: i64 = 0;
+    var dropa = false;
+    var dropb = false;
+    var i: i64 = 0;
+    if a.ndim == 1 {
+        k = a.shape[0];
+        dropa = true;
+    } else {
+        m = a.shape[a.ndim - 2];
+        k = a.shape[a.ndim - 1];
+        i = 0;
+        while i < a.ndim - 2 { ab.push(a.shape[i]); i += 1; }
+    }
+    if b.ndim == 1 {
+        k2 = b.shape[0];
+        dropb = true;
+    } else {
+        k2 = b.shape[b.ndim - 2];
+        n = b.shape[b.ndim - 1];
+        i = 0;
+        while i < b.ndim - 2 { bb.push(b.shape[i]); i += 1; }
+    }
     if k != k2 {
         return empty_arr(), fault(F_SHAPE, "matmul", "the inner dimensions do not agree");
     }
-    if m * n > MAX_ELEMENTS {
-        return empty_arr(), fault(F_LIMIT, "matmul", "the result holds more elements than the limit");
-    }
-    var d: f64[>..] = [];
-    var i: i64 = 0;
-    while i < m {
-        var j: i64 = 0;
-        while j < n {
-            var t: f64 = 0.0;
-            var p: i64 = 0;
-            while p < k {
-                t += a.data[i * k + p] * b.data[p * n + j];
-                p += 1;
-            }
-            d.push(t);
-            j += 1;
+    let cb, fb = batch_shape(ab, bb);
+    if fb.kind != F_NONE { return empty_arr(), fb; }
+    // The steps of the batch dimensions.
+    var astr: i64[>..] = [];
+    var bstr: i64[>..] = [];
+    i = 0;
+    while i < ab.len { astr.push(0); i += 1; }
+    i = 0;
+    while i < bb.len { bstr.push(0); i += 1; }
+    var acc: i64 = m * k;
+    i = ab.len - 1;
+    while i >= 0 { astr[i] = acc; acc = acc * ab[i]; i -= 1; }
+    acc = k * n;
+    i = bb.len - 1;
+    while i >= 0 { bstr[i] = acc; acc = acc * bb[i]; i -= 1; }
+    var batch: i64 = 1;
+    i = 0;
+    while i < cb.len {
+        if cb[i] > 0 && batch > MAX_ELEMENTS / cb[i] {
+            return empty_arr(), fault(F_LIMIT, "matmul", "the result holds more elements than the limit");
         }
+        batch = batch * cb[i];
         i += 1;
     }
+    var d: f64[>..] = [];
+    var idx: i64[>..] = [];
+    i = 0;
+    while i < cb.len { idx.push(0); i += 1; }
+    var bi: i64 = 0;
+    while bi < batch {
+        batch_step(cb, idx, bi);
+        let aoff = batch_off(ab, astr, idx, cb.len);
+        let boff = batch_off(bb, bstr, idx, cb.len);
+        var r: i64 = 0;
+        while r < m {
+            var c: i64 = 0;
+            while c < n {
+                var t: f64 = 0.0;
+                var p: i64 = 0;
+                while p < k {
+                    t = t + a.data[aoff + r * k + p] * b.data[boff + p * n + c];
+                    p += 1;
+                }
+                d.push(t);
+                c += 1;
+            }
+            r += 1;
+        }
+        bi += 1;
+    }
     var s: i64[..8] = [];
-    s.push(m);
-    s.push(n);
-    return Arr { ndim: 2, shape: s, data: d }, no_fault();
+    i = 0;
+    while i < cb.len { s.push(cb[i]); i += 1; }
+    if !dropa { s.push(m); }
+    if !dropb { s.push(n); }
+    return Arr { ndim: s.len, shape: s, data: d }, no_fault();
 }
 
 // dot gives the product of two arrays. Two rows give a number. A row
