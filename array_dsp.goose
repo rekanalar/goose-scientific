@@ -704,11 +704,18 @@ fn resample_poly(x: f64[:], up0: i64, down0: i64) -> Arr, Fault {
     if big > 100000 || x.len * up > MAX_DSP_LENGTH {
         return empty_arr(), fault(F_LIMIT, "resample_poly", "the ratio is too large");
     }
+    let h, hf = firwin(2 * 10 * big + 1, [1.0 / big], true, "kaiser", true, 2.0, 5.0);
+    if hf.kind != F_NONE { return empty_arr(), hf; }
+    return resample_filtered(x, up, down, h.data);
+}
+
+// resample_filtered does the work of resample_poly with the filter h.
+// The half length is the count of taps less one, halved. The up and
+// down hold no common factor.
+fn resample_filtered(x: f64[:], up: i64, down: i64, h: f64[:]) -> Arr, Fault {
     let n_in = x.len;
     let n_out = (n_in * up + down - 1) / down;
-    let half = 10 * big;
-    let h, hf = firwin(2 * half + 1, [1.0 / big], true, "kaiser", true, 2.0, 5.0);
-    if hf.kind != F_NONE { return empty_arr(), hf; }
+    let half = (h.len - 1) / 2;
     let pre = down - half % down;
     let remove = (half + pre) / down;
     var y: f64[>..] = [];
@@ -718,10 +725,10 @@ fn resample_poly(x: f64[:], up0: i64, down0: i64) -> Arr, Fault {
         var s: f64 = 0.0;
         // The tap k holds h[k - pre] and meets the sample at n down - k.
         var k: i64 = pre;
-        while k < pre + h.data.len {
+        while k < pre + h.len {
             let idx = n * down - k;
             if idx >= 0 && idx % up == 0 && idx / up < n_in {
-                s += up * h.data[k - pre] * x[idx / up];
+                s += up * h[k - pre] * x[idx / up];
             }
             k += 1;
         }
@@ -729,4 +736,41 @@ fn resample_poly(x: f64[:], up0: i64, down0: i64) -> Arr, Fault {
         j += 1;
     }
     return line_arr(copy(y)), no_fault();
+}
+
+// decimate lowers the rate of a signal by the whole factor q after a
+// low pass filter with no phase shift. The kind "fir" takes a Hamming
+// filter of 20 q + 1 taps. The kind "iir" takes a Chebyshev filter of
+// type one, of order 8 and with a ripple of 0.05 dB, run forward and
+// backward. The order n of zero takes the default of SciPy.
+fn decimate(x: f64[:], q: i64, ftype: const u8[:] = "iir", n: i64 = 0) -> Arr, Fault {
+    if q < 1 || q > 100000 {
+        return empty_arr(), fault(F_RANGE, "decimate", "the factor stands outside one to the limit");
+    }
+    if x.len < 1 || x.len > MAX_DSP_LENGTH {
+        return empty_arr(), fault(F_SHAPE, "decimate", "the signal holds no value or too many values");
+    }
+    if n < 0 || n > 1000 {
+        return empty_arr(), fault(F_RANGE, "decimate", "the order stands outside the range");
+    }
+    if ftype == "fir" {
+        var taps = 20 * q + 1;
+        if n > 0 { taps = n + 1; }
+        let h, hf = firwin(taps, [1.0 / q], true, "hamming");
+        if hf.kind != F_NONE { return empty_arr(), hf; }
+        return resample_filtered(x, 1, q, h.data);
+    }
+    if ftype != "iir" {
+        return empty_arr(), fault(F_VALUE, "decimate", "the kind holds an unknown name");
+    }
+    var order = n;
+    if order == 0 { order = 8; }
+    let sos, sf = cheby1_sos(order, 0.05, [0.8 / q], "lowpass");
+    if sf.kind != F_NONE { return empty_arr(), sf; }
+    let y, yf = sosfiltfilt(sos, x);
+    if yf.kind != F_NONE { return empty_arr(), yf; }
+    var out: f64[>..] = [];
+    var i: i64 = 0;
+    while i < y.data.len { out.push(y.data[i]); i += q; }
+    return line_arr(copy(out)), no_fault();
 }
