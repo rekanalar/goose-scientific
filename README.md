@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.3.0";
+import scientific from "rekanalar/goose-scientific@v0.4.0";
 ```
 
 ## API
@@ -31,6 +31,7 @@ import scientific from "rekanalar/goose-scientific@v0.3.0";
 | Reductions | `sum`, `prod`, `min`, `max`, `mean`, `argmin`, `argmax` |
 | Reductions along an axis | `sum_axis`, `prod_axis`, `min_axis`, `max_axis`, `mean_axis`, `var_axis`, `std_axis` |
 | Running and spread | `cumsum`, `cumprod`, `diff`, `flip`, `variance`, `std`, `ptp` |
+| Indexing | `slice_axis`, `take`, `put`, `nonzero`, `mask`, `take_along_axis`, `repeat`, `tile`, `flatten`, `partition` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -80,6 +81,17 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   too, and `diff` drops one element of it.
 - `variance` and `std` take a divisor count. The divisor is the
   length minus that count.
+- `slice_axis` slices one axis at a time. NumPy slices every axis in
+  one call. A caller slices each axis in turn.
+- A slice that holds no element is a fault. The check runs before any
+  element moves.
+- `take` and `put` use the flat position, the row-major position of
+  an element. `put` writes into the array of the caller.
+- `nonzero` gives the flat positions. It gives no position per axis.
+- `take_along_axis` takes an index array with one position for each
+  element of the other axes.
+- `mask` keeps the elements of one array that hold true in a second
+  array of the same length.
 
 ## Security
 
@@ -98,6 +110,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   of the standard library when the input is hostile.
 - A bad axis, or a permutation that repeats an axis, is a fault. The
   check runs before any element moves.
+- A position outside the array is a fault in `take` and in `put`. The
+  check of `put` runs over every position before the first write.
+  A bad index leaves the array as it was.
 - A fault result holds an empty array. A caller that keeps reading
   after a fault reads an array of length zero, not a torn one.
 - The package takes no text input and holds no parser. The attack
