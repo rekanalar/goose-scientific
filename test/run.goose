@@ -4351,7 +4351,37 @@ fn test_matfun() {
     assert(n4f.kind == scientific::F_VALUE);
 }
 
+// The trigonometric and hyperbolic functions of a matrix are pinned against SciPy.
+fn tm_mat(v: f64[:]) -> scientific::Arr {
+    let m, f = scientific::from_rows(2, 2, v);
+    return m;
+}
+
+fn test_matrix_trig() {
+    let b = tm_mat([2.0, 1.0, 0.5, 3.0]);
+    let s, f1 = scientific::sinm(b);
+    assert(f1.kind == scientific::F_NONE && all_loose(s, [0.7400706, -0.70468966, -0.35234483, 0.03538094]));
+    let c, f2 = scientific::cosm(b);
+    assert(f2.kind == scientific::F_NONE && all_loose(c, [-0.25581893, -0.52641889, -0.26320944, -0.78223782]));
+    let t, f3 = scientific::tanm(b);
+    assert(f3.kind == scientific::F_NONE && all_loose(t, [-12.4184748, 9.25806596, 4.62903298, -3.16040885]));
+    let sh, f4 = scientific::sinhm(b);
+    assert(f4.kind == scientific::F_NONE && all_loose(sh, [5.00038102, 6.92808946, 3.46404473, 11.92847048]));
+    let ch, f5 = scientific::coshm(b);
+    assert(f5.kind == scientific::F_NONE && all_loose(ch, [5.16158917, 6.83535212, 3.41767606, 11.99694129]));
+    let th, f6 = scientific::tanhm(b);
+    assert(f6.kind == scientific::F_NONE && all_loose(th, [0.94162814, 0.04098791, 0.02049395, 0.98261605]));
+    let sg, f7 = scientific::signm(tm_mat([2.0, 1.0, 1.0, -3.0]));
+    assert(f7.kind == scientific::F_NONE && all_loose(sg, [0.92847669, 0.37139068, 0.37139068, -0.92847669]));
+    let bad, f8 = scientific::signm(tm_mat([0.0, 1.0, -1.0, 0.0]));
+    assert(f8.kind == scientific::F_VALUE);
+    let nsq, f9 = scientific::sinm(scientific::line_arr([1.0, 2.0, 3.0]));
+    assert(f9.kind == scientific::F_SHAPE);
+    return;
+}
+
 fn main() {
+    test_matrix_trig();
     test_create();
     test_shape();
     test_ops();

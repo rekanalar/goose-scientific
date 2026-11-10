@@ -371,3 +371,135 @@ fn eigvals_banded(ab, lower: bool = false) -> Arr, Fault {
     let n = ab.shape[1];
     return eigvalsh(mat2(copy(d), n, n));
 }
+
+// mf_trig gives cos A and sin A from the exponential of the real block
+// [[0, -A], [A, 0]], which holds exp(iA) in real form. The side of the
+// block is twice the side of A, so the limit of expm halves.
+fn mf_trig(a, tag: const u8[:]) -> Arr, Arr, Fault {
+    let c = mf_square(a, tag);
+    if c.kind != F_NONE { return empty_arr(), empty_arr(), c; }
+    let n = a.shape[0];
+    var d: f64[>..] = [];
+    var i: i64 = 0;
+    while i < 4 * n * n { d.push(0.0); i += 1; }
+    i = 0;
+    while i < n {
+        var j: i64 = 0;
+        while j < n {
+            d[i * 2 * n + n + j] = -a.data[i * n + j];
+            d[(n + i) * 2 * n + j] = a.data[i * n + j];
+            j += 1;
+        }
+        i += 1;
+    }
+    let e, f = expm(mat2(copy(d), 2 * n, 2 * n));
+    if f.kind != F_NONE { return empty_arr(), empty_arr(), f; }
+    var cs: f64[>..] = [];
+    var sn: f64[>..] = [];
+    i = 0;
+    while i < n {
+        var j: i64 = 0;
+        while j < n {
+            cs.push(e.data[i * 2 * n + j]);
+            sn.push(e.data[(n + i) * 2 * n + j]);
+            j += 1;
+        }
+        i += 1;
+    }
+    return mat2(copy(cs), n, n), mat2(copy(sn), n, n), no_fault();
+}
+
+// cosm gives the cosine of a square matrix.
+fn cosm(a) -> Arr, Fault {
+    let c, s, f = mf_trig(a, "cosm");
+    return c, f;
+}
+
+// sinm gives the sine of a square matrix.
+fn sinm(a) -> Arr, Fault {
+    let c, s, f = mf_trig(a, "sinm");
+    return s, f;
+}
+
+// tanm gives the tangent of a square matrix, the solution of cos(A) x = sin(A).
+fn tanm(a) -> Arr, Fault {
+    let c, s, f = mf_trig(a, "tanm");
+    if f.kind != F_NONE { return empty_arr(), f; }
+    return solve(c, s);
+}
+
+// mf_hyper gives cosh A and sinh A from exp(A) and exp(-A).
+fn mf_hyper(a, tag: const u8[:]) -> Arr, Arr, Fault {
+    let c = mf_square(a, tag);
+    if c.kind != F_NONE { return empty_arr(), empty_arr(), c; }
+    var neg: f64[>..] = [];
+    var i: i64 = 0;
+    while i < a.data.len { neg.push(-a.data[i]); i += 1; }
+    let n = a.shape[0];
+    let ep, f1 = expm(a);
+    if f1.kind != F_NONE { return empty_arr(), empty_arr(), f1; }
+    let em, f2 = expm(mat2(copy(neg), n, n));
+    if f2.kind != F_NONE { return empty_arr(), empty_arr(), f2; }
+    var ch: f64[>..] = [];
+    var sh: f64[>..] = [];
+    i = 0;
+    while i < n * n {
+        ch.push(0.5 * (ep.data[i] + em.data[i]));
+        sh.push(0.5 * (ep.data[i] - em.data[i]));
+        i += 1;
+    }
+    return mat2(copy(ch), n, n), mat2(copy(sh), n, n), no_fault();
+}
+
+// coshm gives the hyperbolic cosine of a square matrix.
+fn coshm(a) -> Arr, Fault {
+    let c, s, f = mf_hyper(a, "coshm");
+    return c, f;
+}
+
+// sinhm gives the hyperbolic sine of a square matrix.
+fn sinhm(a) -> Arr, Fault {
+    let c, s, f = mf_hyper(a, "sinhm");
+    return s, f;
+}
+
+// tanhm gives the hyperbolic tangent of a square matrix.
+fn tanhm(a) -> Arr, Fault {
+    let c, s, f = mf_hyper(a, "tanhm");
+    if f.kind != F_NONE { return empty_arr(), f; }
+    return solve(c, s);
+}
+
+// signm gives the sign function of a matrix by the Newton iteration
+// S = (S + S^-1) / 2. The matrix must hold no eigenvalue on the
+// imaginary axis.
+fn signm(a) -> Arr, Fault {
+    let c = mf_square(a, "signm");
+    if c.kind != F_NONE { return empty_arr(), c; }
+    let n = a.shape[0];
+    var s = mat2(copy_slice(a.data), n, n);
+    var turn: i64 = 0;
+    while turn < 100 {
+        let si, f = inv(s);
+        if f.kind != F_NONE { return empty_arr(), fault(F_VALUE, "signm", "the matrix holds an eigenvalue on the imaginary axis"); }
+        var nx: f64[>..] = [];
+        var delta: f64 = 0.0;
+        var size: f64 = 0.0;
+        var i: i64 = 0;
+        while i < n * n {
+            let v = 0.5 * (s.data[i] + si.data[i]);
+            let d = mathshim::abs_of(v - s.data[i]);
+            if d > delta { delta = d; }
+            if mathshim::abs_of(v) > size { size = mathshim::abs_of(v); }
+            nx.push(v);
+            i += 1;
+        }
+        if !(size - size == 0.0) {
+            return empty_arr(), fault(F_VALUE, "signm", "the matrix holds an eigenvalue on the imaginary axis");
+        }
+        s = mat2(copy(nx), n, n);
+        if delta <= 1.0e-14 * size { return s, no_fault(); }
+        turn += 1;
+    }
+    return empty_arr(), fault(F_VALUE, "signm", "the iteration did not converge: the matrix holds an eigenvalue on the imaginary axis");
+}
