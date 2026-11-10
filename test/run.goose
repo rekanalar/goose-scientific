@@ -807,6 +807,87 @@ fn test_fft() {
     assert(f15.kind == scientific::F_SHAPE);
 }
 
+fn test_random() {
+    // The numbers of one seed are pinned. The same seed gives the
+    // same numbers on every run.
+    var r = scientific::default_rng(42);
+    assert(scientific::uniform(r, 2.0, 5.0) == 4.22469463631547);
+    assert(scientific::random_uniform(r) == 0.1599103928769201);
+    let a, fa = scientific::integers(r, 1, 7);
+    assert(fa.kind == scientific::F_NONE && a == 1);
+    // The pair of Box and Muller gives one number and holds one.
+    let n1, f1 = scientific::normal(r, 0.0, 1.0);
+    let n2, f2 = scientific::normal(r, 0.0, 1.0);
+    assert(f1.kind == scientific::F_NONE && f2.kind == scientific::F_NONE);
+    assert(n1 == 0.892470392690831 && n2 == 0.21741001724982148);
+    // A spread below zero is a fault.
+    let n3, f3 = scientific::normal(r, 0.0, -1.0);
+    assert(f3.kind == scientific::F_VALUE);
+    // The exponential law takes the inverse of the law.
+    let e, f4 = scientific::exponential(r, 2.0);
+    assert(f4.kind == scientific::F_NONE && e == 4.053365406960153);
+    let e2, f5 = scientific::exponential(r, -1.0);
+    assert(f5.kind == scientific::F_VALUE);
+    // The method of Knuth holds a rate of 30 and below.
+    let p, f6 = scientific::poisson(r, 5.0);
+    assert(f6.kind == scientific::F_NONE && p == 5);
+    let p0, f7 = scientific::poisson(r, 0.0);
+    assert(f7.kind == scientific::F_NONE && p0 == 0);
+    let pbig, f8 = scientific::poisson(r, 31.0);
+    assert(f8.kind == scientific::F_VALUE);
+    // The order of a count holds every whole number of the count.
+    let pc, f9 = scientific::permutation(r, 5);
+    assert(f9.kind == scientific::F_NONE);
+    assert(pc.data[0] == 1.0 && pc.data[1] == 0.0 && pc.data[2] == 2.0);
+    assert(pc.data[3] == 4.0 && pc.data[4] == 3.0);
+    // A range that holds no number is a fault.
+    let a2, f10 = scientific::integers(r, 5, 5);
+    assert(f10.kind == scientific::F_VALUE);
+    // The picks of an array.
+    var r2 = scientific::default_rng(7);
+    let src = scientific::from_values([10.0, 20.0, 30.0, 40.0]);
+    let c1, fc1 = scientific::choice(r2, src, 3, true);
+    assert(fc1.kind == scientific::F_NONE);
+    assert(c1.data[0] == 40.0 && c1.data[1] == 10.0 && c1.data[2] == 30.0);
+    // A pick without a repeat holds no element twice.
+    let c2, fc2 = scientific::choice(r2, src, 3, false);
+    assert(fc2.kind == scientific::F_NONE);
+    assert(c2.data[0] == 10.0 && c2.data[1] == 30.0 && c2.data[2] == 20.0);
+    let c3, fc3 = scientific::choice(r2, src, 5, false);
+    assert(fc3.kind == scientific::F_VALUE);
+    // A shuffled copy leaves the array of the caller as it was.
+    var r3 = scientific::default_rng(9);
+    let src2 = scientific::from_values([1.0, 2.0, 3.0, 4.0, 5.0]);
+    let sh, fsh = scientific::shuffled(r3, src2);
+    assert(fsh.kind == scientific::F_NONE);
+    assert(sh.data[0] == 2.0 && sh.data[1] == 5.0 && sh.data[2] == 1.0);
+    assert(sh.data[3] == 3.0 && sh.data[4] == 4.0);
+    var same = true;
+    var i: i64 = 0;
+    while i < 5 {
+        if src2.data[i] != i + 1 as f64 { same = false; }
+        i += 1;
+    }
+    assert(same);
+    // The rows of a matrix move as a whole.
+    var r4 = scientific::default_rng(7);
+    let m = scientific::from_rows(3, 2, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let fr = scientific::shuffle_rows(r4, m);
+    assert(fr.kind == scientific::F_NONE);
+    assert(m.data[0] == 3.0 && m.data[1] == 4.0 && m.data[2] == 5.0);
+    assert(m.data[3] == 6.0 && m.data[4] == 1.0 && m.data[5] == 2.0);
+    // The same seed gives the same numbers.
+    var ra = scientific::default_rng(11);
+    var rb = scientific::default_rng(11);
+    var i2: i64 = 0;
+    while i2 < 4 {
+        let ua = scientific::uniform(ra, 0.0, 1.0);
+        let ub = scientific::uniform(rb, 0.0, 1.0);
+        assert(ua == ub);
+        i2 += 1;
+    }
+}
+
 fn main() {
     test_create();
     test_shape();
@@ -820,6 +901,7 @@ fn main() {
     test_decomp_and_eig();
     test_svd_and_poly();
     test_fft();
+    test_random();
     print("ok\n");
     return;
 }

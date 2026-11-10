@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.9.0";
+import scientific from "rekanalar/goose-scientific@v0.10.0";
 ```
 
 ## API
@@ -42,6 +42,7 @@ import scientific from "rekanalar/goose-scientific@v0.9.0";
 | Singular values | `svd`, `svdvals`, `lstsq`, `matrix_rank`, `cond` |
 | Polynomials | `polyval`, `polyfit`, `roots` |
 | Transforms | `fft`, `ifft`, `fft2`, `fftfreq`, `fftshift`, `rfft`, `irfft` |
+| Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -170,6 +171,22 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   A count of the parts that does not hold the length is a fault.
 - `fftshift` moves the zero frequency to the middle. It holds a flat
   array of frequencies, so it takes no axis.
+- The generator comes from the standard library. A seed gives the
+  same numbers on every run and on both supported versions. The
+  package holds no entropy of the machine, so the caller gives the
+  seed.
+- `uniform` gives a number of the half-open range. `random_uniform`
+  gives a number of the range zero to one.
+- `normal` uses the pair of Box and Muller. It gives one number of
+  the pair and holds the other for the next call. So the numbers of
+  one generator come in a fixed order.
+- `poisson` uses the method of Knuth. A rate above 30 is a fault,
+  because the method holds a small rate only.
+- `choice` takes a row and a count. A pick without a repeat that asks
+  for more elements than the row holds is a fault.
+- `permutation` gives the shuffled order of a count. `shuffled` gives
+  a shuffled copy of a row. `shuffle_rows` shuffles the rows of a
+  matrix in place, so the array of the caller changes.
 
 ## Security
 
@@ -213,6 +230,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The Bluestein method holds the work of the next power of two above
   twice the length. A caller that transforms a large signal of a
   length that is not a power of two holds that memory.
+- The generator holds no hidden state outside the `Rng` of the
+  caller. Two generators of the same seed give the same numbers. A
+  seed that a hostile party can guess gives numbers it can guess.
 
 ## License
 
