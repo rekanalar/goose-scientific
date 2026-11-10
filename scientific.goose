@@ -57,6 +57,7 @@ import array_spatial;
 import array_interp;
 import array_quad;
 import array_dop853;
+import array_bdf;
 import array_nquad;
 import array_residue;
 import array_minimize_grad;

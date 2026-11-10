@@ -330,6 +330,7 @@ fn dense_eval(d: Dense&, x: f64[:]) -> Arr, Fault {
     let st = d.steps;
     var rows = d.ns + 1;
     if d.kind == 2 { rows = 16; }
+    if d.kind == 3 { rows = 9; }
     var ht: f64[>..] = [];
     var hh: f64[>..] = [];
     var hy: f64[>..] = [];
@@ -404,6 +405,9 @@ fn ivp_point_kind(kind: i32, ns: i64, n: i64, y: f64[:], ynew: f64[:], h: f64, k
     if kind == 2 {
         return dop853_point(n, y, ynew, h, kall, xs);
     }
+    if kind == 3 {
+        return bdf_poly(n, kall, kall[6 * n] + (xs - 1.0) * h);
+    }
     var k: f64[>..] = [];
     var fl: f64[>..] = [];
     var i: i64 = 0;
@@ -476,7 +480,7 @@ fn dense_none() -> Dense {
 // functions. It gives the times and the states, the times, the numbers
 // and the states of the events, and the dense output of the steps.
 fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64, atol: f64, method: const u8[:], max_step: f64, t_eval: f64[:], nev: i64, terminal: bool[:], direction: f64[:], want_dense: bool, first_step: f64) -> Arr, Arr, Arr, Arr, Arr, Dense, Fault {
-    if method != "RK45" && method != "RK23" && method != "DOP853" {
+    if method != "RK45" && method != "RK23" && method != "DOP853" && method != "BDF" {
         return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "the method holds an unknown name");
     }
     if !(t0 - t0 == 0.0) || !(t1 - t1 == 0.0) || t0 == t1 {
@@ -517,9 +521,11 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
     var kind: i32 = 1;
     if method == "RK45" { kind = 0; }
     if method == "DOP853" { kind = 2; }
+    if method == "BDF" { kind = 3; }
     var order: f64 = 3.0;
     if kind == 0 { order = 5.0; }
     if kind == 2 { order = 8.0; }
+    if kind == 3 { order = 2.0; }
     // The exponent of the control is minus one over the order of the
     // error estimate plus one.
     var cc: f64[>..] = [];
@@ -527,12 +533,14 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
     var bb: f64[>..] = [];
     var ee: f64[>..] = [];
     var e3: f64[>..] = [];
-    let ns = ivp_tableau(kind, cc, aa, bb, ee, e3);
+    var ns: i64 = 0;
+    if kind != 3 { ns = ivp_tableau(kind, cc, aa, bb, ee, e3); }
     // The count of the rows of the stages that the dense output holds.
     // The method of the order eight holds three more rows for the
     // interpolation.
     var rows: i64 = ns + 1;
     if kind == 2 { rows = 16; }
+    if kind == 3 { rows = 9; }
     var y: f64[>..] = [];
     var i: i64 = 0;
     while i < n { y.push(y0[i]); i += 1; }
@@ -590,11 +598,38 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
     if max_step < h_abs { h_abs = max_step; }
     // A first step from the caller replaces the chosen one.
     if first_step > 0.0 { h_abs = first_step; }
+    // The state of the method BDF.
+    var bdm: f64[>..] = [];
+    var bfst: f64[>..] = [h_abs];
+    var bist: i64[>..] = [1, 0, 0];
+    var bjm: f64[>..] = [];
+    var bjfac: f64[>..] = [];
+    var blum: f64[>..] = [];
+    var bpiv: i64[>..] = [];
+    var btn: f64[>..] = [0.0];
+    if kind == 3 {
+        i = 0;
+        while i < 8 * n { bdm.push(0.0); i += 1; }
+        i = 0;
+        while i < n { bdm[i] = y[i]; bdm[n + i] = f[i] * h_abs * dir; i += 1; }
+        i = 0;
+        while i < n * n { bjm.push(0.0); blum.push(0.0); i += 1; }
+        i = 0;
+        while i < n { bpiv.push(0); i += 1; }
+        let jf0 = bdf_jac(t, y, n, nev, atol, bjfac, bjm) { tt, yy => F(tt, copy(yy)) };
+        if jf0.kind != F_NONE {
+            return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), jf0;
+        }
+    }
     var ts: f64[>..] = [t];
     var ys: f64[>..] = [];
     i = 0;
     while i < n { ys.push(y[i]); i += 1; }
     var rejected = false;
+    var ntol = 10.0 * 2.220446049250313e-16 / rtol;
+    var ntol2 = mathshim::root(rtol);
+    if ntol2 > 0.03 { ntol2 = 0.03; }
+    if ntol2 > ntol { ntol = ntol2; }
     var steps: i64 = 0;
     while dir * (t1 - t) > 0.0 && !stop {
         steps += 1;
@@ -611,6 +646,22 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
         var gnew: f64[>..] = [];
         var ynew: f64[>..] = [];
         var tnew: f64 = t;
+        if kind == 3 {
+            let bf = bdf_step(t, t1, dir, n, nev, atol, rtol, ntol, max_step, bdm, bfst, bist, bjm, bjfac, blum, bpiv, ynew, btn) { tt, yy => F(tt, copy(yy)) };
+            if bf.kind != F_NONE {
+                return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), bf;
+            }
+            tnew = btn[0];
+            let fb = F(tnew, copy(ynew));
+            if fb.len != n + nev {
+                return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_SHAPE, "solve_ivp", "the function holds a different count of values");
+            }
+            i = 0;
+            while i < n { fnew.push(fb[i]); i += 1; }
+            i = 0;
+            while i < nev { gnew.push(fb[n + i]); i += 1; }
+            accepted = true;
+        }
         while !accepted {
             if h_abs < min_step {
                 return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "the step fell below the smallest step");
@@ -767,12 +818,28 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
                 s += 1;
             }
         }
-        i = 0;
-        while i < ns * n { kall.push(kacc[i]); i += 1; }
-        i = 0;
-        while i < n { kall.push(fnew[i]); i += 1; }
-        i = 0;
-        while i < kex.len { kall.push(kex[i]); i += 1; }
+        if kind == 3 {
+            // The rows of the differences, the end of the step, the step
+            // and the order, as the polynomial of the step needs them.
+            i = 0;
+            while i < 6 * n { kall.push(bdm[i]); i += 1; }
+            var hd: i64 = 0;
+            while hd < 3 {
+                var val: f64 = btn[0];
+                if hd == 1 { val = bfst[0] * dir; }
+                if hd == 2 { val = bist[0]; }
+                i = 0;
+                while i < n { if i == 0 { kall.push(val); } else { kall.push(0.0); } i += 1; }
+                hd += 1;
+            }
+        } else {
+            i = 0;
+            while i < ns * n { kall.push(kacc[i]); i += 1; }
+            i = 0;
+            while i < n { kall.push(fnew[i]); i += 1; }
+            i = 0;
+            while i < kex.len { kall.push(kex[i]); i += 1; }
+        }
         if t_eval.len > 0 || want_dense {
             hist_t.push(t);
             hist_h.push(tnew - t);
@@ -930,6 +997,17 @@ fn ivp_dense(te: f64[:], ht: f64[:], hh: f64[:], hy: f64[:], hk: f64[:], kind: i
         // The first step whose end lies at x or after it.
         while si + 1 < ht.len && (hh[si] > 0.0 && ht[si] + hh[si] < x || hh[si] < 0.0 && ht[si] + hh[si] > x) { si += 1; }
         let xs = (x - ht[si]) / hh[si];
+        if kind == 3 {
+            var kb: f64[>..] = [];
+            var i0: i64 = 0;
+            while i0 < 9 * n { kb.push(hk[si * 9 * n + i0]); i0 += 1; }
+            let yv = bdf_poly(n, kb, x);
+            ts.push(x);
+            var i: i64 = 0;
+            while i < n { ys.push(yv[i]); i += 1; }
+            j += 1;
+            continue;
+        }
         if kind == 2 {
             // The method of the order eight. The rows of the stages of
             // the step and the state at its end.
