@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.29.0";
+import scientific from "rekanalar/goose-scientific@v0.30.0";
 ```
 
 ## API
@@ -27,6 +27,7 @@ import scientific from "rekanalar/goose-scientific@v0.29.0";
 | Creation | `zeros`, `ones`, `full`, `arange`, `linspace`, `eye`, `identity`, `diag`, `diagflat`, `logspace`, `geomspace`, `from_rows`, `from_values`, `clone` |
 | Stacks | `vstack`, `hstack`, `dstack`, `column_stack` |
 | Grids | `meshgrid(x, y, indexing="xy", sparse=false)`, `cross` |
+| Moves | `moveaxis`, `moveaxis_many`, `flipud`, `fliplr`, `rot90(a, k=1, axis0=0, axis1=1)`, `broadcast_to`, `broadcast_arrays`, `select`, `apply_along_axis`, `apply_along_axis_scalar` |
 | Positions | `argwhere`, `flatnonzero` |
 | Histograms of two dimensions | `histogram2d(x, y, xbins=10, ybins=10)`, `histogramdd(points, bins=10)` |
 | Buffer | `frombuffer(data, count=-1, offset=0)`, `fromfile(path, count=-1)` |
@@ -99,6 +100,21 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   under one another. `hstack` joins the rows beside each other.
   `dstack` joins them in a third dimension. `column_stack` joins them
   as columns.
+- `moveaxis` takes one axis. `moveaxis_many` takes lists of axes, as
+  NumPy does. A negative axis counts from the end.
+- `rot90` takes the two axes as `axis0` and `axis1`. A negative `k`
+  turns the other way.
+- `broadcast_arrays` takes two arrays, not a list. `broadcast_to`
+  returns a copy and not a view, as the package holds no views.
+- `select` takes the conditions and the choices as two arrays. The
+  first axis of each array holds the list that NumPy takes as a
+  Python list. The first true condition wins. The default is a number.
+- `apply_along_axis` calls a function that takes a line of one
+  dimension and gives a line of one dimension. The length of the
+  result replaces the axis. `apply_along_axis_scalar` takes a function
+  that gives one number, and the axis drops. The caller passes the
+  function at the end of the call. NumPy decides between the two by
+  the type of the result.
 - `argwhere` gives one row of positions per element that is not zero,
   and one column per dimension. No match gives zero rows. NumPy gives
   the same shape.

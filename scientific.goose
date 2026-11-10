@@ -44,6 +44,7 @@ import array_signal;
 import array_grid;
 import array_buffer;
 import array_fftn;
+import array_moves;
 
 // The kinds of a fault. A fault holds a kind, the name of the check
 // and a short detail.
