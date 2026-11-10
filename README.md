@@ -983,8 +983,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   integral up to every point. The intervals may differ in width. The
   rule of Simpson of Cartwright gives each of them. A signal of two
   values falls back to the trapezoid. The result holds one value fewer
-  than the signal. The argument `initial` adds a start value and
-  puts it first. The result then holds as many values as the signal.
+  than the signal.
+- The argument `initial` of `cumulative_simpson` adds a start value
+  and puts it first. The result then holds as many values as the
+  signal.
 - `cumulative_simpson_dx` takes one spacing for every interval and the
   same `initial`. Neither function takes an axis or a shape other than
   one dimension.
