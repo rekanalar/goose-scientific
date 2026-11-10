@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.11.0";
+import scientific from "rekanalar/goose-scientific@v0.12.0";
 ```
 
 ## API
@@ -48,6 +48,7 @@ import scientific from "rekanalar/goose-scientific@v0.11.0";
 | Cuts | `split`, `array_split`, `hsplit`, `vsplit`, `part` |
 | Triangles | `tril`, `triu` |
 | Between the points | `interp`, `gradient`, `pad_value` |
+| Root finding | `brentq`, `brenth`, `newton`, `fsolve` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -218,6 +219,23 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   holds the diagonal and one side of it.
 - `trim_zeros` drops the zeros at the two ends of a row. A row of
   only zeros is a fault.
+- A solver takes the function of the caller as a parameter of a
+  generic type. The caller passes the function as a block at the end
+  of the call. A call takes one block. So a solver that needs a
+  second function takes it as a named function before the block.
+- `brentq` finds a root between two points where the function changes
+  its sign. The two points that hold no change of sign are a fault.
+- `brenth` finds the same root with the step of the false position.
+  The step holds the root between the two points at every turn.
+- `newton` takes the derivative of the function as a named function.
+  A derivative of zero is a fault.
+- `fsolve` finds the point where several equations hold zero. The
+  function of the caller takes a vector and gives a vector. The
+  method takes the derivative by a small difference, so the root
+  holds fewer digits than the other methods.
+- Every solver takes a tolerance and a count of turns. A tolerance
+  of zero and a count below one are faults. A method that does not
+  reach the tolerance in the count of turns is a fault.
 
 ## Security
 
@@ -276,6 +294,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   search read outside the buffer.
 - `pad_value` computes the count of the result before it allocates.
   A growth that reaches over `MAX_ELEMENTS` is a fault.
+- A solver calls the function of the caller only inside the bracket
+  that it holds. A function that changes its value between the calls
+  can lead the method outside the root. A caller that holds such a
+  function gives a wrong root in silence.
+- The count of the turns bounds the work of a solver. A function that
+  needs many turns holds a long time. A caller that sets the count
+  low gets a fault instead of a wrong root.
 
 ## License
 

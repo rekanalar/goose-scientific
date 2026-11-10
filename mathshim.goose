@@ -45,3 +45,20 @@ fn round_of(x: f64) -> f64 {
     if trunc_of(half) == half { return f; }
     return f + 1.0;
 }
+
+// abs_of gives the size of a number away from zero.
+fn abs_of(x: f64) -> f64 {
+    if x < 0.0 { return -x; }
+    return x;
+}
+
+// min_of gives the smaller of two numbers.
+fn min_of(a: f64, b: f64) -> f64 {
+    if a < b { return a; }
+    return b;
+}
+
+// tan_of gives the ratio of the sine and the cosine.
+fn tan_of(x: f64) -> f64 {
+    return sine(x) / cosine(x);
+}

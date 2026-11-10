@@ -999,6 +999,63 @@ fn test_misc() {
     assert(tu.data[3] == 0.0 && tu.data[4] == 5.0 && tu.data[5] == 6.0);
 }
 
+// dquad is the derivative of the square. The solvers that need a
+// derivative take it as a named function.
+fn dquad(x: f64) -> f64 { return 2.0 * x; }
+
+// dflat is the derivative of a function that never changes.
+fn dflat(x: f64) -> f64 { return 0.0; }
+
+fn test_optimize() {
+    // The root of the square of x and two.
+    let r1, f1 = scientific::brentq(0.0, 2.0, 1e-12, 100) { x => x * x - 2.0 };
+    assert(f1.kind == scientific::F_NONE);
+    assert(close(r1, 1.4142135623731364));
+    let r2, f2 = scientific::brenth(0.0, 2.0, 1e-12, 100) { x => x * x - 2.0 };
+    assert(f2.kind == scientific::F_NONE);
+    assert(close(r2, 1.414213562373095));
+    // The root of a cosine, which lies between the two points.
+    let r3, f3 = scientific::brentq(1.0, 4.0, 1e-12, 100) { x => mathshim::cosine(x) };
+    assert(f3.kind == scientific::F_NONE);
+    assert(close(r3, 1.570796326794891));
+    // The root of a cubic, which lies between the two points.
+    let r5, f5 = scientific::brentq(1.0, 3.0, 1e-12, 100) { x => x * x * x - 2.0 * x - 5.0 };
+    assert(f5.kind == scientific::F_NONE);
+    assert(close(r5, 2.0945514815423265));
+    // The method of Newton gives the same root.
+    let r4, f4 = scientific::newton(1.0, 1e-12, 100, dquad) { x => x * x - 2.0 };
+    assert(f4.kind == scientific::F_NONE);
+    assert(close(r4, 1.4142135623730951));
+    // The points that hold no change of sign are a fault.
+    let bad1, fb1 = scientific::brentq(3.0, 4.0, 1e-12, 100) { x => x * x - 2.0 };
+    assert(fb1.kind == scientific::F_VALUE);
+    let bad2, fb2 = scientific::brenth(3.0, 4.0, 1e-12, 100) { x => x * x - 2.0 };
+    assert(fb2.kind == scientific::F_VALUE);
+    // A tolerance of zero is a fault.
+    let bad3, fb3 = scientific::brentq(0.0, 2.0, 0.0, 100) { x => x * x - 2.0 };
+    assert(fb3.kind == scientific::F_VALUE);
+    // A count of turns below one is a fault.
+    let bad4, fb4 = scientific::brentq(0.0, 2.0, 1e-12, 0) { x => x * x - 2.0 };
+    assert(fb4.kind == scientific::F_VALUE);
+    // A count of turns that is too small is a fault.
+    let bad5, fb5 = scientific::brentq(0.0, 2.0, 1e-12, 2) { x => x * x - 2.0 };
+    assert(fb5.kind == scientific::F_LIMIT);
+    // A derivative of zero is a fault.
+    let bad6, fb6 = scientific::newton(1.0, 1e-12, 100, dflat) { x => x * x - 2.0 };
+    assert(fb6.kind == scientific::F_VALUE);
+    // The root of two equations at once.
+    let r5, f5 = scientific::fsolve([1.0, 1.0], 1e-10, 50) { v => [v[0] * v[0] + v[1] * v[1] - 4.0, v[0] - v[1]] };
+    assert(f5.kind == scientific::F_NONE);
+    assert(r5.data.len == 2 && close(r5.data[0], 1.4142135623730951));
+    assert(close(r5.data[1], 1.4142135623730951));
+    // A function that gives a different count of values is a fault.
+    let bad7, fb7 = scientific::fsolve([1.0, 1.0], 1e-10, 50) { v => [v[0] * v[0] - 2.0] };
+    assert(fb7.kind == scientific::F_SHAPE);
+    // A count of turns that is too small is a fault.
+    let bad8, fb8 = scientific::fsolve([1.0, 1.0], 1e-14, 1) { v => [v[0] * v[0] + v[1] * v[1] - 4.0, v[0] - v[1]] };
+    assert(fb8.kind == scientific::F_LIMIT);
+}
+
 fn main() {
     test_create();
     test_shape();
@@ -1014,6 +1071,7 @@ fn main() {
     test_fft();
     test_random();
     test_misc();
+    test_optimize();
     print("ok\n");
     return;
 }
