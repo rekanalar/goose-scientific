@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.107.0";
+import scientific from "rekanalar/goose-scientific@v0.108.0";
 ```
 
 ## API
@@ -77,7 +77,7 @@ import scientific from "rekanalar/goose-scientific@v0.107.0";
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_hermite`, `bspline`, `make_interp_spline`, `splrep`, `splev`, `bspline_eval`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
-| Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `odeint` |
+| Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `residue`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
@@ -303,10 +303,17 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   steps of SciPy. The result holds one row per time, where SciPy
   holds one column. The argument `t_eval` takes sorted times inside
   the span and gives the values from the dense output of the method.
-  The arguments `dense_output`, `events` and `first_step` stay out,
-  and so do the methods `DOP853`, `Radau`, `BDF` and `LSODA`. A stiff
+  The argument `first_step` stays out, and so do the methods `DOP853`, `Radau`, `BDF` and `LSODA`. A stiff
   system needs many steps and may reach the limit of one million
   steps.
+- `solve_ivp_events` takes the events of SciPy. The block gives the
+  derivative and then the event functions. The arrays `terminal` and
+  `direction` hold one value per event. It gives the event times, the
+  event numbers and the event states. It finds each root by bisection
+  of the polynomial of the step.
+- `solve_ivp_dense` keeps the polynomial of each step. `dense_eval`
+  reads it at any times. This replaces `dense_output=True`, because a
+  function cannot leave its block. The two features do not combine.
 - `cubic_spline` takes the conditions `not-a-knot`, `natural`,
   `clamped` and `periodic`. `clamped` takes the end slopes `left`
   and `right`, zero by default. A periodic spline needs equal first

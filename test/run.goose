@@ -3694,6 +3694,19 @@ fn test_quad() {
     assert(q7f.kind == scientific::F_NONE && near(q7, -1.9899924966004452));
     let fq, fqe = scientific::fixed_quad(0.0, 2.0, 5) { x => mathshim_exp(x) };
     assert(fqe.kind == scientific::F_NONE && near(fq, 6.389056096688674));
+    // Events and dense output.
+    let et, ey, ee, ei, eyv, ef = scientific::solve_ivp_events(0.0, 10.0, [10.0, 0.0], 1, [true], [-1.0], 1.0e-8, 1.0e-10) { t, y => [y[1], -9.81, y[0]] };
+    assert(ef.kind == scientific::F_NONE && ee.data.len == 1 && mathshim_abs(ee.data[0] - 1.42784312) < 1.0e-7);
+    assert(mathshim_abs(et.data[et.data.len - 1] - 1.4278431229270645) < 1.0e-7 && mathshim_abs(eyv.data[1] + 14.007141035914504) < 1.0e-6 && ei.data[0] == 0.0);
+    let ot, oy, oe, oi, oyv, of = scientific::solve_ivp_events(0.0, 10.0, [1.0, 0.0], 1, [false], [0.0], 1.0e-8, 1.0e-10) { t, y => [y[1], -y[0], y[0]] };
+    assert(of.kind == scientific::F_NONE && oe.data.len == 3 && mathshim_abs(oe.data[0] - 1.5707963264325224) < 1.0e-7 && mathshim_abs(oe.data[1] - 4.712388979391328) < 1.0e-7 && mathshim_abs(oe.data[2] - 7.85398163235004) < 1.0e-7);
+    assert(ot.data[ot.data.len - 1] == 10.0);
+    let ob, obb, obe, obi, obv, obf = scientific::solve_ivp_events(0.0, 10.0, [1.0, 0.0], 2, [false], [0.0]) { t, y => [y[1], -y[0], y[0], y[1]] };
+    assert(obf.kind == scientific::F_SHAPE);
+    let dt, dy, dd, df = scientific::solve_ivp_dense(0.0, 6.0, [1.0, 0.0], 1.0e-8, 1.0e-10) { t, y => [y[1], -y[0]] };
+    assert(df.kind == scientific::F_NONE);
+    let dv, dvf = scientific::dense_eval(dd, [0.5, 1.7, 5.2]);
+    assert(dvf.kind == scientific::F_NONE && all_close(dv, [0.8775825612156084, -0.47942553943018557, -0.1288444943415755, -0.9916648084454521, 0.46851667032694333, 0.883454649492061], 1.0e-7));
     let t_rk45, y_rk45, e_rk45 = scientific::solve_ivp(0.0, 5.0, [1.0, 0.0], 0.001, 1e-6, "RK45") { t, y => [y[1], -y[0]] };
     assert(e_rk45.kind == scientific::F_NONE && all_near(t_rk45, [0.0, 0.000999000999000999, 0.010989010989010988, 0.11088911088911087, 0.7601505581783583, 1.6934656227081029, 2.6818921292145386, 3.662498620296199, 4.577872200228697, 5.0]) && all_near(y_rk45, [1.0, 0.0, 0.9999995009985435, -0.0009990008328333421, 0.9999396214263466, -0.010988789821184265, 0.9938580997401778, -0.11066199453652523, 0.7247097637593363, -0.6890377126475217, -0.12260764766130006, -0.992423097760466, -0.8964129826445695, -0.4431387530172439, -0.8668812844862507, 0.49842806151422436, -0.1330055785521448, 0.9910483076876293, 0.28470530202789335, 0.9585445205284323]));
     let t_rk23, y_rk23, e_rk23 = scientific::solve_ivp(0.0, 5.0, [1.0, 0.0], 0.001, 1e-6, "RK23") { t, y => [y[1], -y[0]] };

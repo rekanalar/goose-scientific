@@ -283,17 +283,143 @@ fn ivp_tableau(rk45: bool, c: f64[>..]&, a: f64[>..]&, b: f64[>..]&, e: f64[>..]
 // absolute error of one step. A count of steps above 1000000 is a
 // fault.
 fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64 = 0.001, atol: f64 = 1.0e-6, method: const u8[:] = "RK45", max_step: f64 = 1.0e308, t_eval: f64[:] = []) -> Arr, Arr, Fault {
+    let t, y, et, ei, ey, dn, f = ivp_run(t0, t1, y0, rtol, atol, method, max_step, t_eval, 0, [], [], false) { tt, yy => F(tt, copy(yy)) };
+    return t, y, f;
+}
+
+// solve_ivp_events integrates like solve_ivp and finds the events. The
+// block gives the derivative first and then nev event functions. An
+// event happens where its function changes sign. The array terminal
+// flags the events that end the run. The array direction holds one
+// value per event: above zero for a rise, below zero for a fall, zero
+// for both. It gives the times and the states, the times, the numbers
+// and the states of the events. A terminal event ends the run at its
+// time.
+fn solve_ivp_events<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], nev: i64, terminal: bool[:], direction: f64[:], rtol: f64 = 0.001, atol: f64 = 1.0e-6, method: const u8[:] = "RK45", max_step: f64 = 1.0e308, t_eval: f64[:] = []) -> Arr, Arr, Arr, Arr, Arr, Fault {
+    if nev < 1 || nev > 64 || terminal.len != nev || direction.len != nev {
+        return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), fault(F_SHAPE, "solve_ivp_events", "the flags and the directions do not hold one value per event");
+    }
+    let t, y, et, ei, ey, dn, f = ivp_run(t0, t1, y0, rtol, atol, method, max_step, t_eval, nev, terminal, direction, false) { tt, yy => F(tt, copy(yy)) };
+    return t, y, et, ei, ey, f;
+}
+
+// solve_ivp_dense integrates like solve_ivp and keeps the polynomial of
+// each step. It gives the times, the states and the dense output. Read
+// the dense output with dense_eval.
+fn solve_ivp_dense<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64 = 0.001, atol: f64 = 1.0e-6, method: const u8[:] = "RK45", max_step: f64 = 1.0e308) -> Arr, Arr, Dense, Fault {
+    let t, y, et, ei, ey, dn, f = ivp_run(t0, t1, y0, rtol, atol, method, max_step, [], 0, [], [], true) { tt, yy => F(tt, copy(yy)) };
+    return t, y, dn, f;
+}
+
+// dense_eval gives the states of a dense output at the times x. A time
+// outside the steps takes the polynomial of the nearest step. The
+// result holds one row per time.
+fn dense_eval(d: Dense&, x: f64[:]) -> Arr, Fault {
+    if d.steps < 1 {
+        return empty_arr(), fault(F_VALUE, "dense_eval", "the dense output holds no step");
+    }
+    let st = d.steps;
+    let rows = d.ns + 1;
+    var ht: f64[>..] = [];
+    var hh: f64[>..] = [];
+    var hy: f64[>..] = [];
+    var hk: f64[>..] = [];
+    var q: i64 = 0;
+    while q < st { ht.push(d.buf[q]); hh.push(d.buf[st + q]); q += 1; }
+    q = 0;
+    while q < st * d.n { hy.push(d.buf[2 * st + q]); q += 1; }
+    q = 0;
+    while q < st * rows * d.n { hk.push(d.buf[2 * st + st * d.n + q]); q += 1; }
+    let t, y, f = ivp_dense(x, ht, hh, hy, hk, d.rk45, d.ns, d.n);
+    return y, f;
+}
+
+// ivp_pm gives the matrix of the dense polynomial of a method and the
+// count of its powers.
+fn ivp_pm(rk45: bool) -> f64[>..], i64 {
+    if rk45 {
+        let pm: f64[>..] = [1.0, -2.8535800653862835, 3.0717434641059005, -1.1270175653862835,
+              0.0, 0.0, 0.0, 0.0,
+              0.0, 4.023133379230305, -6.249321565289, 2.675424484351598,
+              0.0, -3.7324019615885042, 10.068970589843675, -5.685526961588504,
+              0.0, 2.5548038301849423, -6.399112377351017, 3.5219323679207912,
+              0.0, -1.3744241142186024, 3.272657752246729, -1.7672812570757455,
+              0.0, 1.3824689317781436, -3.764937863556287, 2.382468931778144];
+        return pm, 4;
+    }
+    let pm: f64[>..] = [1.0, -1.3333333333333333, 0.5555555555555556,
+              0.0, 1.0, -0.6666666666666666,
+              0.0, 1.3333333333333333, -0.8888888888888888,
+              0.0, -1.0, 1.0];
+    return pm, 3;
+}
+
+// ivp_point gives the state inside one step, at the fraction xs of the
+// step. The stages of the step are in k, and the last derivative is in
+// fl.
+fn ivp_point(rk45: bool, ns: i64, n: i64, y: f64[:], h: f64, k: f64[:], fl: f64[:], xs: f64) -> f64[>..] {
+    let pm, pc = ivp_pm(rk45);
+    let rows = ns + 1;
+    var pw: f64[>..] = [];
+    var pp: f64 = 1.0;
+    var c: i64 = 0;
+    while c < pc { pp = pp * xs; pw.push(pp); c += 1; }
+    var out: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n {
+        var acc: f64 = 0.0;
+        c = 0;
+        while c < pc {
+            var q: f64 = 0.0;
+            var r: i64 = 0;
+            while r < rows {
+                var kv: f64 = 0.0;
+                if r < ns { kv = k[r * n + i]; } else { kv = fl[i]; }
+                q += kv * pm[r * pc + c];
+                r += 1;
+            }
+            acc += q * pw[c];
+            c += 1;
+        }
+        out.push(y[i] + h * acc);
+        i += 1;
+    }
+    return out;
+}
+
+// Dense holds the steps of a run. It gives the values between the
+// steps with the polynomial of each step. The buffer holds the step
+// starts, the step sizes, the states and the stages, one after the
+// other.
+struct Dense {
+    rk45: bool,
+    ns: i64,
+    n: i64,
+    steps: i64,
+    buf: f64[>..]
+}
+
+// dense_none gives a dense output that holds no step.
+fn dense_none() -> Dense {
+    return Dense { rk45: true, ns: 0, n: 0, steps: 0, buf: [] };
+}
+
+// ivp_run integrates the system y' = f(t, y) from t0 to t1. The block
+// gives n values of the derivative, then nev values of the event
+// functions. It gives the times and the states, the times, the numbers
+// and the states of the events, and the dense output of the steps.
+fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64, atol: f64, method: const u8[:], max_step: f64, t_eval: f64[:], nev: i64, terminal: bool[:], direction: f64[:], want_dense: bool) -> Arr, Arr, Arr, Arr, Arr, Dense, Fault {
     if method != "RK45" && method != "RK23" {
-        return empty_arr(), empty_arr(), fault(F_VALUE, "solve_ivp", "the method holds an unknown name");
+        return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "the method holds an unknown name");
     }
     if !(t0 - t0 == 0.0) || !(t1 - t1 == 0.0) || t0 == t1 {
-        return empty_arr(), empty_arr(), fault(F_VALUE, "solve_ivp", "the times are not finite and different");
+        return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "the times are not finite and different");
     }
     if y0.len < 1 || y0.len > 4096 {
-        return empty_arr(), empty_arr(), fault(F_SHAPE, "solve_ivp", "the start holds no value or too many");
+        return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_SHAPE, "solve_ivp", "the start holds no value or too many");
     }
     if !(rtol > 0.0) || !(atol >= 0.0) || !(max_step > 0.0) {
-        return empty_arr(), empty_arr(), fault(F_VALUE, "solve_ivp", "a tolerance or the largest step holds a value out of range");
+        return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "a tolerance or the largest step holds a value out of range");
     }
     var tol = rtol;
     if tol < 2.220446049250313e-14 { tol = 2.220446049250313e-14; }
@@ -305,10 +431,10 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
     while qi < t_eval.len {
         let te = t_eval[qi];
         if !(te - te == 0.0) || dir * (te - t0) < 0.0 || dir * (t1 - te) < 0.0 {
-            return empty_arr(), empty_arr(), fault(F_VALUE, "solve_ivp", "a time of t_eval is not finite or lies outside the span");
+            return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "a time of t_eval is not finite or lies outside the span");
         }
         if qi > 0 && dir * (te - t_eval[qi - 1]) < 0.0 {
-            return empty_arr(), empty_arr(), fault(F_VALUE, "solve_ivp", "the times of t_eval do not follow the direction");
+            return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "the times of t_eval do not follow the direction");
         }
         qi += 1;
     }
@@ -331,13 +457,20 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
     while i < n { y.push(y0[i]); i += 1; }
     var t = t0;
     let f00 = F(t, copy(y));
-    if f00.len != n {
-        return empty_arr(), empty_arr(), fault(F_SHAPE, "solve_ivp", "the function holds a different count of values");
+    if f00.len != n + nev {
+        return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_SHAPE, "solve_ivp", "the function holds a different count of values");
     }
     var f: f64[>..] = [];
     i = 0;
     while i < n { f.push(f00[i]); i += 1; }
     // The first step.
+    var gold: f64[>..] = [];
+    i = 0;
+    while i < nev { gold.push(f00[n + i]); i += 1; }
+    var ev_t: f64[>..] = [];
+    var ev_i: f64[>..] = [];
+    var ev_y: f64[>..] = [];
+    var stop = false;
     var scale: f64[>..] = [];
     var q1: f64[>..] = [];
     var q2: f64[>..] = [];
@@ -351,8 +484,8 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
     i = 0;
     while i < n { y1.push(y[i] + h0 * dir * f[i]); i += 1; }
     let f1 = F(t + h0 * dir, copy(y1));
-    if f1.len != n {
-        return empty_arr(), empty_arr(), fault(F_SHAPE, "solve_ivp", "the function holds a different count of values");
+    if f1.len != n + nev {
+        return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_SHAPE, "solve_ivp", "the function holds a different count of values");
     }
     var q3: f64[>..] = [];
     i = 0;
@@ -378,10 +511,10 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
     while i < n { ys.push(y[i]); i += 1; }
     var rejected = false;
     var steps: i64 = 0;
-    while dir * (t1 - t) > 0.0 {
+    while dir * (t1 - t) > 0.0 && !stop {
         steps += 1;
         if steps > 1000000 {
-            return empty_arr(), empty_arr(), fault(F_LIMIT, "solve_ivp", "the count of steps reached the limit");
+            return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_LIMIT, "solve_ivp", "the count of steps reached the limit");
         }
         var min_step = 10.0 * mathshim::abs_of(t) * 2.220446049250313e-16;
         if min_step < 5.0e-323 { min_step = 5.0e-323; }
@@ -390,11 +523,12 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
         var accepted = false;
         var kacc: f64[>..] = [];
         var fnew: f64[>..] = [];
+        var gnew: f64[>..] = [];
         var ynew: f64[>..] = [];
         var tnew: f64 = t;
         while !accepted {
             if h_abs < min_step {
-                return empty_arr(), empty_arr(), fault(F_VALUE, "solve_ivp", "the step fell below the smallest step");
+                return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "the step fell below the smallest step");
             }
             var h = h_abs * dir;
             tnew = t + h;
@@ -417,8 +551,8 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
                     i += 1;
                 }
                 let ks = F(t + cc[s] * h, copy(ytmp));
-                if ks.len != n {
-                    return empty_arr(), empty_arr(), fault(F_SHAPE, "solve_ivp", "the function holds a different count of values");
+                if ks.len != n + nev {
+                    return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_SHAPE, "solve_ivp", "the function holds a different count of values");
                 }
                 i = 0;
                 while i < n { k.push(ks[i]); i += 1; }
@@ -434,12 +568,15 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
                 i += 1;
             }
             let fn1 = F(tnew, copy(ynew));
-            if fn1.len != n {
-                return empty_arr(), empty_arr(), fault(F_SHAPE, "solve_ivp", "the function holds a different count of values");
+            if fn1.len != n + nev {
+                return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_SHAPE, "solve_ivp", "the function holds a different count of values");
             }
             fnew = [];
+            gnew = [];
             i = 0;
             while i < n { fnew.push(fn1[i]); i += 1; }
+            i = 0;
+            while i < nev { gnew.push(fn1[n + i]); i += 1; }
             var en: f64[>..] = [];
             i = 0;
             while i < n {
@@ -477,7 +614,7 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
                 rejected = true;
             }
         }
-        if t_eval.len > 0 {
+        if t_eval.len > 0 || want_dense {
             hist_t.push(t);
             hist_h.push(tnew - t);
             i = 0;
@@ -487,6 +624,82 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
             i = 0;
             while i < n { hist_k.push(fnew[i]); i += 1; }
         }
+        if nev > 0 {
+            // The events of the step. A change of sign of an event
+            // function in the direction that the caller asks for.
+            var hit_t: f64[>..] = [];
+            var hit_i: f64[>..] = [];
+            var e: i64 = 0;
+            while e < nev {
+                let g0 = gold[e];
+                let g1 = gnew[e];
+                let up = g0 <= 0.0 && g1 >= 0.0;
+                let down = g0 >= 0.0 && g1 <= 0.0;
+                var want = false;
+                if direction[e] > 0.0 { want = up; }
+                else if direction[e] < 0.0 { want = down; }
+                else { want = up || down; }
+                if want {
+                    // The root by bisection of the polynomial of the step.
+                    var lo: f64 = 0.0;
+                    var hi: f64 = 1.0;
+                    var glo = g0;
+                    var it: i64 = 0;
+                    while it < 200 {
+                        let mid = 0.5 * (lo + hi);
+                        if mid == lo || mid == hi { break; }
+                        let ym = ivp_point(rk45, ns, n, y, tnew - t, kacc, fnew, mid);
+                        let gm = F(t + mid * (tnew - t), copy(ym));
+                        let gv = gm[n + e];
+                        if (glo <= 0.0 && gv >= 0.0) || (glo >= 0.0 && gv <= 0.0) { hi = mid; } else { lo = mid; glo = gv; }
+                        it += 1;
+                    }
+                    hit_t.push(t + hi * (tnew - t));
+                    hit_i.push(e);
+                }
+                e += 1;
+            }
+            // The hits in the order of the direction of time.
+            var order: f64[>..] = [];
+            var taken: f64[>..] = [];
+            i = 0;
+            while i < hit_t.len { taken.push(0.0); i += 1; }
+            var c: i64 = 0;
+            while c < hit_t.len {
+                var pick: i64 = -1;
+                i = 0;
+                while i < hit_t.len {
+                    if taken[i] == 0.0 && (pick < 0 || dir * hit_t[i] < dir * hit_t[pick]) { pick = i; }
+                    i += 1;
+                }
+                taken[pick] = 1.0;
+                order.push(pick);
+                c += 1;
+            }
+            var oi: i64 = 0;
+            while oi < order.len && !stop {
+                let h = order[oi] as i64;
+                let th = hit_t[h];
+                let eh = hit_i[h] as i64;
+                let fr = (th - t) / (tnew - t);
+                let yh = ivp_point(rk45, ns, n, y, tnew - t, kacc, fnew, fr);
+                ev_t.push(th);
+                ev_i.push(eh);
+                i = 0;
+                while i < n { ev_y.push(yh[i]); i += 1; }
+                if terminal[eh] {
+                    stop = true;
+                    tnew = th;
+                    ynew = copy_slice(yh);
+                    fnew = [];
+                    var fz = F(th, copy(yh));
+                    i = 0;
+                    while i < n { fnew.push(fz[i]); i += 1; }
+                }
+                oi += 1;
+            }
+            gold = copy_slice(gnew);
+        }
         t = tnew;
         y = copy(ynew);
         f = copy(fnew);
@@ -494,10 +707,39 @@ fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f
         i = 0;
         while i < n { ys.push(y[i]); i += 1; }
     }
-    if t_eval.len > 0 {
-        return ivp_dense(t_eval, hist_t, hist_h, hist_y, hist_k, rk45, ns, n);
+    var dn = dense_none();
+    if want_dense {
+        var buf: f64[>..] = [];
+        var q: i64 = 0;
+        while q < hist_t.len { buf.push(hist_t[q]); q += 1; }
+        q = 0;
+        while q < hist_h.len { buf.push(hist_h[q]); q += 1; }
+        q = 0;
+        while q < hist_y.len { buf.push(hist_y[q]); q += 1; }
+        q = 0;
+        while q < hist_k.len { buf.push(hist_k[q]); q += 1; }
+        dn = Dense { rk45: rk45, ns: ns, n: n, steps: hist_t.len, buf: copy(buf) };
     }
-    return line_arr(copy(ts)), mat2(copy(ys), ts.len, n), no_fault();
+    var evt = empty_arr();
+    var evi = empty_arr();
+    var evy = empty_arr();
+    if ev_t.len > 0 {
+        evt = line_arr(copy(ev_t));
+        evi = line_arr(copy(ev_i));
+        evy = mat2(copy(ev_y), ev_t.len, n);
+    }
+    if t_eval.len > 0 {
+        // The times after a terminal event drop out.
+        var kept: f64[>..] = [];
+        var qq: i64 = 0;
+        while qq < t_eval.len {
+            if dir * (t_eval[qq] - t) <= 0.0 { kept.push(t_eval[qq]); }
+            qq += 1;
+        }
+        let rt, ry, rf = ivp_dense(kept, hist_t, hist_h, hist_y, hist_k, rk45, ns, n);
+        return rt, ry, evt, evi, evy, dn, rf;
+    }
+    return line_arr(copy(ts)), mat2(copy(ys), ts.len, n), evt, evi, evy, dn, no_fault();
 }
 
 // ivp_dense gives the values at the times of t_eval from the dense
