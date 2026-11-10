@@ -341,7 +341,6 @@ fn tf2sos(b: f64[:], a: f64[:]) -> Arr, Fault {
 // Butterworth filter. The steps follow SciPy: the poles of the analog
 // prototype, the map to the band, the bilinear rule.
 fn butter_zpk(order: i64, wn: f64[:], btype: const u8[:], z: Cplx[>..]&, p: Cplx[>..]&) -> f64 {
-    let zero = Cplx { re: 0.0, im: 0.0 };
     var p0: Cplx[>..] = [];
     var m = 1 - order;
     while m < order {
@@ -349,8 +348,16 @@ fn butter_zpk(order: i64, wn: f64[:], btype: const u8[:], z: Cplx[>..]&, p: Cplx
         p0.push(Cplx { re: -mathshim::cosine(ang), im: -mathshim::sine(ang) });
         m += 2;
     }
+    return proto_zpk(order, wn, btype, p0, 1.0, z, p);
+}
+
+// proto_zpk maps the poles p0 and the gain kp of an analog lowpass
+// prototype without zeros to a digital filter. The map to the band and
+// the bilinear rule follow SciPy.
+fn proto_zpk(order: i64, wn: f64[:], btype: const u8[:], p0: Cplx[:], kp0: f64, z: Cplx[>..]&, p: Cplx[>..]&) -> f64 {
+    let zero = Cplx { re: 0.0, im: 0.0 };
     var w0 = 4.0 * mathshim::tan_of(PI_VALUE * wn[0] / 2.0);
-    var k: f64 = 1.0;
+    var k: f64 = kp0;
     // The product of the negated prototype poles, for the gain of the
     // types that invert the prototype.
     var prod = Cplx { re: 1.0, im: 0.0 };
@@ -369,7 +376,7 @@ fn butter_zpk(order: i64, wn: f64[:], btype: const u8[:], z: Cplx[>..]&, p: Cplx
         while i < p0.len { sp.push(c_div(Cplx { re: w0, im: 0.0 }, p0[i])); i += 1; }
         i = 0;
         while i < order { sz.push(zero); i += 1; }
-        k = invk;
+        k = kp0 * invk;
     } else {
         let w1 = 4.0 * mathshim::tan_of(PI_VALUE * wn[1] / 2.0);
         let bw = w1 - w0;
@@ -399,7 +406,7 @@ fn butter_zpk(order: i64, wn: f64[:], btype: const u8[:], z: Cplx[>..]&, p: Cplx
             while i < order { sz.push(Cplx { re: 0.0, im: wo }); i += 1; }
             i = 0;
             while i < order { sz.push(Cplx { re: 0.0, im: -wo }); i += 1; }
-            k = invk;
+            k = kp0 * invk;
         }
     }
     // The bilinear rule with a sampling rate of two.
@@ -499,4 +506,33 @@ fn sosfiltfilt(sos, x: f64[:]) -> Arr, Fault {
     i = 0;
     while i < x.len { out.push(y2[y2.len - 1 - edge - i]); i += 1; }
     return flt_arr(copy(out)), no_fault();
+}
+
+// cheby1_sos designs a digital Chebyshev filter of type I with a ripple
+// of rp decibels in the pass band, and gives it as sections of the
+// order two. The arguments follow cheby1.
+fn cheby1_sos(order: i64, rp: f64, wn: f64[:], btype: const u8[:]) -> Arr, Fault {
+    let chk = flt_check_design(order, wn, btype, "cheby1_sos");
+    if chk.kind != F_NONE { return empty_arr(), chk; }
+    if !(rp > 0.0) || !(rp < 1.0e6) {
+        return empty_arr(), fault(F_VALUE, "cheby1_sos", "the ripple holds a value outside zero to a million");
+    }
+    let eps = mathshim::root(mathshim::power(10.0, 0.1 * rp) - 1.0);
+    let mu = mathshim::arcsinh_of(1.0 / eps) / order;
+    var p0: Cplx[>..] = [];
+    var m = 1 - order;
+    while m < order {
+        let th = PI_VALUE * m / (2.0 * order);
+        p0.push(Cplx { re: -mathshim::sinh_of(mu) * mathshim::cosine(th), im: -mathshim::cosh_of(mu) * mathshim::sine(th) });
+        m += 2;
+    }
+    var prod = Cplx { re: 1.0, im: 0.0 };
+    var i: i64 = 0;
+    while i < p0.len { prod = c_mul(prod, c_scale(p0[i], -1.0)); i += 1; }
+    var kp = prod.re;
+    if order % 2 == 0 { kp = kp / mathshim::root(1.0 + eps * eps); }
+    var z: Cplx[>..] = [];
+    var p: Cplx[>..] = [];
+    let k = proto_zpk(order, wn, btype, p0, kp, z, p);
+    return sos_from_zpk(z, p, k);
 }

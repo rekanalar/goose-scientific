@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.56.0";
+import scientific from "rekanalar/goose-scientific@v0.57.0";
 ```
 
 ## API
@@ -83,7 +83,7 @@ import scientific from "rekanalar/goose-scientific@v0.56.0";
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `spsolve`, `cg` |
 | Functions of matrices | `sqrtm`, `logm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
-| Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
+| Sections of a filter | `butter_sos`, `cheby1_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -349,6 +349,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `tf2sos` finds the roots with `roots`. A filter of a high order
   with repeated zeros loses digits, as it does in SciPy. Use
   `butter_sos` for a Butterworth filter.
+- `cheby1_sos` designs a Chebyshev filter of type I as sections. It
+  takes the order, the ripple in decibels, the cuts and the type. It
+  gives no numerator and denominator form, no `fs` argument and no
+  analog filter. The order stays at 32 or below.
 - `lfilter` takes no initial state and no axis. `filtfilt` takes the
   odd extension of SciPy. The pad holds three times the coefficient
   count. No other pad option exists.

@@ -4031,6 +4031,25 @@ fn test_interpn() {
     return;
 }
 
+// cheby1_sos is pinned against SciPy.
+fn test_cheby1() {
+    let a, fa = scientific::cheby1_sos(3, 1.0, [0.3], "lowpass");
+    assert(fa.kind == scientific::F_NONE && all_near(a, [0.034384966351816024, 0.06876993270363205, 0.034384966351816024, 1.0, -0.5977088859557689, 0.0, 1.0, 1.0, 0.0, 1.0, -0.9826960523706986, 0.6664788186594006]));
+    let b, fb = scientific::cheby1_sos(4, 0.5, [0.25], "lowpass");
+    assert(fb.kind == scientific::F_NONE && all_near(b, [0.005619419204229541, 0.011238838408459082, 0.005619419204229541, 1.0, -1.329949932426935, 0.5031986921167156, 1.0, 2.0, 1.0, 1.0, -1.231461224536315, 0.7811808980112693]));
+    let c, fc = scientific::cheby1_sos(4, 2.0, [0.4], "highpass");
+    assert(fc.kind == scientific::F_NONE && all_near(c, [0.0909132735975814, -0.1818265471951628, 0.0909132735975814, 1.0, 0.5482374733732417, 0.3414066130550003, 1.0, -2.0, 1.0, 1.0, -0.4982271986803331, 0.8105470523665526]));
+    let d, fd = scientific::cheby1_sos(2, 1.0, [0.2, 0.5], "bandpass");
+    assert(fd.kind == scientific::F_NONE && all_near(d, [0.13822540868747046, 0.2764508173749409, 0.13822540868747046, 1.0, -0.05304216112661112, 0.557304021729915, 1.0, -2.0, 1.0, 1.0, -1.3601282270267474, 0.7067397185454787]));
+    let e, fe = scientific::cheby1_sos(3, 3.0, [0.3, 0.6], "bandstop");
+    assert(fe.kind == scientific::F_NONE && all_near(e, [0.24788111204717675, -0.08704122383840084, 0.24788111204717675, 1.0, -0.1297511163775456, -0.2609742924400598, 1.0, -0.3511410091698925, 1.0, 1.0, 0.6356323433677218, 0.8595451504415792, 1.0, -0.3511410091698925, 1.0, 1.0, -1.1494556109789573, 0.8803918167017183]));
+    let g1, h1 = scientific::cheby1_sos(3, 0.0, [0.3], "lowpass");
+    assert(h1.kind == scientific::F_VALUE);
+    let g2, h2 = scientific::cheby1_sos(3, 1.0, [1.2], "lowpass");
+    assert(h2.kind == scientific::F_RANGE);
+    return;
+}
+
 fn test_matfun() {
     let eg, egf = scientific::from_rows(3, 3, [4.0, 1.0, 0.0, 1.0, 3.0, 0.5, 0.0, 0.5, 2.0]);
     let ew, ev, evf = scientific::eigh(eg);
@@ -4138,6 +4157,7 @@ fn main() {
     test_dblquad();
     test_curve_fit();
     test_interpn();
+    test_cheby1();
     test_generators();
     test_indexing();
     test_sort_and_search();
