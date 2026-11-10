@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.92.0";
+import scientific from "rekanalar/goose-scientific@v0.93.0";
 ```
 
 ## API
@@ -76,7 +76,7 @@ import scientific from "rekanalar/goose-scientific@v0.92.0";
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `null_space`, `orth`, `expm` |
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
-| Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
+| Cubic splines and `interp1d` | `cubic_spline`, `cubic_hermite`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `odeint` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `residue`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `stft`, `istft`, `resample` |
@@ -306,6 +306,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   derivative orders zero to three. A point outside the knots takes the
   end cubic for `cubic_spline` and `pchip`. A spline of `akima` gives
   NaN there, as SciPy does.
+- `cubic_hermite` takes the knots, the values and the slopes. It
+  gives the same cubics as SciPy `CubicHermiteSpline`. A count of
+  slopes that differs from the knots and a slope that is not finite
+  are faults. A point outside the knots takes the end cubic.
 - `interp1d` takes the kinds `linear`, `slinear`, `nearest`, `previous`,
   `zero`, `next`, `quadratic` and `cubic`. The kind `quadratic` takes
   three to 512 points and solves a dense system. A point

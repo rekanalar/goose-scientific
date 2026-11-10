@@ -142,6 +142,24 @@ fn cubic_spline(x: f64[:], y: f64[:], bc: const u8[:] = "not-a-knot") -> Cubics,
     return spline_from_slopes(x, y, b), no_fault();
 }
 
+// cubic_hermite builds the cubic that passes through the values with
+// the given slopes at the knots. The slopes must be finite.
+fn cubic_hermite(x: f64[:], y: f64[:], dydx: f64[:]) -> Cubics, Fault {
+    let f = spline_knots(x, y, "cubic_hermite");
+    if f.kind != F_NONE { return Cubics { n: 0, extrap: true, buf: [] }, f; }
+    if dydx.len != x.len {
+        return Cubics { n: 0, extrap: true, buf: [] }, fault(F_SHAPE, "cubic_hermite", "the slopes need one value per knot");
+    }
+    var i: i64 = 0;
+    while i < dydx.len {
+        if !(dydx[i] - dydx[i] == 0.0) {
+            return Cubics { n: 0, extrap: true, buf: [] }, fault(F_VALUE, "cubic_hermite", "a slope is not finite");
+        }
+        i += 1;
+    }
+    return spline_from_slopes(x, y, dydx), no_fault();
+}
+
 // pchip builds the monotone cubic of Fritsch and Carlson. The cubic
 // keeps the monotone runs of the data.
 fn pchip(x: f64[:], y: f64[:]) -> Cubics, Fault {
