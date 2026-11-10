@@ -265,12 +265,111 @@ fn test_axis_and_permute() {
     assert(f22.kind == scientific::F_RANGE);
 }
 
+// Elementwise math, comparisons, selection, running sums, spread.
+fn test_logic_and_math() {
+    let v, f = scientific::from_values([-2.5, -0.5, 0.5, 1.5, 2.5]);
+    let fl, f1 = scientific::floor(v);
+    assert(fl.data[0] == -3.0 && fl.data[1] == -1.0 && fl.data[3] == 1.0);
+    let ce, f2 = scientific::ceil(v);
+    assert(ce.data[0] == -2.0 && ce.data[1] == 0.0 && ce.data[3] == 2.0);
+    let ro, f3 = scientific::round(v);
+    assert(ro.data[0] == -2.0 && ro.data[2] == 0.0 && ro.data[3] == 2.0 && ro.data[4] == 2.0);
+    let tr, f4 = scientific::trunc(v);
+    assert(tr.data[0] == -2.0 && tr.data[1] == 0.0);
+    let sg, f5 = scientific::sign(v);
+    assert(sg.data[0] == -1.0 && sg.data[3] == 1.0);
+    let sq, f6 = scientific::square(v);
+    assert(sq.data[0] == 6.25);
+    let p4, f7 = scientific::from_values([1.0, 4.0, 8.0]);
+    let l2, f8 = scientific::log2(p4);
+    assert(close(l2.data[1], 2.0) && close(l2.data[2], 3.0));
+    let l10, f9 = scientific::log10(p4);
+    assert(close(l10.data[0], 0.0));
+    let two, f10 = scientific::full([1], 2.0);
+    let pw, f11 = scientific::power(p4, two);
+    assert(f11.kind == scientific::F_NONE && pw.data[2] == 64.0);
+    // Comparisons give 1.0 and 0.0 and broadcast.
+    let a = make23();
+    let three, f12 = scientific::full([1], 3.0);
+    let gt, f13 = scientific::greater(a, three);
+    assert(f13.kind == scientific::F_NONE && gt.data[2] == 0.0 && gt.data[3] == 1.0);
+    let ge, f14 = scientific::greater_equal(a, three);
+    assert(ge.data[2] == 1.0 && ge.data[1] == 0.0);
+    let eq, f15 = scientific::equal(a, three);
+    assert(eq.data[2] == 1.0 && eq.data[3] == 0.0);
+    let ne, f16 = scientific::not_equal(a, three);
+    assert(ne.data[2] == 0.0);
+    let lt, f17 = scientific::less(a, three);
+    let le, f18 = scientific::less_equal(a, three);
+    assert(lt.data[2] == 0.0 && le.data[2] == 1.0);
+    let la, f19 = scientific::logical_and(gt, ge);
+    assert(la.data[3] == 1.0 && la.data[2] == 0.0);
+    let lo, f20 = scientific::logical_or(gt, eq);
+    assert(lo.data[2] == 1.0 && lo.data[0] == 0.0);
+    let lx, f21 = scientific::logical_xor(gt, ge);
+    assert(lx.data[2] == 1.0 && lx.data[3] == 0.0);
+    let ln, f22 = scientific::logical_not(gt);
+    assert(ln.data[0] == 1.0 && ln.data[5] == 0.0);
+    let anyv, f23 = scientific::any(gt);
+    let allv, f24 = scientific::all(gt);
+    let cnt, f25 = scientific::count_nonzero(gt);
+    assert(anyv && !allv && cnt == 3);
+    // isnan, isinf, isfinite.
+    let zero, f26 = scientific::zeros([2]);
+    let bad, f27 = scientific::div(zero, zero);
+    let zero1, f28b = scientific::zeros([1]);
+    let inf, f28 = scientific::div(p4, zero1);
+    let nn, f29 = scientific::isnan(bad);
+    let ni, f30 = scientific::isinf(inf);
+    let nf, f31 = scientific::isfinite(inf);
+    let nf2, g32 = scientific::isfinite(p4);
+    assert(nn.data[0] == 1.0 && ni.data[0] == 1.0 && nf.data[0] == 0.0 && nf2.data[0] == 1.0);
+    // where selects with broadcasting.
+    let w, f33 = scientific::where(gt, a, three);
+    assert(f33.kind == scientific::F_NONE && w.data[0] == 3.0 && w.data[3] == 4.0 && w.data[5] == 6.0);
+    // cumulative sums, differences and flips.
+    let cs, f34 = scientific::cumsum(a, 1);
+    assert(cs.data[2] == 6.0 && cs.data[4] == 9.0 && cs.data[5] == 15.0);
+    let cp, f35 = scientific::cumprod(a, 0);
+    assert(cp.data[3] == 4.0 && cp.data[5] == 18.0);
+    let df, f36 = scientific::diff(a, 1);
+    assert(df.shape[1] == 2 && df.data[0] == 1.0 && df.data[3] == 1.0);
+    let df2, f37 = scientific::diff(a, 0);
+    assert(df2.shape[0] == 1 && df2.data[2] == 3.0);
+    let fp, f38 = scientific::flip(a, 1);
+    assert(fp.data[0] == 3.0 && fp.data[3] == 6.0);
+    let fp0, f39 = scientific::flip(a, 0);
+    assert(fp0.data[0] == 4.0 && fp0.data[5] == 3.0);
+    let one, f40 = scientific::ones([1, 1]);
+    let bd, f41 = scientific::diff(one, 0);
+    assert(f41.kind == scientific::F_SHAPE);
+    let bf, f42 = scientific::flip(a, 2);
+    assert(f42.kind == scientific::F_RANGE);
+    // variance, deviation and span.
+    let sv, f43 = scientific::from_values([2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]);
+    let va, f44 = scientific::variance(sv, 0);
+    assert(f44.kind == scientific::F_NONE && close(va, 4.0));
+    let sd, f45 = scientific::std(sv, 0);
+    assert(close(sd, 2.0));
+    let va1, f46 = scientific::variance(sv, 1);
+    assert(close(va1, 32.0 / 7.0));
+    let vb, f47 = scientific::variance(sv, 8);
+    assert(f47.kind == scientific::F_VALUE);
+    let vx, f48 = scientific::var_axis(a, 1, 0);
+    assert(f48.kind == scientific::F_NONE && close(vx.data[0], 2.0 / 3.0) && close(vx.data[1], 2.0 / 3.0));
+    let sx, f49 = scientific::std_axis(a, 0, 0);
+    assert(close(sx.data[0], 1.5));
+    let sp, f50 = scientific::ptp(a);
+    assert(sp == 5.0);
+}
+
 fn main() {
     test_create();
     test_shape();
     test_ops();
     test_reduce();
     test_axis_and_permute();
+    test_logic_and_math();
     print("ok\n");
     return;
 }

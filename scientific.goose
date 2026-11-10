@@ -21,6 +21,7 @@ import math;
 import array_create;
 import array_shape;
 import array_ops;
+import array_logic;
 
 // The kinds of a fault. A fault holds a kind, the name of the check
 // and a short detail.

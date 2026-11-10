@@ -104,7 +104,21 @@ fn bop(a, b, rule: i32) -> Arr, Fault {
         else if rule == 2 { d.push(x * y); }
         else if rule == 3 { d.push(x / y); }
         else if rule == 4 { if x > y { d.push(x); } else { d.push(y); } }
-        else { if x < y { d.push(x); } else { d.push(y); } }
+        else if rule == 5 { if x < y { d.push(x); } else { d.push(y); } }
+        else if rule == 6 { d.push(mathshim::power(x, y)); }
+        else {
+            var r: f64 = 0.0;
+            if rule == 7 { if x == y { r = 1.0; } }
+            else if rule == 8 { if x != y { r = 1.0; } }
+            else if rule == 9 { if x < y { r = 1.0; } }
+            else if rule == 10 { if x <= y { r = 1.0; } }
+            else if rule == 11 { if x > y { r = 1.0; } }
+            else if rule == 12 { if x >= y { r = 1.0; } }
+            else if rule == 13 { if x != 0.0 && y != 0.0 { r = 1.0; } }
+            else if rule == 14 { if x != 0.0 || y != 0.0 { r = 1.0; } }
+            else { if (x != 0.0) != (y != 0.0) { r = 1.0; } }
+            d.push(r);
+        }
         i += 1;
     }
     return Arr { ndim: s.len, shape: s, data: d }, no_fault();
@@ -116,19 +130,48 @@ fn mul(a, b) -> Arr, Fault { return bop(a, b, 2); }
 fn div(a, b) -> Arr, Fault { return bop(a, b, 3); }
 fn maximum(a, b) -> Arr, Fault { return bop(a, b, 4); }
 fn minimum(a, b) -> Arr, Fault { return bop(a, b, 5); }
+fn power(a, b) -> Arr, Fault { return bop(a, b, 6); }
+fn equal(a, b) -> Arr, Fault { return bop(a, b, 7); }
+fn not_equal(a, b) -> Arr, Fault { return bop(a, b, 8); }
+fn less(a, b) -> Arr, Fault { return bop(a, b, 9); }
+fn less_equal(a, b) -> Arr, Fault { return bop(a, b, 10); }
+fn greater(a, b) -> Arr, Fault { return bop(a, b, 11); }
+fn greater_equal(a, b) -> Arr, Fault { return bop(a, b, 12); }
+fn logical_and(a, b) -> Arr, Fault { return bop(a, b, 13); }
+fn logical_or(a, b) -> Arr, Fault { return bop(a, b, 14); }
+fn logical_xor(a, b) -> Arr, Fault { return bop(a, b, 15); }
 
 // uop applies one math rule to every element. The rule picks the
-// operation: 0 neg, 1 abs, 2 sqrt, 3 exp, 4 log.
+// operation: 0 neg, 1 abs, 2 sqrt, 3 exp, 4 log, 5 sign, 6 floor,
+// 7 ceil, 8 round, 9 trunc, 10 square, 11 log2, 12 log10, 13 isnan,
+// 14 isinf, 15 isfinite, 16 logical_not. The tests give 1.0 or 0.0.
 fn uop(a, rule: i32) -> Arr, Fault {
     var d: f64[>..] = [];
     var i: i64 = 0;
     while i < a.data.len {
         let x = a.data[i];
-        if rule == 0 { d.push(-x); }
-        else if rule == 1 { if x < 0.0 { d.push(-x); } else { d.push(x); } }
-        else if rule == 2 { d.push(mathshim::root(x)); }
-        else if rule == 3 { d.push(mathshim::power_e(x)); }
-        else { d.push(mathshim::ln(x)); }
+        var r: f64 = 0.0;
+        if rule == 0 { r = -x; }
+        else if rule == 1 { r = x; if x < 0.0 { r = -x; } }
+        else if rule == 2 { r = mathshim::root(x); }
+        else if rule == 3 { r = mathshim::power_e(x); }
+        else if rule == 4 { r = mathshim::ln(x); }
+        else if rule == 5 {
+            r = x;
+            if x > 0.0 { r = 1.0; } else if x < 0.0 { r = -1.0; } else if x == 0.0 { r = 0.0; }
+        }
+        else if rule == 6 { r = mathshim::floor_of(x); }
+        else if rule == 7 { r = mathshim::ceil_of(x); }
+        else if rule == 8 { r = mathshim::round_of(x); }
+        else if rule == 9 { r = mathshim::trunc_of(x); }
+        else if rule == 10 { r = x * x; }
+        else if rule == 11 { r = mathshim::log2_of(x); }
+        else if rule == 12 { r = mathshim::log10_of(x); }
+        else if rule == 13 { if x != x { r = 1.0; } }
+        else if rule == 14 { if x == x && x == x + 1.0 { r = 1.0; } }
+        else if rule == 15 { if x == x && x != x + 1.0 { r = 1.0; } }
+        else { if x == 0.0 { r = 1.0; } }
+        d.push(r);
         i += 1;
     }
     var s: i64[..8] = [];
@@ -142,6 +185,18 @@ fn abs(a) -> Arr, Fault { return uop(a, 1); }
 fn sqrt(a) -> Arr, Fault { return uop(a, 2); }
 fn exp(a) -> Arr, Fault { return uop(a, 3); }
 fn log(a) -> Arr, Fault { return uop(a, 4); }
+fn sign(a) -> Arr, Fault { return uop(a, 5); }
+fn floor(a) -> Arr, Fault { return uop(a, 6); }
+fn ceil(a) -> Arr, Fault { return uop(a, 7); }
+fn round(a) -> Arr, Fault { return uop(a, 8); }
+fn trunc(a) -> Arr, Fault { return uop(a, 9); }
+fn square(a) -> Arr, Fault { return uop(a, 10); }
+fn log2(a) -> Arr, Fault { return uop(a, 11); }
+fn log10(a) -> Arr, Fault { return uop(a, 12); }
+fn isnan(a) -> Arr, Fault { return uop(a, 13); }
+fn isinf(a) -> Arr, Fault { return uop(a, 14); }
+fn isfinite(a) -> Arr, Fault { return uop(a, 15); }
+fn logical_not(a) -> Arr, Fault { return uop(a, 16); }
 
 // scale multiplies every element by a number.
 fn scale(a, s: f64) -> Arr, Fault {

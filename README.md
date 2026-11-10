@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.2.0";
+import scientific from "rekanalar/goose-scientific@v0.3.0";
 ```
 
 ## API
@@ -26,9 +26,11 @@ import scientific from "rekanalar/goose-scientific@v0.2.0";
 |---|---|
 | Creation | `zeros`, `ones`, `full`, `arange`, `linspace`, `eye`, `diag`, `from_rows`, `from_values`, `clone` |
 | Shape | `reshape`, `ravel`, `transpose`, `transpose_perm`, `squeeze`, `expand_dims`, `concatenate`, `stack`, `broadcast_shapes`, `index` |
-| Elementwise | `add`, `sub`, `mul`, `div`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `scale`, `clip` |
+| Elementwise | `add`, `sub`, `mul`, `div`, `power`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `log2`, `log10`, `scale`, `clip`, `sign`, `floor`, `ceil`, `round`, `trunc`, `square` |
+| Logic | `equal`, `not_equal`, `less`, `less_equal`, `greater`, `greater_equal`, `logical_and`, `logical_or`, `logical_xor`, `logical_not`, `isnan`, `isinf`, `isfinite`, `all`, `any`, `count_nonzero`, `where` |
 | Reductions | `sum`, `prod`, `min`, `max`, `mean`, `argmin`, `argmax` |
-| Reductions along an axis | `sum_axis`, `prod_axis`, `min_axis`, `max_axis`, `mean_axis` |
+| Reductions along an axis | `sum_axis`, `prod_axis`, `min_axis`, `max_axis`, `mean_axis`, `var_axis`, `std_axis` |
+| Running and spread | `cumsum`, `cumprod`, `diff`, `flip`, `variance`, `std`, `ptp` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -70,6 +72,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   They take no axis.
 - The elementwise math holds the functions of this table. The rest of
   the scalar functions of NumPy stay out for now.
+- A comparison gives an array of 1.0 and 0.0. The array holds one
+  element type, so a truth value has no type of its own.
+- `round` sends a half to the even neighbour, as NumPy does. `floor`,
+  `ceil` and `trunc` send a value to a whole number.
+- `cumsum` and `cumprod` take an axis. `diff` and `flip` take an axis
+  too, and `diff` drops one element of it.
+- `variance` and `std` take a divisor count. The divisor is the
+  length minus that count.
 
 ## Security
 
@@ -79,6 +89,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `arange` computes its count before it allocates. A range that
   reaches over `MAX_ELEMENTS` is a fault, so a bad step cannot grow
   memory without bound.
+- A comparison never reads a value as text, so it cannot fail on a
+  value. A shape that does not broadcast is a fault, and the fault
+  comes before any element moves.
 - The IEEE rules hold for the values. A division by zero gives an
   infinity. A log of a number below zero gives NaN. No fault comes
   from a value, only from a shape, a range or a limit. Check `is_nan`
