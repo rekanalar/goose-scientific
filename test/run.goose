@@ -4070,6 +4070,16 @@ fn test_root() {
         assert(mathshim_abs(xm.data[0] - 0.8411639) < 1.0e-6 && mathshim_abs(xm.data[1] - 0.1588361) < 1.0e-6);
         k += 1;
     }
+    // The method df-sane takes no derivative. Its tolerance is relative
+    // to the first residual.
+    let xd, fd, gd = scientific::root([0.0, 0.0], "df-sane", 1.0e-10, 500) { v => [v[0] + 0.5 * (v[0] - v[1]) * (v[0] - v[1]) * (v[0] - v[1]) - 1.0, 0.5 * (v[1] - v[0]) * (v[1] - v[0]) * (v[1] - v[0]) + v[1]] };
+    assert(gd.kind == scientific::F_NONE);
+    assert(mathshim_abs(xd.data[0] - 0.8411639) < 1.0e-6 && mathshim_abs(xd.data[1] - 0.1588361) < 1.0e-6);
+    // The method krylov uses a Krylov iteration for the linear step.
+    // SciPy reaches the same root.
+    let xk, fk2, gk = scientific::root([2.0, 0.5], "krylov", 1.0e-10, 200) { v => [v[0] * v[0] + v[1] * v[1] - 4.0, v[0] * v[1] - 1.0] };
+    assert(gk.kind == scientific::F_NONE);
+    assert(mathshim_abs(xk.data[0] - 1.93185165) < 1.0e-6 && mathshim_abs(xk.data[1] - 0.51763809) < 1.0e-6);
     let m1, m2, mg = scientific::root([1.0, 2.0], "anderson") { v => [v[0]] };
     assert(mg.kind == scientific::F_SHAPE);
     let x3, f3v, g3 = scientific::root([1.0, 1.0, 1.0]) { v => [v[0] + v[1] + v[2] - 6.0, v[0] * v[1] - 2.0, v[2] - v[0] - 1.0] };

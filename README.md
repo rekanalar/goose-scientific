@@ -909,17 +909,28 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   holds fewer digits than the other methods.
 - `root` finds the point where several equations hold zero. The
   methods are `hybr`, `lm`, `broyden1`, `broyden2`, `linearmixing`,
-  `diagbroyden`, `excitingmixing` and `anderson`. The result holds
-  the point and the values of the equations.
+  `diagbroyden`, `excitingmixing`, `anderson`, `df-sane` and
+  `krylov`. The result holds the point and the values of the
+  equations.
 - The method `hybr` of `root` takes damped Newton steps, not the
   trust region of MINPACK. The path differs from SciPy, but the root
-  matches. SciPy holds the methods `krylov` and `df-sane` too. The
-  package faults on them.
+  matches.
 - The four simple iterations of `root` use a line search and take the descent sign for the first guess. SciPy takes
   the other sign and diverges on common systems with
   `linearmixing` and `excitingmixing`. The roots match, the paths
-  differ. The method `lm` that stops at a point that
-  is not a root is a fault.
+  differ.
+- The method `df-sane` of `root` takes no derivative. It uses the
+  spectral residual method of La Cruz, Martinez and Raydan. The line
+  search is the non-monotone one of the same authors. The tolerance is
+  relative to the first residual. The count of turns limits the
+  count of evaluations to five times the count plus a thousand.
+- The method `krylov` of `root` takes no derivative either. It uses
+  a Newton step and a Krylov iteration for the linear part. The
+  product of the derivative and a vector comes from a small
+  difference. The line search of Armijo takes the step. The path
+  differs from SciPy, but the root matches.
+- The method `lm` that stops at a point that is not a root is a
+  fault.
 - Every solver takes a tolerance and a count of turns. A tolerance
   of zero and a count below one are faults. A method that does not
   reach the tolerance in the count of turns is a fault.
