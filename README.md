@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.25.0";
+import scientific from "rekanalar/goose-scientific@v0.26.0";
 ```
 
 ## API
@@ -28,6 +28,7 @@ import scientific from "rekanalar/goose-scientific@v0.25.0";
 | Stacks | `vstack`, `hstack`, `dstack`, `column_stack` |
 | Grids | `meshgrid(x, y, indexing="xy", sparse=false)`, `cross` |
 | Positions | `argwhere`, `flatnonzero` |
+| Histograms of two dimensions | `histogram2d(x, y, xbins=10, ybins=10)`, `histogramdd(points, bins=10)` |
 | Closeness | `isclose(a, b, rtol=1e-05, atol=1e-08, equal_nan=false)`, `allclose(...)`, `array_equal(a, b, equal_nan=false)` |
 | Shape | `reshape`, `ravel`, `transpose`, `transpose_perm`, `squeeze`, `expand_dims`, `concatenate`, `stack`, `broadcast_shapes`, `index` |
 | Elementwise | `add`, `sub`, `mul`, `div`, `power`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `log2`, `log10`, `scale`, `clip`, `sign`, `floor`, `ceil`, `round`, `trunc`, `rint`, `fix`, `square`, `sin`, `cos`, `tan`, `arcsin`, `arccos`, `arctan`, `arctan2`, `sinh`, `cosh`, `tanh`, `arcsinh`, `arccosh`, `arctanh`, `expm1`, `log1p`, `reciprocal`, `deg2rad`, `rad2deg`, `signbit`, `isneginf`, `isposinf`, `floor_divide`, `mod`, `fmod`, `cbrt`, `hypot`, `exp2`, `nextafter`, `copysign`, `spacing` |
@@ -104,6 +105,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   absolute size plus the relative size times the second number. The
   infinity equals itself. The missing value matches itself only under
   the flag.
+- `histogram2d` and `histogramdd` take the range from the smallest and
+  the largest value of the input, as the histogram of one dimension
+  does. NumPy takes a `range` option. A column where every value holds
+  the same number is a fault. The counts hold no `weights` and no
+  `density` option.
+- `histogramdd` takes rows of points. Each column holds one dimension.
+  The edges come back as one row per dimension. The counts sit in the
+  order of the rows of the grid, so the last dimension runs fastest.
 - `array_equal` takes one shape and equal elements. It takes no
   broadcast, as NumPy does not.
 - `flatnonzero` gives the flat positions of the elements that are not

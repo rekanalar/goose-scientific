@@ -180,6 +180,143 @@ fn histogram(a, bins: i64) -> Arr, Arr, Fault {
     return Arr { ndim: 1, shape: sc, data: counts }, Arr { ndim: 1, shape: se, data: edges }, no_fault();
 }
 
+// histogram2d counts the pairs of two arrays in a grid of equal bins.
+// The first array gives the row of the grid and the second one gives
+// the column. The counts sit in the order of the rows, as NumPy gives
+// them. A value on the right edge of the range falls in the last bin.
+fn histogram2d(x, y, xbins: i64 = 10, ybins: i64 = 10) -> Arr, Arr, Arr, Fault {
+    if xbins < 1 || ybins < 1 {
+        return empty_arr(), empty_arr(), empty_arr(), fault(F_VALUE, "histogram2d", "a count of bins holds a value below one");
+    }
+    if x.ndim != 1 || y.ndim != 1 {
+        return empty_arr(), empty_arr(), empty_arr(), fault(F_SHAPE, "histogram2d", "an input holds not one dimension");
+    }
+    if x.data.len != y.data.len {
+        return empty_arr(), empty_arr(), empty_arr(), fault(F_SHAPE, "histogram2d", "the inputs hold a different count of values");
+    }
+    let lox, flo = min(x);
+    if flo.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), flo; }
+    let hix, fhi = max(x);
+    if fhi.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), fhi; }
+    let loy, flo2 = min(y);
+    if flo2.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), flo2; }
+    let hiy, fhi2 = max(y);
+    if fhi2.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), fhi2; }
+    if hix == lox || hiy == loy {
+        return empty_arr(), empty_arr(), empty_arr(), fault(F_VALUE, "histogram2d", "every value of one array holds the same number");
+    }
+    let spanx = (hix - lox) / xbins as f64;
+    let spany = (hiy - loy) / ybins as f64;
+    var counts: f64[>..] = [];
+    var i: i64 = 0;
+    while i < xbins * ybins { counts.push(0.0); i += 1; }
+    i = 0;
+    while i < x.data.len {
+        var bx = ((x.data[i] - lox) / spanx) as i64;
+        if bx >= xbins { bx = xbins - 1; }
+        if bx < 0 { bx = 0; }
+        var by = ((y.data[i] - loy) / spany) as i64;
+        if by >= ybins { by = ybins - 1; }
+        if by < 0 { by = 0; }
+        counts[bx * ybins + by] += 1.0;
+        i += 1;
+    }
+    var sc: i64[..8] = [];
+    sc.push(xbins); sc.push(ybins);
+    var sx: i64[..8] = [];
+    sx.push(xbins + 1);
+    var sy: i64[..8] = [];
+    sy.push(ybins + 1);
+    var ex: f64[>..] = [];
+    var ey: f64[>..] = [];
+    i = 0;
+    while i <= xbins { ex.push(lox + spanx * i as f64); i += 1; }
+    i = 0;
+    while i <= ybins { ey.push(loy + spany * i as f64); i += 1; }
+    return Arr { ndim: 2, shape: sc, data: counts }, Arr { ndim: 1, shape: sx, data: ex }, Arr { ndim: 1, shape: sy, data: ey }, no_fault();
+}
+
+// histogramdd counts the rows of points in a grid of equal bins. Each
+// row holds one point, and each column holds one dimension. The count
+// of bins is the same for every dimension. The counts sit in the order
+// of the rows of the grid, so the last dimension runs fastest, as
+// NumPy gives them. The edges come back as a grid of one row per
+// dimension.
+fn histogramdd(points, bins: i64 = 10) -> Arr, Arr, Fault {
+    if bins < 1 {
+        return empty_arr(), empty_arr(), fault(F_VALUE, "histogramdd", "the count of bins holds a value below one");
+    }
+    if points.ndim != 2 {
+        return empty_arr(), empty_arr(), fault(F_SHAPE, "histogramdd", "the points hold not two dimensions");
+    }
+    let dims = points.shape[1];
+    if dims > MAX_DIMS {
+        return empty_arr(), empty_arr(), fault(F_LIMIT, "histogramdd", "the points hold more dimensions than the limit");
+    }
+    // The counts hold a power of the bins. A count that passes the
+    // limit of the elements is a fault.
+    var total: i64 = 1;
+    var k: i64 = 0;
+    while k < dims {
+        total *= bins;
+        if total > MAX_ELEMENTS {
+            return empty_arr(), empty_arr(), fault(F_LIMIT, "histogramdd", "the counts hold more elements than the limit");
+        }
+        k += 1;
+    }
+    var lo: f64[>..] = [];
+    var hi: f64[>..] = [];
+    var span: f64[>..] = [];
+    var j: i64 = 0;
+    while j < dims {
+        var col: f64[>..] = [];
+        var i: i64 = 0;
+        while i < points.shape[0] { col.push(points.data[i * dims + j]); i += 1; }
+        var sh: i64[..8] = [];
+        sh.push(col.len);
+        let c = Arr { ndim: 1, shape: sh, data: copy(col) };
+        let l, fl = min(c);
+        if fl.kind != F_NONE { return empty_arr(), empty_arr(), fl; }
+        let h, fh = max(c);
+        if fh.kind != F_NONE { return empty_arr(), empty_arr(), fh; }
+        if h == l {
+            return empty_arr(), empty_arr(), fault(F_VALUE, "histogramdd", "every value of one column holds the same number");
+        }
+        lo.push(l); hi.push(h); span.push((h - l) / bins as f64);
+        j += 1;
+    }
+    var counts: f64[>..] = [];
+    var i: i64 = 0;
+    while i < total { counts.push(0.0); i += 1; }
+    i = 0;
+    while i < points.shape[0] {
+        var flat: i64 = 0;
+        j = 0;
+        while j < dims {
+            var b = ((points.data[i * dims + j] - lo[j]) / span[j]) as i64;
+            if b >= bins { b = bins - 1; }
+            if b < 0 { b = 0; }
+            flat = flat * bins + b;
+            j += 1;
+        }
+        counts[flat] += 1.0;
+        i += 1;
+    }
+    var sc: i64[..8] = [];
+    j = 0;
+    while j < dims { sc.push(bins); j += 1; }
+    var se: i64[..8] = [];
+    se.push(dims); se.push(bins + 1);
+    var edges: f64[>..] = [];
+    j = 0;
+    while j < dims {
+        i = 0;
+        while i <= bins { edges.push(lo[j] + span[j] * i as f64); i += 1; }
+        j += 1;
+    }
+    return Arr { ndim: sc.len, shape: sc, data: counts }, Arr { ndim: 2, shape: se, data: edges }, no_fault();
+}
+
 // histogram_edges gives the edges of the bins of a histogram.
 fn histogram_edges(a, bins: i64) -> Arr, Fault {
     let c, e, f = histogram(a, bins);
