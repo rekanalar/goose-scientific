@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.31.0";
+import scientific from "rekanalar/goose-scientific@v0.32.0";
 ```
 
 ## API
@@ -64,6 +64,7 @@ import scientific from "rekanalar/goose-scientific@v0.31.0";
 | Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
+| Filters | `butter`, `lfilter`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -93,6 +94,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- `butter` gives the numerator and the denominator of the filter. It
+  holds no `output='sos'` form and no `fs` argument: the cut is a
+  fraction of the Nyquist rate. The order stays between 1 and 32.
+  Write the coefficients with real arithmetic, so a high order with a
+  cut near zero or near one loses digits. Use a low order there.
+- `sosfilt` takes a matrix of six columns. It refuses a section whose
+  first denominator coefficient differs from one.
+- `lfilter` takes no initial state and no axis. `filtfilt` takes the
+  odd extension of SciPy. The pad holds three times the coefficient
+  count. No other pad option exists.
+- `hilbert` returns the real and the imaginary parts as two arrays,
+  as `fft` does.
 - The shape holds at most 8 dimensions.
 - One array holds at most `MAX_ELEMENTS` elements, 268435456.
 - Every dimension holds at least one element. The release refuses an

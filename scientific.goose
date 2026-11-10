@@ -41,6 +41,7 @@ import array_minimize;
 import array_integrate;
 import array_interpolate;
 import array_signal;
+import array_filter;
 import array_grid;
 import array_buffer;
 import array_fftn;
