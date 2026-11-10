@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.20.0";
+import scientific from "rekanalar/goose-scientific@v0.21.0";
 ```
 
 ## API
@@ -34,6 +34,7 @@ import scientific from "rekanalar/goose-scientific@v0.20.0";
 | Reductions that skip NaN | `nansum`, `nanprod`, `nanmin`, `nanmax`, `nanmean`, `nanvar`, `nanstd`, `nansum_axis`, `nanprod_axis`, `nanmin_axis`, `nanmax_axis`, `nanmean_axis`, `nanvar_axis`, `nanstd_axis`, `nan_to_num` |
 | Running and spread | `cumsum`, `cumprod`, `diff`, `flip`, `variance`, `std`, `ptp` |
 | Indexing | `slice_axis`, `take`, `put`, `nonzero`, `mask`, `take_along_axis`, `repeat`, `tile`, `flatten`, `partition` |
+| Sets | `union1d`, `intersect1d`, `setdiff1d`, `in1d`, `isin` |
 | Sorting | `sort`, `argsort`, `sort_axis`, `unique`, `unique_sorted`, `roll` |
 | Search | `searchsorted`, `histogram`, `histogram_edges`, `bincount`, `digitize` |
 | Order statistics | `median`, `percentile`, `quantile`, `mode`, `average`, `median_axis`, `quantile_axis`, `percentile_axis`, `average_axis` |
@@ -171,6 +172,24 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   element of the other axes.
 - `mask` keeps the elements of one array that hold true in a second
   array of the same length.
+- The sets hold each value once, in the order of its value. `union1d`
+  holds the values of two rows. `intersect1d` holds the values that
+  two rows hold in common. `setdiff1d` holds the values of the first
+  row that the second row holds no value of.
+- `in1d` tells for each value of a flat row whether another row holds
+  it. `isin` tells the same for the elements of an array and keeps
+  the shape of the array. Both hold 1.0 and 0.0. Both take a flag
+  that turns the answer around.
+- A NaN holds no value in a membership test, not even another NaN.
+  So `in1d` and `isin` never match a NaN. `intersect1d` holds no NaN
+  and `setdiff1d` keeps a NaN of the first row, as NumPy does.
+- The union holds one NaN and puts it at the end. Two NaN of the rows
+  come once, as NumPy holds them in a unique array.
+- The sets sort the second row and search it, so a large row takes a
+  long time. The sort is an insertion sort, as the sort of the
+  package is.
+- `union1d` holds the values of two rows in one row. Two rows that
+  hold more elements together than the limit give a fault.
 - The sort is stable and gives a copy. Two equal elements keep the
   order of their positions.
 - The sort is an insertion sort. It holds a small or a middle array
@@ -393,6 +412,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   for a value of zero. No fault comes from the value.
 - `mode` and `average` read the whole array. A large array takes a
   long time.
+- The sets sort a row to search it. A row of many elements takes a
+  long time, as the sort of the package takes.
 - A NaN reduction never faults on a value. An array of only NaN gives
   a neutral value or NaN. A caller that needs a number checks the
   result with `is_nan` of the standard library.
