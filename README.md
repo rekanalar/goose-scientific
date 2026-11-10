@@ -417,6 +417,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `len(s)` axes. The half spectrum sits on the last axis of `axes`.
   The count of `s` must equal the count of `axes`. The default norm is
   `backward`.
+- SciPy takes a `workers` count on its transforms. NumPy, Rust and Go
+  hold no such count. The package runs every transform on one worker.
+  A count of workers holds no effect on the result.
 - `next_fast_len` follows SciPy. A complex transform takes the factors
   up to 11. A real one takes 2, 3 and 5.
 - `fht` and `ifht` take a one-row signal, `dln`, `mu`, `offset` and
