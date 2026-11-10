@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.124.0";
+import scientific from "rekanalar/goose-scientific@v0.125.0";
 ```
 
 ## API
@@ -54,7 +54,7 @@ import scientific from "rekanalar/goose-scientific@v0.124.0";
 | Polynomials | `polyval`, `polyfit`, `roots` |
 | Complex numbers | `Cplx`, `c_add`, `c_sub`, `c_mul`, `c_div`, `c_abs`, `c_conj`, `c_scale`, `c_value`, `roots_of` |
 | Polynomial type | `polynomial`, `polynomial_call`, `polynomial_degree`, `polynomial_add`, `polynomial_sub`, `polynomial_mul`, `polynomial_pow`, `polynomial_divmod`, `polynomial_der`, `polynomial_integ`, `polynomial_roots`, `polynomial_fromroots`, `polynomial_fit`, `polynomial_cutdeg`, `polynomial_linspace` |
-| Transforms | `fft`, `ifft`, `fft2`, `fft2c`, `ifft2`, `fftn`, `ifftn`, `fftfreq`, `rfftfreq`, `fftshift`, `ifftshift`, `rfft`, `irfft` |
+| Transforms | `fft`, `ifft`, `fft2`, `fft2c`, `ifft2`, `fftn`, `ifftn`, `fftn_ex`, `ifftn_ex`, `fftfreq`, `rfftfreq`, `fftshift`, `ifftshift`, `rfft`, `irfft` |
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
 | Names of NumPy | `seed`, `shuffle`, `random_sample`, `rand`, `randn`, `randint`, `bytes`, `get_state`, `set_state` |
 | Shapes of another array | `empty`, `full_like`, `zeros_like`, `ones_like`, `trim_zeros`, `insert` |
@@ -918,8 +918,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   option.
 - `fftn`, `ifftn`, `fft2c` and `ifft2` take the real parts and the
   imaginary parts as two arrays of one shape. `fft2` takes a real
-  matrix only. `fft2c` takes both parts. The transforms take no `s`
-  option for padding or cropping, and no `axes` option.
+  matrix only. `fft2c` takes both parts. They hold no `s` option, no
+  `axes` and no `norm`.
+- `fftn_ex` and `ifftn_ex` add the `s`, `axes` and `norm` arguments of
+  SciPy. A size of `-1` in `s` keeps the size of the input. The list
+  `[1000]` for `axes` means every axis, or the last `len(s)` axes.
+  The count of `s` must equal the count of `axes`. The default norm is
+  `backward`.
 - `rfftfreq` gives the frequencies from zero to half the rate. A step
   of zero or a length below one is a fault.
 - The generator comes from the standard library. A seed gives the
