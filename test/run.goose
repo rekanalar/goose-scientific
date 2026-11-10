@@ -658,6 +658,75 @@ fn test_decomp_and_eig() {
     assert(f17.kind == scientific::F_SHAPE);
 }
 
+// The singular values, the least squares and the polynomials.
+fn test_svd_and_poly() {
+    // The singular values of a matrix come in the order of their size.
+    let m, f = scientific::from_rows(2, 2, [4.0, 3.0, 6.0, 3.0]);
+    let sv, f1 = scientific::svdvals(m);
+    assert(f1.kind == scientific::F_NONE && sv.data.len == 2);
+    assert(close(sv.data[0], 8.33557912) && close(sv.data[1], 0.71980602));
+    // The product of the left vectors, the values and the right
+    // vectors gives the matrix.
+    let u, s, vt, f2 = scientific::svd(m);
+    assert(f2.kind == scientific::F_NONE && u.shape[0] == 2 && u.shape[1] == 2);
+    assert(vt.shape[0] == 2 && vt.shape[1] == 2);
+    let prod, f3 = scientific::matmul(u, vt);
+    assert(f3.kind == scientific::F_NONE);
+    // The product scales the columns of the right vectors.
+    let scaled, f4 = scientific::scale(vt, s.data[0]);
+    assert(f4.kind == scientific::F_NONE);
+    // The left vectors, the values and the right vectors give the
+    // matrix back.
+    let r00 = u.data[0] * s.data[0] * vt.data[0] + u.data[1] * s.data[1] * vt.data[2];
+    let r01 = u.data[0] * s.data[0] * vt.data[1] + u.data[1] * s.data[1] * vt.data[3];
+    let r10 = u.data[2] * s.data[0] * vt.data[0] + u.data[3] * s.data[1] * vt.data[2];
+    let r11 = u.data[2] * s.data[0] * vt.data[1] + u.data[3] * s.data[1] * vt.data[3];
+    assert(close(r00, 4.0) && close(r01, 3.0) && close(r10, 6.0) && close(r11, 3.0));
+    // A matrix with fewer rows than columns holds a value for each
+    // column.
+    let wide, f5 = scientific::from_rows(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let wsv, f6 = scientific::svdvals(wide);
+    assert(f6.kind == scientific::F_NONE && wsv.data.len == 2);
+    // The least squares fits the points.
+    let pts, f7 = scientific::from_rows(2, 2, [1.0, 2.0, 3.0, 1.0]);
+    let rhs, f8 = scientific::from_values([1.0, 2.0]);
+    let sol, f9 = scientific::lstsq(pts, rhs);
+    assert(f9.kind == scientific::F_NONE && sol.data.len == 2);
+    assert(close(sol.data[0], 0.6) && close(sol.data[1], 0.2));
+    // A system with more points than unknowns fits the points.
+    let many, f7b = scientific::from_rows(3, 2, [1.0, 1.0, 2.0, 1.0, 3.0, 1.0]);
+    let many_rhs, f8b = scientific::from_values([2.0, 3.0, 4.0]);
+    let many_sol, f9b = scientific::lstsq(many, many_rhs);
+    assert(f9b.kind == scientific::F_NONE && close(many_sol.data[0], 1.0) && close(many_sol.data[1], 1.0));
+    // The rank and the condition of a matrix.
+    let rk, f10 = scientific::matrix_rank(m);
+    assert(f10.kind == scientific::F_NONE && rk == 2);
+    let sing, f11 = scientific::from_rows(2, 2, [1.0, 2.0, 2.0, 4.0]);
+    let rk2, f12 = scientific::matrix_rank(sing);
+    assert(f12.kind == scientific::F_NONE && rk2 == 1);
+    let cd, f13 = scientific::cond(m);
+    assert(f13.kind == scientific::F_NONE && close(cd, 8.33557912 / 0.71980602));
+    // The value of a polynomial.
+    let pv = scientific::polyval([1.0, 0.0, -1.0], 2.0);
+    assert(close(pv, 3.0));
+    // The polynomial that fits the points.
+    let xs, f14 = scientific::from_values([0.0, 1.0, 2.0]);
+    let ys, f15 = scientific::from_values([1.0, 3.0, 5.0]);
+    let fit, f16 = scientific::polyfit(xs.data, ys.data, 1);
+    assert(f16.kind == scientific::F_NONE && close(fit.data[0], 2.0) && close(fit.data[1], 1.0));
+    // The roots of a polynomial.
+    let rt, f17 = scientific::roots([1.0, -3.0, 2.0]);
+    assert(f17.kind == scientific::F_NONE && rt.data.len == 2);
+    assert(close(rt.data[0], 1.0) || close(rt.data[0], 2.0));
+    assert(close(rt.data[1], 1.0) || close(rt.data[1], 2.0));
+    // A polynomial with no term is a fault.
+    let bad, f18 = scientific::roots([0.0, 0.0]);
+    assert(f18.kind == scientific::F_VALUE);
+    // A degree below zero is a fault.
+    let bad2, f19 = scientific::polyfit(xs.data, ys.data, -1);
+    assert(f19.kind == scientific::F_VALUE);
+}
+
 fn main() {
     test_create();
     test_shape();
@@ -669,6 +738,7 @@ fn main() {
     test_sort_and_search();
     test_linalg();
     test_decomp_and_eig();
+    test_svd_and_poly();
     print("ok\n");
     return;
 }

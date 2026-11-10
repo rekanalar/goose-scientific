@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.7.0";
+import scientific from "rekanalar/goose-scientific@v0.8.0";
 ```
 
 ## API
@@ -39,6 +39,8 @@ import scientific from "rekanalar/goose-scientific@v0.7.0";
 | Solving | `solve`, `inv`, `det`, `slogdet`, `matrix_power` |
 | Decompositions | `cholesky`, `qr` |
 | Eigenvalues | `eigvals`, `eig`, `eigvalsh`, `eigh` |
+| Singular values | `svd`, `svdvals`, `lstsq`, `matrix_rank`, `cond` |
+| Polynomials | `polyval`, `polyfit`, `roots` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -138,6 +140,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   eigenvalues is a fault for `eig` and `eigvals`.
 - The eigenvectors of a matrix that is not symmetric come from an
   iteration. A matrix whose eigenvalues hold no vector is a fault.
+- `svd` gives the full form, as NumPy gives it under its default.
+  The left vectors hold as many rows and columns as the matrix has
+  rows. The right vectors hold the transpose of the vectors.
+- The singular values hold only the count of the smaller dimension.
+- `lstsq` uses the singular values. A singular value below the
+  tolerance gives a zero in the solution, as NumPy gives it.
+- `matrix_rank` and `cond` use the tolerance of the largest singular
+  value, as NumPy does.
+- The coefficients of a polynomial come from the highest power to the
+  lowest, as NumPy holds them.
+- `roots` uses the eigenvalues of the companion matrix. A root that
+  holds a complex number is a fault.
 
 ## Security
 
@@ -162,6 +176,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   different sizes loses some digits.
 - The QR algorithm with a shift is slow for a large matrix. It holds
   a small and a middle matrix well.
+- The singular values come from the one-sided Jacobi method. The
+  method holds a small and a middle matrix well.
 - A position outside the array is a fault in `take` and in `put`. The
   check of `put` runs over every position before the first write.
   A bad index leaves the array as it was.

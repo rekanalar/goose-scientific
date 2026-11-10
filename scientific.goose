@@ -28,6 +28,8 @@ import array_linalg;
 import array_solve;
 import array_decomp;
 import array_eig;
+import array_svd;
+import array_poly;
 
 // The kinds of a fault. A fault holds a kind, the name of the check
 // and a short detail.
