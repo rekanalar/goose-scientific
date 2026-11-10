@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.125.0";
+import scientific from "rekanalar/goose-scientific@v0.126.0";
 ```
 
 ## API
@@ -74,7 +74,7 @@ import scientific from "rekanalar/goose-scientific@v0.125.0";
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
 | Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `einsum3`, `einsum_set`, `ESet`, `eset_new`, `eset_add`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `general_cosine`, `general_hamming`, `general_gaussian`, `taylor`, `chebwin`, `kaiser_bessel_derived`, `dpss`, `dpss_ratios`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `null_space`, `orth`, `expm` |
-| Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn`, `hfftn_ex`, `ihfftn_ex`, `fht`, `ifht`, `fhtoffset` |
+| Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dct_axis`, `idct_axis`, `dst_axis`, `idst_axis`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `hfft_axis`, `ihfft_axis`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn`, `hfftn_ex`, `ihfftn_ex`, `fht`, `ifht`, `fhtoffset` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
@@ -395,9 +395,15 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   four. They take the norms `backward`, `ortho` and `forward`. Type one
   of the cosine needs two points.
 - `dctn`, `idctn`, `dstn` and `idstn` take an array and a list of axes. They run each axis in turn. An
-  empty list gives the array back. No list means every axis. The
-  `axis` argument of the one-row functions stays out.
-- `hfft` and `ihfft` take and give the parts as two rows. `rfft2`,
+  empty list gives the array back. No list means every axis.
+- `dct_axis`, `idct_axis`, `dst_axis` and `idst_axis` run one row
+  function along one axis of an array. The length `n` crops or pads
+  the axis. A length of zero keeps the size of the axis.
+- `hfft` and `ihfft` take and give the parts as two rows. `hfft_axis`
+  and `ihfft_axis` run them along one axis of an array. `hfft_axis`
+  crops or pads the axis to `n / 2 + 1` places. `ihfft_axis` gives
+  `n / 2 + 1` places and takes the norms `backward`, `ortho` and
+  `forward`. `rfft2`,
   `rfftn`, `irfft2` and `irfftn` take the parts as two arrays. `irfftn`
   takes the length of the last axis, because it cannot tell an even
   length from an odd one.

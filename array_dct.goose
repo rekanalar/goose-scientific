@@ -251,6 +251,186 @@ fn idst(x: f64[:], kind: i64 = 2, norm: const u8[:] = "backward") -> Arr, Fault 
     return sct(x, kind, norm, true, true, "idst");
 }
 
+// sct_axis_len runs the cosine or sine transform along one axis of an
+// array and holds the length of the caller. A length of zero keeps
+// the size of the axis. The axis is cropped or padded to the length.
+fn sct_axis_len(a, axis: i64, n: i64, kind: i64, norm: const u8[:], sine: bool, inverse: bool, tag: const u8[:]) -> Arr, Fault {
+    let c = dct_kind_check(kind, tag);
+    if c.kind != F_NONE { return empty_arr(), c; }
+    if norm_code(norm) < 0 { return empty_arr(), fault(F_VALUE, tag, "the norm holds an unknown name"); }
+    let k = fix_axis(axis, a.ndim);
+    if k < 0 { return empty_arr(), fault(F_RANGE, tag, "an axis stands outside the shape"); }
+    var len = n;
+    if len == 0 { len = a.shape[k]; }
+    if len < 1 { return empty_arr(), fault(F_VALUE, tag, "the length holds a value below one"); }
+    var oshape: i64[..8] = [];
+    var i: i64 = 0;
+    while i < a.ndim { oshape.push(a.shape[i]); i += 1; }
+    oshape[k] = len;
+    var buf: f64[>..] = [];
+    hx_copy(a.data, a.shape, oshape, buf);
+    let inner = product_after_of(oshape, k);
+    let outer = product_before_of(oshape, k);
+    var o: i64 = 0;
+    while o < outer {
+        var q: i64 = 0;
+        while q < inner {
+            var line: f64[>..] = [];
+            var j: i64 = 0;
+            while j < len { line.push(buf[(o * len + j) * inner + q]); j += 1; }
+            let t, f = sct(line, kind, norm, sine, inverse, tag);
+            if f.kind != F_NONE { return empty_arr(), f; }
+            j = 0;
+            while j < len { buf[(o * len + j) * inner + q] = t.data[j]; j += 1; }
+            q += 1;
+        }
+        o += 1;
+    }
+    return Arr { ndim: a.ndim, shape: oshape, data: buf }, no_fault();
+}
+
+// dct_axis is dct along one axis of an array. The length n crops or
+// pads the axis. A length of zero keeps the size of the axis.
+fn dct_axis(a, kind: i64 = 2, n: i64 = 0, axis: i64 = -1, norm: const u8[:] = "backward") -> Arr, Fault {
+    return sct_axis_len(a, axis, n, kind, norm, false, false, "dct_axis");
+}
+
+// idct_axis is idct along one axis of an array.
+fn idct_axis(a, kind: i64 = 2, n: i64 = 0, axis: i64 = -1, norm: const u8[:] = "backward") -> Arr, Fault {
+    return sct_axis_len(a, axis, n, kind, norm, false, true, "idct_axis");
+}
+
+// dst_axis is dst along one axis of an array.
+fn dst_axis(a, kind: i64 = 2, n: i64 = 0, axis: i64 = -1, norm: const u8[:] = "backward") -> Arr, Fault {
+    return sct_axis_len(a, axis, n, kind, norm, true, false, "dst_axis");
+}
+
+// idst_axis is idst along one axis of an array.
+fn idst_axis(a, kind: i64 = 2, n: i64 = 0, axis: i64 = -1, norm: const u8[:] = "backward") -> Arr, Fault {
+    return sct_axis_len(a, axis, n, kind, norm, true, true, "idst_axis");
+}
+
+// hfft_axis is hfft along one axis of an array. The input holds the
+// positive half of a Hermitian spectrum along the axis. The length n
+// of the result is two times the length of the axis minus two when n
+// is zero. The axis is cropped or padded to n / 2 + 1 places. The
+// norms backward, ortho and forward follow SciPy.
+fn hfft_axis(re, im, n: i64 = 0, axis: i64 = -1, norm: const u8[:] = "backward") -> Arr, Fault {
+    if re.ndim != im.ndim || re.data.len != im.data.len {
+        return empty_arr(), fault(F_SHAPE, "hfft_axis", "the parts hold different shapes");
+    }
+    let nc = norm_code(norm);
+    if nc < 0 { return empty_arr(), fault(F_VALUE, "hfft_axis", "the norm holds an unknown name"); }
+    let k = fix_axis(axis, re.ndim);
+    if k < 0 { return empty_arr(), fault(F_RANGE, "hfft_axis", "an axis stands outside the shape"); }
+    let w = re.shape[k];
+    var len = n;
+    if len == 0 { len = 2 * (w - 1); }
+    if len < 1 { return empty_arr(), fault(F_VALUE, "hfft_axis", "the length holds a value below one"); }
+    let need = len / 2 + 1;
+    var ishape: i64[..8] = [];
+    var oshape: i64[..8] = [];
+    var i: i64 = 0;
+    while i < re.ndim { ishape.push(re.shape[i]); oshape.push(re.shape[i]); i += 1; }
+    ishape[k] = need;
+    oshape[k] = len;
+    var cr: f64[>..] = [];
+    var ci: f64[>..] = [];
+    hx_copy(re.data, re.shape, ishape, cr);
+    hx_copy(im.data, im.shape, ishape, ci);
+    let inner = product_after_of(oshape, k);
+    let outer = product_before_of(oshape, k);
+    var scale = 1.0;
+    if nc == 0 { scale = len as f64; }
+    if nc == 1 { scale = mathshim::root(len as f64); }
+    var d: f64[>..] = [];
+    var total: i64 = 1;
+    i = 0;
+    while i < re.ndim { total *= oshape[i]; i += 1; }
+    i = 0;
+    while i < total { d.push(0.0); i += 1; }
+    var o: i64 = 0;
+    while o < outer {
+        var q: i64 = 0;
+        while q < inner {
+            var lr: f64[>..] = [];
+            var li: f64[>..] = [];
+            var j: i64 = 0;
+            while j < need {
+                lr.push(cr[(o * need + j) * inner + q]);
+                li.push(-ci[(o * need + j) * inner + q]);
+                j += 1;
+            }
+            let t, f = irfft(lr, li, len);
+            if f.kind != F_NONE { return empty_arr(), f; }
+            j = 0;
+            while j < len {
+                d[(o * len + j) * inner + q] = t.data[j] * scale;
+                j += 1;
+            }
+            q += 1;
+        }
+        o += 1;
+    }
+    return Arr { ndim: re.ndim, shape: oshape, data: d }, no_fault();
+}
+
+// ihfft_axis is ihfft along one axis of an array. The length n of the
+// transform is the length of the axis when n is zero. The axis is
+// cropped or padded to n places, and the result holds n / 2 + 1
+// places. The norms backward, ortho and forward follow SciPy.
+fn ihfft_axis(a, n: i64 = 0, axis: i64 = -1, norm: const u8[:] = "backward") -> Arr, Arr, Fault {
+    let nc = norm_code(norm);
+    if nc < 0 { return empty_arr(), empty_arr(), fault(F_VALUE, "ihfft_axis", "the norm holds an unknown name"); }
+    let k = fix_axis(axis, a.ndim);
+    if k < 0 { return empty_arr(), empty_arr(), fault(F_RANGE, "ihfft_axis", "an axis stands outside the shape"); }
+    var len = n;
+    if len == 0 { len = a.shape[k]; }
+    if len < 1 { return empty_arr(), empty_arr(), fault(F_VALUE, "ihfft_axis", "the length holds a value below one"); }
+    let count = len / 2 + 1;
+    var ishape: i64[..8] = [];
+    var oshape: i64[..8] = [];
+    var i: i64 = 0;
+    while i < a.ndim { ishape.push(a.shape[i]); oshape.push(a.shape[i]); i += 1; }
+    ishape[k] = len;
+    oshape[k] = count;
+    var buf: f64[>..] = [];
+    hx_copy(a.data, a.shape, ishape, buf);
+    let inner = product_after_of(oshape, k);
+    let outer = product_before_of(oshape, k);
+    var scale = 1.0 / (len as f64);
+    if nc == 1 { scale = 1.0 / mathshim::root(len as f64); }
+    if nc == 2 { scale = 1.0; }
+    var dr: f64[>..] = [];
+    var di: f64[>..] = [];
+    var total: i64 = 1;
+    i = 0;
+    while i < a.ndim { total *= oshape[i]; i += 1; }
+    i = 0;
+    while i < total { dr.push(0.0); di.push(0.0); i += 1; }
+    var o: i64 = 0;
+    while o < outer {
+        var q: i64 = 0;
+        while q < inner {
+            var line: f64[>..] = [];
+            var j: i64 = 0;
+            while j < len { line.push(buf[(o * len + j) * inner + q]); j += 1; }
+            let fr, fi, f = rfft(line);
+            if f.kind != F_NONE { return empty_arr(), empty_arr(), f; }
+            j = 0;
+            while j < count {
+                let at = (o * count + j) * inner + q;
+                dr[at] = fr.data[j] * scale;
+                di[at] = -fi.data[j] * scale;
+                j += 1;
+            }
+            q += 1;
+        }
+        o += 1;
+    }
+    return Arr { ndim: a.ndim, shape: oshape, data: dr }, Arr { ndim: a.ndim, shape: oshape, data: di }, no_fault();
+}
+
 // hfft gives the real transform of a signal that holds only the
 // positive half of a Hermitian spectrum. The length n of the result is
 // 2 (m - 1) for m points when n is zero.
