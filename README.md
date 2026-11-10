@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.24.0";
+import scientific from "rekanalar/goose-scientific@v0.25.0";
 ```
 
 ## API
@@ -28,6 +28,7 @@ import scientific from "rekanalar/goose-scientific@v0.24.0";
 | Stacks | `vstack`, `hstack`, `dstack`, `column_stack` |
 | Grids | `meshgrid(x, y, indexing="xy", sparse=false)`, `cross` |
 | Positions | `argwhere`, `flatnonzero` |
+| Closeness | `isclose(a, b, rtol=1e-05, atol=1e-08, equal_nan=false)`, `allclose(...)`, `array_equal(a, b, equal_nan=false)` |
 | Shape | `reshape`, `ravel`, `transpose`, `transpose_perm`, `squeeze`, `expand_dims`, `concatenate`, `stack`, `broadcast_shapes`, `index` |
 | Elementwise | `add`, `sub`, `mul`, `div`, `power`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `log2`, `log10`, `scale`, `clip`, `sign`, `floor`, `ceil`, `round`, `trunc`, `rint`, `fix`, `square`, `sin`, `cos`, `tan`, `arcsin`, `arccos`, `arctan`, `arctan2`, `sinh`, `cosh`, `tanh`, `arcsinh`, `arccosh`, `arctanh`, `expm1`, `log1p`, `reciprocal`, `deg2rad`, `rad2deg`, `signbit`, `isneginf`, `isposinf`, `floor_divide`, `mod`, `fmod`, `cbrt`, `hypot`, `exp2`, `nextafter`, `copysign`, `spacing` |
 | Names of NumPy | `array`, `subtract`, `multiply`, `divide`, `true_divide`, `negative`, `positive`, `fabs`, `absolute`, `around` |
@@ -99,6 +100,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `argwhere` gives one row of positions per element that is not zero,
   and one column per dimension. No match gives zero rows. NumPy gives
   the same shape.
+- `isclose` holds the rule of NumPy: the difference sits under the
+  absolute size plus the relative size times the second number. The
+  infinity equals itself. The missing value matches itself only under
+  the flag.
+- `array_equal` takes one shape and equal elements. It takes no
+  broadcast, as NumPy does not.
 - `flatnonzero` gives the flat positions of the elements that are not
   zero. It holds the same result as `nonzero`.
 - `meshgrid` takes two vectors and returns two arrays. The indexing

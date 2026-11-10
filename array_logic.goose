@@ -32,6 +32,80 @@ fn where(cond, a, b) -> Arr, Fault {
 }
 
 // all tells whether every element is true. any tells whether one is.
+// near holds the rule of NumPy for one pair of numbers. Two equal
+// numbers are close. Two numbers of the missing value are close only
+// when the flag says so. The rest follows the size of the difference
+// and the size of the second number.
+fn near(x: f64, y: f64, rtol: f64, atol: f64, equal_nan: bool) -> bool {
+    if x == y { return true; }
+    if x != x || y != y {
+        return equal_nan && x != x && y != y;
+    }
+    let d = x - y;
+    var size = y;
+    if y < 0.0 { size = -y; }
+    if d < 0.0 { return -d <= atol + rtol * size; }
+    return d <= atol + rtol * size;
+}
+
+// isclose tells for every pair of elements whether they sit close to
+// each other. The sizes come from NumPy: a relative size of 1e-05 and
+// an absolute size of 1e-08.
+fn isclose(a, b, rtol: f64 = 1.0e-05, atol: f64 = 1.0e-08, equal_nan: bool = false) -> Arr, Fault {
+    let s, fs = bshape(a, b);
+    if fs.kind != F_NONE { return empty_arr(), fs; }
+    let total = numel(s);
+    var ia: i64[>..] = [];
+    var ib: i64[>..] = [];
+    bcast_indices(s, a.shape, b.shape, ia, ib);
+    var d: f64[>..] = [];
+    var i: i64 = 0;
+    while i < total {
+        if near(a.data[ia[i]], b.data[ib[i]], rtol, atol, equal_nan) { d.push(1.0); }
+        else { d.push(0.0); }
+        i += 1;
+    }
+    return Arr { ndim: s.len, shape: s, data: d }, no_fault();
+}
+
+// allclose tells whether every pair of elements sits close to each
+// other, under the rule of isclose.
+fn allclose(a, b, rtol: f64 = 1.0e-05, atol: f64 = 1.0e-08, equal_nan: bool = false) -> bool, Fault {
+    let r, f = isclose(a, b, rtol, atol, equal_nan);
+    if f.kind != F_NONE { return false, f; }
+    var i: i64 = 0;
+    while i < r.data.len {
+        if r.data[i] == 0.0 { return false, no_fault(); }
+        i += 1;
+    }
+    return true, no_fault();
+}
+
+// array_equal tells whether two arrays hold one shape and equal
+// elements. The missing value equals itself only when the flag says
+// so, as in NumPy.
+fn array_equal(a, b, equal_nan: bool = false) -> bool, Fault {
+    if a.ndim != b.ndim { return false, no_fault(); }
+    var i: i64 = 0;
+    while i < a.ndim {
+        if a.shape[i] != b.shape[i] { return false, no_fault(); }
+        i += 1;
+    }
+    if a.data.len != b.data.len { return false, no_fault(); }
+    i = 0;
+    while i < a.data.len {
+        let x = a.data[i];
+        let y = b.data[i];
+        if x != x || y != y {
+            if equal_nan && x != x && y != y { i += 1; continue; }
+            return false, no_fault();
+        }
+        if x != y { return false, no_fault(); }
+        i += 1;
+    }
+    return true, no_fault();
+}
+
 fn all(a) -> bool, Fault {
     var i: i64 = 0;
     while i < a.data.len {
