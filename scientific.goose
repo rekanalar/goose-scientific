@@ -46,6 +46,7 @@ import array_signal;
 import array_filter;
 import array_sos;
 import array_stats;
+import array_ufunc;
 import array_grid;
 import array_buffer;
 import array_fftn;

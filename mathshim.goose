@@ -453,3 +453,168 @@ fn nextafter_of(x: f64, y: f64) -> f64 {
     if x > 0.0 { return x - down; }
     return x - up;
 }
+
+// fmax_of gives the larger number and skips NaN, as the C library
+// does: a NaN gives way to the other number.
+fn fmax_of(a: f64, b: f64) -> f64 {
+    if a >= b || b != b { return a; }
+    return b;
+}
+
+// fmin_of gives the smaller number and skips NaN.
+fn fmin_of(a: f64, b: f64) -> f64 {
+    if a <= b || b != b { return a; }
+    return b;
+}
+
+// heaviside_of gives the step function. A zero takes the value h.
+fn heaviside_of(x: f64, h: f64) -> f64 {
+    if x != x { return x; }
+    if x == 0.0 { return h; }
+    if x < 0.0 { return 0.0; }
+    return 1.0;
+}
+
+// logaddexp_of gives the log of the sum of the powers of e, without
+// the overflow of the powers.
+fn logaddexp_of(x: f64, y: f64) -> f64 {
+    if x == y { return x + 0.6931471805599453; }
+    let t = x - y;
+    if t > 0.0 { return x + log1p_of(power_e(-t)); }
+    if t <= 0.0 { return y + log1p_of(power_e(t)); }
+    return t;
+}
+
+// logaddexp2_of gives the log base two of the sum of the powers of two.
+fn logaddexp2_of(x: f64, y: f64) -> f64 {
+    if x == y { return x + 1.0; }
+    let t = x - y;
+    if t > 0.0 { return x + 1.4426950408889634 * log1p_of(exp2_of(-t)); }
+    if t <= 0.0 { return y + 1.4426950408889634 * log1p_of(exp2_of(t)); }
+    return t;
+}
+
+// ldexp_of gives x times two to the power e. The count e cuts toward
+// zero. A result below the smallest normal number may round twice.
+fn ldexp_of(x: f64, e: f64) -> f64 {
+    if x != x || x == 0.0 || is_inf(x) { return x; }
+    if e != e { return e; }
+    var n = e;
+    if n > 4000.0 { n = 4000.0; }
+    if n < -4000.0 { n = -4000.0; }
+    var k = n as i64;
+    var r = x;
+    while k > 1000 { r = r * power(2.0, 1000.0); k -= 1000; }
+    while k < -1000 { r = r * power(2.0, -1000.0); k += 1000; }
+    return r * power(2.0, k);
+}
+
+// frexp_man_of gives the mantissa of a number, in the range of one
+// half to one, with the sign of the number.
+fn frexp_man_of(x: f64) -> f64 {
+    if x != x || x == 0.0 || is_inf(x) { return x; }
+    return x / power(2.0, exponent_of(x)) * 0.5;
+}
+
+// frexp_exp_of gives the power of two that goes with the mantissa.
+fn frexp_exp_of(x: f64) -> f64 {
+    if x != x || x == 0.0 || is_inf(x) { return 0.0; }
+    return exponent_of(x) + 1.0;
+}
+
+// modf_int_of gives the whole part of a number.
+fn modf_int_of(x: f64) -> f64 {
+    if x != x || is_inf(x) { return x; }
+    return trunc_of(x);
+}
+
+// modf_frac_of gives the fraction of a number with its sign.
+fn modf_frac_of(x: f64) -> f64 {
+    if x != x { return x; }
+    if is_inf(x) { return signed_zero(x); }
+    let f = x - trunc_of(x);
+    if f == 0.0 { return signed_zero(x); }
+    return f;
+}
+
+// sinc_of gives sin(pi x) over pi x. A zero gives one, as NumPy gives
+// it.
+fn sinc_of(x: f64) -> f64 {
+    var y = x;
+    if x == 0.0 { y = 1e-20; }
+    y = 3.141592653589793 * y;
+    return sin(y) / y;
+}
+
+// i0_of gives the modified Bessel function of the first kind and of
+// order zero. The series holds only positive terms, so it loses no
+// digit to a difference. A number above 713.9 gives the infinity.
+fn i0_of(x: f64) -> f64 {
+    if x != x { return x; }
+    let a = abs_of(x);
+    if a > 713.98 { return 1.0 / 0.0; }
+    let q = a * a / 4.0;
+    var term: f64 = 1.0;
+    var sum: f64 = 1.0;
+    var k: f64 = 1.0;
+    while k < 2000.0 {
+        term = term * q / (k * k);
+        sum = sum + term;
+        if term < sum * 1e-17 { break; }
+        k = k + 1.0;
+    }
+    return sum;
+}
+
+// gcd_of gives the greatest common divisor of two whole numbers that
+// the numbers of 64 bits hold.
+fn gcd_of(a: f64, b: f64) -> f64 {
+    var x = abs_of(a) as i64;
+    var y = abs_of(b) as i64;
+    while y != 0 {
+        let t = x % y;
+        x = y;
+        y = t;
+    }
+    return x;
+}
+
+// lcm_of gives the least common multiple of two whole numbers.
+fn lcm_of(a: f64, b: f64) -> f64 {
+    let g = gcd_of(a, b);
+    if g == 0.0 { return 0.0; }
+    return abs_of(a) / g * abs_of(b);
+}
+
+fn bit_and_of(a: f64, b: f64) -> f64 { return (a as i64) & (b as i64); }
+fn bit_or_of(a: f64, b: f64) -> f64 { return (a as i64) | (b as i64); }
+fn bit_xor_of(a: f64, b: f64) -> f64 { return (a as i64) ^ (b as i64); }
+fn bit_not_of(a: f64) -> f64 { return -1.0 - a; }
+
+// bit_left_of shifts to the left. A count outside zero to 63 gives
+// zero, as NumPy gives it.
+fn bit_left_of(a: f64, b: f64) -> f64 {
+    if b < 0.0 || b >= 64.0 { return 0.0; }
+    return (((a as i64) as u64) << (b as u64)) as i64;
+}
+
+// bit_right_of shifts to the right and keeps the sign. A count outside
+// zero to 63 gives zero or minus one.
+fn bit_right_of(a: f64, b: f64) -> f64 {
+    if b < 0.0 || b >= 64.0 {
+        if a < 0.0 { return -1.0; }
+        return 0.0;
+    }
+    return (a as i64) >> (b as i64);
+}
+
+// bit_count_of counts the bits of the size of a whole number.
+fn bit_count_of(a: f64) -> f64 {
+    var v = abs_of(a) as u64;
+    var n: i64 = 0;
+    while v != 0 {
+        n += (v & 1) as i64;
+        v = v >> 1;
+    }
+    return n;
+}

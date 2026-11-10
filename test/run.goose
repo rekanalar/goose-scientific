@@ -2714,6 +2714,117 @@ fn test_stacks() {
     assert(fe7.kind == scientific::F_NONE && e7.ndim == 8);
 }
 
+fn av(x: f64[:]) -> scientific::Arr {
+    let a, f = scientific::from_values(x);
+    assert(f.kind == scientific::F_NONE);
+    return a;
+}
+
+// near tells whether two numbers agree to a relative tolerance.
+fn near(a: f64, b: f64) -> bool {
+    var d = a - b;
+    if d < 0.0 { d = -d; }
+    var s = b;
+    if s < 0.0 { s = -s; }
+    return d <= 0.000000001 * (1.0 + s);
+}
+
+// The rest of the elementwise math, pinned against NumPy.
+fn test_ufunc() {
+    let a = av([1.0, 0.0 / 0.0, -2.0, 3.0]);
+    let b = av([0.0 / 0.0, 2.0, -5.0, 3.0]);
+    let mx, g1 = scientific::fmax(a, b);
+    assert(g1.kind == scientific::F_NONE);
+    assert(mx.data[0] == 1.0 && mx.data[1] == 2.0 && mx.data[2] == -2.0 && mx.data[3] == 3.0);
+    let mn, g2 = scientific::fmin(a, b);
+    assert(g2.kind == scientific::F_NONE);
+    assert(mn.data[0] == 1.0 && mn.data[1] == 2.0 && mn.data[2] == -5.0 && mn.data[3] == 3.0);
+    let hv, g3 = scientific::heaviside(av([-1.5, 0.0, 2.0]), av([0.5]));
+    assert(g3.kind == scientific::F_NONE);
+    assert(hv.data[0] == 0.0 && hv.data[1] == 0.5 && hv.data[2] == 1.0);
+    let la, g4 = scientific::logaddexp(av([1.0, -800.0]), av([2.0, -801.0]));
+    assert(g4.kind == scientific::F_NONE);
+    assert(near(la.data[0], 2.31326169) && near(la.data[1], -799.68673831));
+    let l2, g5 = scientific::logaddexp2(av([1.0, 3.0]), av([2.0, 3.0]));
+    assert(g5.kind == scientific::F_NONE);
+    assert(near(l2.data[0], 2.5849625007211565) && near(l2.data[1], 4.0));
+    let sc, g6 = scientific::sinc(av([0.0, 0.5, 1.5]));
+    assert(g6.kind == scientific::F_NONE);
+    assert(sc.data[0] == 1.0 && near(sc.data[1], 0.6366197723675814) && near(sc.data[2], -0.21220659078919377));
+    let bi, g7 = scientific::i0(av([0.0, 1.0, 2.5]));
+    assert(g7.kind == scientific::F_NONE);
+    assert(bi.data[0] == 1.0 && near(bi.data[1], 1.2660658777520082) && near(bi.data[2], 3.2898391440501235));
+    let fm, fe, g8 = scientific::frexp(av([8.0, -0.3, 0.0]));
+    assert(g8.kind == scientific::F_NONE);
+    assert(near(fm.data[0], 0.5) && near(fm.data[1], -0.6) && fm.data[2] == 0.0);
+    assert(fe.data[0] == 4.0 && fe.data[1] == -1.0 && fe.data[2] == 0.0);
+    let fr, ip, g9 = scientific::modf(av([3.7, -2.25]));
+    assert(g9.kind == scientific::F_NONE);
+    assert(near(fr.data[0], 0.7) && fr.data[1] == -0.25 && ip.data[0] == 3.0 && ip.data[1] == -2.0);
+    let ld, g10 = scientific::ldexp(av([1.0, 3.0]), av([3.0, -2.0]));
+    assert(g10.kind == scientific::F_NONE && ld.data[0] == 8.0 && ld.data[1] == 0.75);
+    let ldb, g11 = scientific::ldexp(av([1.0]), av([0.5]));
+    assert(g11.kind == scientific::F_VALUE && ldb.data.len == 0);
+    // The functions of whole numbers.
+    let g, g12 = scientific::gcd(av([12.0, -12.0]), av([18.0, 0.0]));
+    assert(g12.kind == scientific::F_NONE && g.data[0] == 6.0 && g.data[1] == 12.0);
+    let l, g13 = scientific::lcm(av([4.0, 0.0]), av([6.0, 3.0]));
+    assert(g13.kind == scientific::F_NONE && l.data[0] == 12.0 && l.data[1] == 0.0);
+    let x = av([12.0, 5.0]);
+    let y = av([10.0, 3.0]);
+    let an, g14 = scientific::bitwise_and(x, y);
+    let bo, g15 = scientific::bitwise_or(x, y);
+    let xo, g16 = scientific::bitwise_xor(x, y);
+    assert(g14.kind == scientific::F_NONE && g15.kind == scientific::F_NONE && g16.kind == scientific::F_NONE);
+    assert(an.data[0] == 8.0 && an.data[1] == 1.0 && bo.data[0] == 14.0 && bo.data[1] == 7.0);
+    assert(xo.data[0] == 6.0 && xo.data[1] == 6.0);
+    let inv, g17 = scientific::invert(av([0.0, 5.0]));
+    assert(g17.kind == scientific::F_NONE && inv.data[0] == -1.0 && inv.data[1] == -6.0);
+    let ls, g18 = scientific::left_shift(av([1.0, -3.0]), av([70.0, 2.0]));
+    assert(g18.kind == scientific::F_NONE && ls.data[0] == 0.0 && ls.data[1] == -12.0);
+    let rs, g19 = scientific::right_shift(av([-8.0, 8.0]), av([70.0, 1.0]));
+    assert(g19.kind == scientific::F_NONE && rs.data[0] == -1.0 && rs.data[1] == 4.0);
+    let bc, g20 = scientific::bitwise_count(av([-7.0, 255.0]));
+    assert(g20.kind == scientific::F_NONE && bc.data[0] == 3.0 && bc.data[1] == 8.0);
+    let bad, g21 = scientific::gcd(av([1.5]), av([2.0]));
+    assert(g21.kind == scientific::F_VALUE && bad.data.len == 0);
+    let big, g22 = scientific::invert(av([1.0e300]));
+    assert(g22.kind == scientific::F_VALUE && big.data.len == 0);
+    // The unwrap of a phase.
+    let p = av([0.0, 1.5, 3.5, 6.5, 0.1, -3.0]);
+    let u, g23 = scientific::unwrap(p);
+    assert(g23.kind == scientific::F_NONE);
+    assert(near(u.data[4], 6.383185307179586) && near(u.data[5], 3.283185307179586) && u.data[3] == 6.5);
+    let m, gm = scientific::reshape(av([0.0, 3.5, 6.5, 0.5, 1.0, 7.5]), [3, 2]);
+    assert(gm.kind == scientific::F_NONE);
+    let m0, g24 = scientific::unwrap(m, 0.0 / 0.0, 0);
+    assert(g24.kind == scientific::F_NONE);
+    assert(near(m0.data[2], 0.21681469282041344) && near(m0.data[5], 1.2168146928204138));
+    let m1, g25 = scientific::unwrap(m);
+    assert(g25.kind == scientific::F_NONE);
+    assert(near(m1.data[1], -2.7831853071795862) && near(m1.data[3], 6.783185307179586));
+    let up, g26 = scientific::unwrap(av([0.0, 5.0, 10.0]), 0.0 / 0.0, -1, 4.0);
+    assert(g26.kind == scientific::F_NONE && near(up.data[1], 1.0) && near(up.data[2], 2.0));
+    let ub, g27 = scientific::unwrap(p, 0.0 / 0.0, 3);
+    assert(g27.kind == scientific::F_RANGE && ub.data.len == 0);
+    // The names of NumPy that stand for a function of the package.
+    let fp, g28 = scientific::float_power(av([2.0]), av([3.0]));
+    assert(g28.kind == scientific::F_NONE && fp.data[0] == 8.0);
+    let rd, g29 = scientific::radians(av([180.0]));
+    assert(g29.kind == scientific::F_NONE && near(rd.data[0], 3.141592653589793));
+    let ac, g30 = scientific::acos(av([1.0]));
+    assert(g30.kind == scientific::F_NONE && ac.data[0] == 0.0);
+    let at, g31 = scientific::atan2(av([1.0]), av([1.0]));
+    assert(g31.kind == scientific::F_NONE && near(at.data[0], 0.7853981633974483));
+    let rm, g32 = scientific::remainder(av([-7.0]), av([3.0]));
+    assert(g32.kind == scientific::F_NONE && rm.data[0] == 2.0);
+    let bn, g33 = scientific::bitwise_not(av([5.0]));
+    assert(g33.kind == scientific::F_NONE && bn.data[0] == -6.0);
+    let am, g34 = scientific::amax(av([1.0, 9.0, 4.0]));
+    assert(g34.kind == scientific::F_NONE && am == 9.0);
+    assert(scientific::ndim(m) == 2);
+}
+
 fn main() {
     test_create();
     test_shape();
@@ -2741,6 +2852,7 @@ fn main() {
     test_polynomial();
     test_sections();
     test_stats();
+    test_ufunc();
     test_generators();
     test_indexing();
     test_sort_and_search();

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.37.0";
+import scientific from "rekanalar/goose-scientific@v0.38.0";
 ```
 
 ## API
@@ -69,6 +69,7 @@ import scientific from "rekanalar/goose-scientific@v0.37.0";
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
 | Filters | `butter`, `lfilter`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
 | Covariance and NaN statistics | `cov`, `cov_with`, `corrcoef`, `corrcoef_with`, `nanmedian`, `nanpercentile`, `nanquantile`, `nanargmax`, `nanargmin`, `nancumsum`, `nancumprod`, `cumulative_sum`, `cumulative_prod`, `ediff1d`, `histogram_bin_edges` |
+| The rest of the elementwise math | `fmax`, `fmin`, `heaviside`, `logaddexp`, `logaddexp2`, `ldexp`, `frexp`, `modf`, `sinc`, `i0`, `gcd`, `lcm`, `bitwise_and`, `bitwise_or`, `bitwise_xor`, `invert`, `left_shift`, `right_shift`, `bitwise_count`, `unwrap`, and the names `float_power`, `pow`, `remainder`, `radians`, `degrees`, `acos`, `asin`, `atan`, `atan2`, `acosh`, `asinh`, `atanh`, `bitwise_not`, `bitwise_invert`, `bitwise_left_shift`, `bitwise_right_shift`, `concat`, `amax`, `amin`, `ndim` |
 | Sections of a filter | `butter_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -99,6 +100,15 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- These functions work on whole numbers: `gcd`, `lcm`, `invert`, the
+  shifts, `bitwise_count` and the other `bitwise_*` functions. The shift
+  count of `ldexp` follows the same rule. A whole number of at most 2^53
+  in size is exact in a double. Any other element gives an `F_VALUE`
+  fault. A shift result above 2^53 loses its low digits. `ldexp` may
+  round twice below the smallest normal number.
+- `unwrap` takes a negative `axis`, a `discont` and a `period`. The
+  default `discont` is half the period, as in NumPy. `frexp` and `modf`
+  give two arrays, because the package holds no tuple of arrays.
 - `cov` takes `ddof` in place of `bias`: `bias=true` equals `ddof=0`.
   It takes no weights yet. The second array of NumPy goes through
   `cov_with` and `corrcoef_with`. A vector gives a matrix of one row
