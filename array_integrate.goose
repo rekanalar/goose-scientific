@@ -273,3 +273,76 @@ fn cumulative_simpson_dx(y: f64[:], dx: f64, initial: f64 = 0.0 / 0.0) -> Arr, F
     while i < n { places.push(i * dx); i += 1; }
     return cumulative_simpson(y, places, initial);
 }
+
+// cumulative_simpson_axis applies cumulative_simpson along one axis of
+// an array. The places x hold one value per point of the axis, or one
+// value per element of the array, or no value. Without places the
+// spacing is dx. The axis of the result holds one value less, or the
+// same count when initial is a number.
+fn cumulative_simpson_axis(y, axis: i64 = -1, x: f64[:] = [], dx: f64 = 1.0, initial: f64 = 0.0 / 0.0) -> Arr, Fault {
+    let ax = fix_axis(axis, y.ndim);
+    if ax < 0 {
+        return empty_arr(), fault(F_RANGE, "cumulative_simpson", "the axis stands outside the shape");
+    }
+    let n = y.shape[ax];
+    let inner = product_after_of(y.shape, ax);
+    let outer = product_before_of(y.shape, ax);
+    if x.len != 0 && x.len != n && x.len != y.data.len {
+        return empty_arr(), fault(F_SHAPE, "cumulative_simpson", "the places do not fit the axis or the array");
+    }
+    var out: f64[>..] = [];
+    var width: i64 = n - 1;
+    if initial == initial { width = n; }
+    var o: i64 = 0;
+    while o < outer {
+        var j: i64 = 0;
+        while j < inner {
+            var lane: f64[>..] = [];
+            var pl: f64[>..] = [];
+            var k: i64 = 0;
+            while k < n {
+                let at = o * n * inner + k * inner + j;
+                lane.push(y.data[at]);
+                if x.len == n { pl.push(x[k]); }
+                else if x.len == y.data.len { pl.push(x[at]); }
+                k += 1;
+            }
+            if x.len == 0 {
+                let r, f = cumulative_simpson_dx(lane, dx, initial);
+                if f.kind != F_NONE { return empty_arr(), f; }
+                k = 0;
+                while k < width { out.push(r.data[k]); k += 1; }
+            } else {
+                let r, f = cumulative_simpson(lane, pl, initial);
+                if f.kind != F_NONE { return empty_arr(), f; }
+                k = 0;
+                while k < width { out.push(r.data[k]); k += 1; }
+            }
+            j += 1;
+        }
+        o += 1;
+    }
+    // The lanes sit one after the other. Move the axis back into place.
+    var res: f64[>..] = [];
+    var q: i64 = 0;
+    while q < outer * width * inner { res.push(0.0); q += 1; }
+    var lane_i: i64 = 0;
+    o = 0;
+    while o < outer {
+        var j: i64 = 0;
+        while j < inner {
+            var k: i64 = 0;
+            while k < width {
+                res[o * width * inner + k * inner + j] = out[lane_i * width + k];
+                k += 1;
+            }
+            lane_i += 1;
+            j += 1;
+        }
+        o += 1;
+    }
+    var s: i64[..8] = [];
+    q = 0;
+    while q < y.ndim { if q == ax { s.push(width); } else { s.push(y.shape[q]); } q += 1; }
+    return Arr { ndim: y.ndim, shape: s, data: res }, no_fault();
+}

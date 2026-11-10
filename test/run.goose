@@ -4491,6 +4491,21 @@ fn test_dpss() {
 fn test_cumulative_simpson_initial() {
     let y = [1.0, 3.0, 2.0, 5.0, 4.0];
     let x = [0.0, 1.0, 2.5, 3.0, 4.5];
+    // The axis form.
+    var cy: f64[>..] = [];
+    var cq: i64 = 0;
+    while cq < 24 { cy.push(mathshim::power(cq, 1.5)); cq += 1; }
+    let cya, cyf = scientific::from_values(cy);
+    let cyr, cyg = scientific::reshape(cya, [2, 3, 4]);
+    assert(cyf.kind == scientific::F_NONE && cyg.kind == scientific::F_NONE);
+    let ca1, caf1 = scientific::cumulative_simpson_axis(cyr, 1, [], 0.5);
+    assert(caf1.kind == scientific::F_NONE && ca1.shape[1] == 2 && all_close(ca1, [1.7238576250846034, 2.810113295832983, 4.170619444818321, 5.735831784968369, 9.104569499661586, 12.120226591665965, 15.539826258871042, 19.29334363773743, 26.26680740867807, 29.119546183128683, 32.06946372096823, 35.11342772281442, 64.50198974694078, 70.57957311951756, 76.84041326725652, 83.27919915639917], 1.0e-6));
+    let ca2, caf2 = scientific::cumulative_simpson_axis(cyr, 2, [0.0, 1.0, 3.0, 4.5], 1.0, 0.0);
+    assert(caf2.kind == scientific::F_NONE && ca2.shape[2] == 4 && mathshim_abs(ca2.data[3] - 10.28299733046346) < 1.0e-6 && mathshim_abs(ca2.data[23] - 453.835084850994) < 1.0e-5);
+    let ca3, caf3 = scientific::cumulative_simpson_axis(cyr, 2, [0.0, 1.0, 3.0]);
+    assert(caf3.kind == scientific::F_SHAPE);
+    let ca4, caf4 = scientific::cumulative_simpson_axis(cyr, 3);
+    assert(caf4.kind == scientific::F_RANGE);
     let a, f = scientific::cumulative_simpson(y, x, 2.0);
     assert(f.kind == scientific::F_NONE && a.data.len == 5);
     assert(win_close(a, [2.0, 4.17777777777777778, 8.52777777777777778, 10.34722222222222222, 18.97222222222222222]) || (mathshim_abs(a.data[1] - 4.177777777777778) < 1.0e-12 && mathshim_abs(a.data[4] - 18.97222222222222) < 1.0e-12));

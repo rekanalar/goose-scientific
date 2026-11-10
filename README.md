@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.108.0";
+import scientific from "rekanalar/goose-scientific@v0.109.0";
 ```
 
 ## API
@@ -64,7 +64,7 @@ import scientific from "rekanalar/goose-scientific@v0.108.0";
 | Between the points | `interp`, `gradient`, `pad_value` |
 | Root finding | `brentq`, `brenth`, `newton`, `halley`, `secant`, `toms748`, `fsolve`, `root`, `root_scalar` |
 | Minimization | `minimize_scalar`, `minimize`, `minimize_grad`, `minimize_constrained`, `differential_evolution`, `dual_annealing`, `basinhopping`, `least_squares`, `curve_fit` |
-| Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `cumulative_simpson`, `cumulative_simpson_dx`, `romberg` |
+| Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `cumulative_simpson`, `cumulative_simpson_dx`, `cumulative_simpson_axis`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
 | Filters | `butter`, `lfilter`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
@@ -1041,6 +1041,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   rule of Simpson of Cartwright gives each of them. A signal of two
   values falls back to the trapezoid. The result holds one value fewer
   than the signal.
+- `cumulative_simpson_axis` runs along one axis of an array. The places
+  hold one value per point of the axis, or one per element. Without
+  places the spacing is `dx`.
 - The argument `initial` of `cumulative_simpson` adds a start value
   and puts it first. The result then holds as many values as the
   signal.
