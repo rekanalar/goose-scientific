@@ -4604,6 +4604,22 @@ fn test_dop853() {
     assert(mathshim_abs(eey.data[1] + 14.00714103591449) < 1.0e-9);
 }
 
+// The argument first_step sets the first step, as SciPy does.
+fn test_first_step() {
+    let t1, y1, f1 = scientific::solve_ivp(0.0, 5.0, [1.0, 0.0], 0.001, 1e-6, "RK45", 1.0e308, [], 0.01) { t, v => [v[1], -v[0]] };
+    assert(f1.kind == scientific::F_NONE && t1.data.len == 9);
+    assert(mathshim_abs(t1.data[1] - 0.01) < 1.0e-15 && mathshim_abs(t1.data[3] - 0.7582343760009075) < 1.0e-9);
+    assert(mathshim_abs(y1.data[16] - 0.2847042338359484) < 1.0e-9);
+    let t2, y2, f2 = scientific::solve_ivp(0.0, 5.0, [1.0, 0.0], 0.001, 1e-6, "DOP853", 1.0e308, [], 0.05) { t, v => [v[1], -v[0]] };
+    assert(f2.kind == scientific::F_NONE && t2.data.len == 5);
+    assert(mathshim_abs(t2.data[3] - 3.0469539039081424) < 1.0e-8 && mathshim_abs(y2.data[8] - 0.28341575655185514) < 1.0e-8);
+    // A first step below zero or beyond the span is a fault.
+    let t3, y3, f3 = scientific::solve_ivp(0.0, 5.0, [1.0, 0.0], 0.001, 1e-6, "RK45", 1.0e308, [], -1.0) { t, v => [v[1], -v[0]] };
+    assert(f3.kind == scientific::F_VALUE);
+    let t4, y4, f4 = scientific::solve_ivp(0.0, 5.0, [1.0, 0.0], 0.001, 1e-6, "RK45", 1.0e308, [], 6.0) { t, v => [v[1], -v[0]] };
+    assert(f4.kind == scientific::F_VALUE);
+}
+
 fn test_ivp_t_eval() {
     let e1 = [1.0, 0.0, 0.9553364803050641, -0.29552023491137414, 0.540302079728339, -0.8414711243630892, 0.020794742986437575, -0.9997835787518795, -0.9899921548382596, -0.1411198096921278];
     let t1, y1, f1 = scientific::solve_ivp(0.0, 3.0, [1.0, 0.0], 1.0e-6, 1.0e-9, "RK45", 1.0e308, [0.0, 0.3, 1.0, 1.55, 3.0]) { t, v => [v[1], -v[0]] };
@@ -6216,6 +6232,7 @@ fn main() {
     test_dpss();
     test_ivp_t_eval();
     test_dop853();
+    test_first_step();
     test_cumulative_simpson_initial();
     test_bspline();
     test_spline_ends();

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.111.0";
+import scientific from "rekanalar/goose-scientific@v0.112.0";
 ```
 
 ## API
@@ -306,8 +306,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `DOP853` is the method of Dormand and Prince of the order eight. It
   holds the error estimate and the interpolation of SciPy. Its dense
   output and its events call the function three more times per step.
-- The argument `first_step` stays out, and so do the methods `Radau`,
-  `BDF` and `LSODA`. A stiff system needs many steps. It may reach the
+- The argument `first_step` sets the first step. A value of zero lets
+  the solver choose, where SciPy treats zero as a fault. A negative
+  value or a value beyond the span is a fault. The methods `Radau`,
+  `BDF` and `LSODA` stay out. A stiff system needs many steps. It may reach the
   limit of one million steps.
 - `solve_ivp_events` takes the events of SciPy. The block gives the
   derivative and then the event functions. The arrays `terminal` and
