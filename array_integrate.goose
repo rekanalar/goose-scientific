@@ -191,7 +191,7 @@ fn simpson_equal(f1: f64, f2: f64, f3: f64, d: f64) -> f64 {
 // intervals are unequal, so the rule of Simpson of Cartwright gives
 // each of them. A signal of two values falls back to the rule of the
 // trapezoid.
-fn cumulative_simpson(y: f64[:], places: f64[:]) -> Arr, Fault {
+fn cumulative_simpson_core(y: f64[:], places: f64[:]) -> Arr, Fault {
     let n = y.len;
     if n < 2 || places.len != n {
         return empty_arr(), fault(F_SHAPE, "cumulative_simpson", "the signal and the places differ in count");
@@ -240,9 +240,27 @@ fn cumulative_simpson(y: f64[:], places: f64[:]) -> Arr, Fault {
     return Arr { ndim: 1, shape: s, data: copy(out) }, no_fault();
 }
 
+// cumulative_simpson gives the integral up to every point with the
+// rule of Simpson. A start value in initial adds that value to every
+// result and puts it first, so the result holds as many values as the
+// signal, as SciPy does for the argument initial. Without it the
+// result holds one value less.
+fn cumulative_simpson(y: f64[:], places: f64[:], initial: f64 = 0.0 / 0.0) -> Arr, Fault {
+    let r, f = cumulative_simpson_core(y, places);
+    if f.kind != F_NONE { return empty_arr(), f; }
+    if initial != initial { return r, no_fault(); }
+    if mathshim::is_infinite_of(initial) != 0.0 {
+        return empty_arr(), fault(F_VALUE, "cumulative_simpson", "the start value is not finite");
+    }
+    var out: f64[>..] = [initial];
+    var i: i64 = 0;
+    while i < r.data.len { out.push(initial + r.data[i]); i += 1; }
+    return line_arr(copy(out)), no_fault();
+}
+
 // cumulative_simpson_dx gives the integral of the values up to every
 // point, when every spacing is the same.
-fn cumulative_simpson_dx(y: f64[:], dx: f64) -> Arr, Fault {
+fn cumulative_simpson_dx(y: f64[:], dx: f64, initial: f64 = 0.0 / 0.0) -> Arr, Fault {
     let n = y.len;
     if n < 2 {
         return empty_arr(), fault(F_SHAPE, "cumulative_simpson", "the signal holds fewer than two values");
@@ -253,5 +271,5 @@ fn cumulative_simpson_dx(y: f64[:], dx: f64) -> Arr, Fault {
     var places: f64[>..] = [];
     var i: i64 = 0;
     while i < n { places.push(i * dx); i += 1; }
-    return cumulative_simpson(y, places);
+    return cumulative_simpson(y, places, initial);
 }

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.97.0";
+import scientific from "rekanalar/goose-scientific@v0.98.0";
 ```
 
 ## API
@@ -983,10 +983,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   integral up to every point. The intervals may differ in width. The
   rule of Simpson of Cartwright gives each of them. A signal of two
   values falls back to the trapezoid. The result holds one value fewer
-  than the signal.
-- `cumulative_simpson_dx` takes one spacing for every interval. Neither
-  function takes an axis, a start value or a shape other than one
-  dimension.
+  than the signal. The argument `initial` adds a start value and
+  puts it first. The result then holds as many values as the signal.
+- `cumulative_simpson_dx` takes one spacing for every interval and the
+  same `initial`. Neither function takes an axis or a shape other than
+  one dimension.
 - `romberg` takes the extrapolation of Romberg. The count of the
   parts of the grid holds a power of two, as the method of the
   references holds. A count that holds no power of two is a fault.

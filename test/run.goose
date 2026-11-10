@@ -4322,6 +4322,22 @@ fn test_dpss() {
     assert(g5.kind == scientific::F_RANGE);
 }
 
+// cumulative_simpson takes a start value, as SciPy does.
+fn test_cumulative_simpson_initial() {
+    let y = [1.0, 3.0, 2.0, 5.0, 4.0];
+    let x = [0.0, 1.0, 2.5, 3.0, 4.5];
+    let a, f = scientific::cumulative_simpson(y, x, 2.0);
+    assert(f.kind == scientific::F_NONE && a.data.len == 5);
+    assert(win_close(a, [2.0, 4.17777777777777778, 8.52777777777777778, 10.34722222222222222, 18.97222222222222222]) || (mathshim_abs(a.data[1] - 4.177777777777778) < 1.0e-12 && mathshim_abs(a.data[4] - 18.97222222222222) < 1.0e-12));
+    let b, g = scientific::cumulative_simpson_dx(y, 0.5, 0.0);
+    assert(g.kind == scientific::F_NONE && b.data.len == 5);
+    assert(mathshim_abs(b.data[0]) < 1.0e-15 && mathshim_abs(b.data[1] - 1.125) < 1.0e-12 && mathshim_abs(b.data[3] - 4.41666666666666667) < 1.0e-12 && mathshim_abs(b.data[4] - 6.83333333333333333) < 1.0e-12);
+    let c, h = scientific::cumulative_simpson(y, x);
+    assert(h.kind == scientific::F_NONE && c.data.len == 4);
+    let d, k = scientific::cumulative_simpson(y, x, 1.0 / 0.0);
+    assert(k.kind == scientific::F_VALUE);
+}
+
 // cov_close tells whether two values of a covariance matrix agree. The
 // comparison uses a scale of 1e-3, because the small values of the
 // matrix lose their digits in the reference library.
@@ -5862,6 +5878,7 @@ fn main() {
     test_root();
     test_windows_more();
     test_dpss();
+    test_cumulative_simpson_initial();
     test_bspline();
     test_spline_ends();
     test_cubic_hermite();
