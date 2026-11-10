@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.81.0";
+import scientific from "rekanalar/goose-scientific@v0.82.0";
 ```
 
 ## API
@@ -147,9 +147,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   fault, while SciPy returns a permutation with it. A symmetric
   matrix with a zero leading minor gives that fault.
 - `eig_banded` and `eigvals_banded` expand the matrix, so the side
-  stays at 2048 or below. They take the whole range of eigenvalues
-  only, with no `select` and no `lower`-form `a_band` of a general
-  band. The sign of an eigenvector may differ from SciPy.
+  stays at 2048 or below. They take `select` with `a`, `v` and `i`.
+  They take no general band. A `v` range that holds no value is a
+  fault, while SciPy returns an empty result. The sign of an
+  eigenvector may differ from SciPy.
 - `bicgstab` and `gmres` solve a square system from a start of zero.
   They give the solution and a count: zero on success. They take no
   preconditioner, no start vector and no callback. The path of the
@@ -318,9 +319,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `expm` takes a matrix with a side up to 256. It uses the Pade degree
   13 for every matrix. SciPy picks a lower degree for a small norm.
   The last digits may differ.
-- `solve_banded` takes the band form of SciPy. It expands the band to
-  a full matrix. The cost grows with the cube of the side. The side
-  stops at 4096.
+- `solve_banded` takes the band form of SciPy. It factors the band with
+  partial pivoting, as LAPACK does, so the cost grows with the side and
+  the band. A singular matrix is a fault.
 - `logm`, `sqrtm` and `eig_banded` stay out.
 - `vecdot` takes two arrays of one shape and does not broadcast.
   `matvec` and `vecmat` take one matrix and one row, with no batch axes.

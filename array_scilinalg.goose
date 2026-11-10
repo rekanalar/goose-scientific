@@ -11,10 +11,6 @@ import mathshim;
 // cube of the side.
 const MAX_EXPM_SIDE: i64 = 256;
 
-// The largest count of columns that solve_banded takes, because the
-// package expands the band to a full matrix.
-const MAX_BAND_SIDE: i64 = 4096;
-
 // lapack_lu factors the matrix in place. The row i swaps with the row
 // piv[i], as LAPACK does. A zero pivot stays and skips the column.
 fn lapack_lu(d: f64[>..]&, m: i64, n: i64, piv: i64[>..]&) {
@@ -576,36 +572,126 @@ fn expm(a) -> Arr, Fault {
     return mat2(copy(x), n, n), no_fault();
 }
 
+// band_lu factors a band matrix in place with the partial pivoting of
+// LAPACK dgbtf2. The buffer w holds 2*kl+ku+1 rows of n columns. The
+// rows kl and below hold the band. On exit the rows 0 to kl+ku hold U
+// and the rows below hold the multipliers. The row of swaps holds the
+// row that swapped with each column. The result is false when a pivot
+// is zero.
+fn band_lu(w: f64[>..]&, piv: i64[>..]&, n: i64, kl: i64, ku: i64) -> bool {
+    let kv = kl + ku;
+    var ju: i64 = 0;
+    var j: i64 = 0;
+    while j < n {
+        var km = kl;
+        if n - 1 - j < km { km = n - 1 - j; }
+        var jp: i64 = 0;
+        var best = mathshim::abs_of(w[kv * n + j]);
+        var i: i64 = 1;
+        while i <= km {
+            let v = mathshim::abs_of(w[(kv + i) * n + j]);
+            if v > best { best = v; jp = i; }
+            i += 1;
+        }
+        piv.push(j + jp);
+        if w[(kv + jp) * n + j] == 0.0 { return false; }
+        var top = j + ku + jp;
+        if n - 1 < top { top = n - 1; }
+        if top > ju { ju = top; }
+        if jp != 0 {
+            var t: i64 = 0;
+            while t <= ju - j {
+                let p = (kv + jp - t) * n + j + t;
+                let q = (kv - t) * n + j + t;
+                let tmp = w[p];
+                w[p] = w[q];
+                w[q] = tmp;
+                t += 1;
+            }
+        }
+        if km > 0 {
+            let d = w[kv * n + j];
+            i = 1;
+            while i <= km { w[(kv + i) * n + j] = w[(kv + i) * n + j] / d; i += 1; }
+            var c: i64 = 1;
+            while c <= ju - j {
+                let y = w[(kv - c) * n + j + c];
+                var r: i64 = 1;
+                while r <= km {
+                    w[(kv + r - c) * n + j + c] -= w[(kv + r) * n + j] * y;
+                    r += 1;
+                }
+                c += 1;
+            }
+        }
+        j += 1;
+    }
+    return true;
+}
+
 // solve_banded solves a system with a banded matrix. The pair (l, u)
 // holds the count of the lower and the upper diagonals. The matrix ab
-// holds the diagonals in the band form of SciPy. The package expands
-// the band to a full matrix, so a side above 4096 is a fault. A
-// singular matrix is a fault.
+// holds the diagonals in the band form of SciPy. The solve factors the
+// band with partial pivoting, as LAPACK dgbsv does, so the cost grows
+// with the side and the band. A singular matrix is a fault.
 fn solve_banded(l: i64, u: i64, ab, b) -> Arr, Fault {
     if l < 0 || u < 0 || ab.ndim != 2 || ab.shape[0] != l + u + 1 {
         return empty_arr(), fault(F_SHAPE, "solve_banded", "the band does not hold l + u + 1 rows");
     }
     let n = ab.shape[1];
-    if n > MAX_BAND_SIDE {
-        return empty_arr(), fault(F_LIMIT, "solve_banded", "the side holds a value above the limit");
-    }
     if b.ndim < 1 || b.ndim > 2 || b.shape[0] != n {
         return empty_arr(), fault(F_SHAPE, "solve_banded", "the right side does not agree with the band");
     }
-    var d: f64[>..] = [];
+    var nrhs: i64 = 1;
+    if b.ndim == 2 { nrhs = b.shape[1]; }
+    let kv = l + u;
+    var w: f64[>..] = [];
     var i: i64 = 0;
-    while i < n * n { d.push(0.0); i += 1; }
-    var col: i64 = 0;
-    while col < n {
-        var row: i64 = 0;
-        while row < l + u + 1 {
-            let r = col - u + row;
-            if r >= 0 && r < n { d[r * n + col] = ab.data[row * n + col]; }
-            row += 1;
-        }
-        col += 1;
+    while i < l * n { w.push(0.0); i += 1; }
+    i = 0;
+    while i < (l + u + 1) * n { w.push(ab.data[i]); i += 1; }
+    i = 0;
+    while i < l * n { w.push(0.0); i += 1; }
+    var piv: i64[>..] = [];
+    if !band_lu(w, piv, n, l, u) {
+        return empty_arr(), fault(F_VALUE, "solve_banded", "the matrix is singular");
     }
-    let f, piv, g = lu_factor(mat2(copy(d), n, n));
-    if g.kind != F_NONE { return empty_arr(), g; }
-    return lu_solve(f, piv, b, false);
+    var x = copy_slice(b.data);
+    var k: i64 = 0;
+    while k < nrhs {
+        var j: i64 = 0;
+        while j < n - 1 {
+            var lm = l;
+            if n - 1 - j < lm { lm = n - 1 - j; }
+            let p = piv[j];
+            if p != j {
+                let t = x[p * nrhs + k];
+                x[p * nrhs + k] = x[j * nrhs + k];
+                x[j * nrhs + k] = t;
+            }
+            var t: i64 = 1;
+            while t <= lm {
+                x[(j + t) * nrhs + k] -= w[(kv + t) * n + j] * x[j * nrhs + k];
+                t += 1;
+            }
+            j += 1;
+        }
+        var r = n - 1;
+        while r >= 0 {
+            var top = r + kv;
+            if n - 1 < top { top = n - 1; }
+            var c = r + 1;
+            while c <= top {
+                x[r * nrhs + k] -= w[(kv + r - c) * n + c] * x[c * nrhs + k];
+                c += 1;
+            }
+            x[r * nrhs + k] = x[r * nrhs + k] / w[kv * n + r];
+            r -= 1;
+        }
+        k += 1;
+    }
+    var s: i64[..8] = [];
+    s.push(n);
+    if b.ndim == 2 { s.push(nrhs); }
+    return Arr { ndim: b.ndim, shape: s, data: copy(x) }, no_fault();
 }

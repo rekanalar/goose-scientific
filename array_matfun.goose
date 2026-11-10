@@ -354,22 +354,90 @@ fn banded_dense(ab, lower: bool, out: f64[>..]&) -> Fault {
 // the banded form of SciPy, in the upper form or with lower true in the
 // lower form. The method expands the matrix, so the side stays at 2048
 // or below.
-fn eig_banded(ab, lower: bool = false) -> Arr, Arr, Fault {
+fn eig_banded(ab, lower: bool = false, select: const u8[:] = "a", vl: f64 = 0.0, vu: f64 = 0.0, il: i64 = 0, iu: i64 = 0) -> Arr, Arr, Fault {
     var d: f64[>..] = [];
     let f = banded_dense(ab, lower, d);
     if f.kind != F_NONE { return empty_arr(), empty_arr(), f; }
     let n = ab.shape[1];
-    return eigh(mat2(copy(d), n, n));
+    let w, v, g = eigh(mat2(copy(d), n, n));
+    if g.kind != F_NONE { return empty_arr(), empty_arr(), g; }
+    var keep: i64[>..] = [];
+    let fs = band_select(select, vl, vu, il, iu, w, n, keep);
+    if fs.kind != F_NONE { return empty_arr(), empty_arr(), fs; }
+    let m = keep.len;
+    var out: f64[>..] = [];
+    var vec: f64[>..] = [];
+    var i: i64 = 0;
+    while i < m { out.push(w.data[keep[i]]); i += 1; }
+    var r: i64 = 0;
+    while r < n {
+        i = 0;
+        while i < m { vec.push(v.data[r * n + keep[i]]); i += 1; }
+        r += 1;
+    }
+    var sw: i64[..8] = [];
+    sw.push(m);
+    var sv: i64[..8] = [];
+    sv.push(n);
+    sv.push(m);
+    return Arr { ndim: 1, shape: sw, data: out }, Arr { ndim: 2, shape: sv, data: vec }, no_fault();
+}
+
+// band_select fills keep with the indexes of the values that the
+// select holds. The range v holds the values in (vl, vu]. The range i
+// holds the indexes il to iu, both ends in, counted from zero.
+fn band_select(select: const u8[:], vl: f64, vu: f64, il: i64, iu: i64, w, n: i64, keep: i64[>..]&) -> Fault {
+    var i: i64 = 0;
+    if select == "a" {
+        while i < n { keep.push(i); i += 1; }
+        return no_fault();
+    }
+    if select == "v" {
+        if vu < vl {
+            return fault(F_RANGE, "eigvals_banded", "the range of the values runs backward");
+        }
+        while i < n {
+            if w.data[i] > vl && w.data[i] <= vu { keep.push(i); }
+            i += 1;
+        }
+        if keep.len == 0 {
+            return fault(F_RANGE, "eigvals_banded", "the range of the values holds no value");
+        }
+        return no_fault();
+    }
+    if select == "i" {
+        if il > iu || iu >= n || il < 0 {
+            return fault(F_RANGE, "eigvals_banded", "the range of the indexes stands outside the matrix");
+        }
+        while il + i <= iu { keep.push(il + i); i += 1; }
+        return no_fault();
+    }
+    return fault(F_VALUE, "eigvals_banded", "the select holds a name that is not a, v or i");
 }
 
 // eigvals_banded gives the eigenvalues of a real symmetric banded
-// matrix, in rising order.
-fn eigvals_banded(ab, lower: bool = false) -> Arr, Fault {
+// matrix, in rising order. The select takes a for every value, v for
+// the values in (vl, vu], and i for the indexes il to iu, both ends
+// in, counted from zero.
+fn eigvals_banded(ab, lower: bool = false, select: const u8[:] = "a", vl: f64 = 0.0, vu: f64 = 0.0, il: i64 = 0, iu: i64 = 0) -> Arr, Fault {
     var d: f64[>..] = [];
     let f = banded_dense(ab, lower, d);
     if f.kind != F_NONE { return empty_arr(), f; }
     let n = ab.shape[1];
-    return eigvalsh(mat2(copy(d), n, n));
+    let w, g = eigvalsh(mat2(copy(d), n, n));
+    if g.kind != F_NONE { return empty_arr(), g; }
+    var keep: i64[>..] = [];
+    let fs = band_select(select, vl, vu, il, iu, w, n, keep);
+    if fs.kind != F_NONE { return empty_arr(), fs; }
+    var out: f64[>..] = [];
+    var i: i64 = 0;
+    while i < keep.len {
+        out.push(w.data[keep[i]]);
+        i += 1;
+    }
+    var sw: i64[..8] = [];
+    sw.push(keep.len);
+    return Arr { ndim: 1, shape: sw, data: out }, no_fault();
 }
 
 // mf_trig gives cos A and sin A from the exponential of the real block

@@ -3240,6 +3240,31 @@ fn test_scilinalg() {
     assert(g28.kind == scientific::F_NONE && all_near(sb, [0.09577464788732393, 0.30845070422535215, 0.3619718309859155, 0.5197183098591549]));
     let sbb, g29 = scientific::solve_banded(1, 0, ab, av([1.0, 2.0, 3.0, 4.0]));
     assert(g29.kind == scientific::F_SHAPE && sbb.data.len == 0);
+    // a zero on the main diagonal needs a row swap
+    let abp = mx(3, 4, [0.0, 2.0, 3.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 4.0, 1.0, 0.0]);
+    let sp, g30 = scientific::solve_banded(1, 1, abp, av([1.0, 2.0, 3.0, 4.0]));
+    assert(g30.kind == scientific::F_NONE && all_near(sp, [-10.0, 0.5, 4.0, 1.0]));
+    // two lower and one upper diagonal, two right sides
+    let ab2 = mx(4, 5, [0.0, 1.0, 2.0, 3.0, 4.0, 2.0, -1.0, 3.0, 1.0, 5.0, 1.0, 2.0, -1.0, 4.0, 0.0, 3.0, 1.0, 2.0, 0.0, 0.0]);
+    let s2, g31 = scientific::solve_banded(2, 1, ab2, mx(5, 2, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 1.0]));
+    assert(g31.kind == scientific::F_NONE && s2.shape[0] == 5 && s2.shape[1] == 2);
+    assert(all_near(s2, [-0.8437499999999986, -3.6874999999999987, 2.687499999999998, 9.374999999999996, 3.2656249999999982, 8.531249999999996, -2.5468749999999982, -9.093749999999996, 2.531249999999999, 4.062499999999998]));
+    // a side of 2000 solves at the cost of the band
+    var big: f64[>..] = [];
+    var bi: i64 = 0;
+    while bi < 2000 { if bi == 0 { big.push(0.0); } else { big.push(-1.0); } bi += 1; }
+    bi = 0;
+    while bi < 2000 { big.push(4.0); bi += 1; }
+    bi = 0;
+    while bi < 2000 { if bi == 1999 { big.push(0.0); } else { big.push(-1.0); } bi += 1; }
+    var ones: f64[>..] = [];
+    bi = 0;
+    while bi < 2000 { ones.push(1.0); bi += 1; }
+    let sbig, g32 = scientific::solve_banded(1, 1, mx(3, 2000, copy(big)), av(copy(ones)));
+    assert(g32.kind == scientific::F_NONE && near(sbig.data[0], 0.36602540378443865) && near(sbig.data[1000], 0.5) && near(sbig.data[1999], 0.36602540378443865));
+    // a zero matrix is singular
+    let sz, g33 = scientific::solve_banded(1, 1, mx(3, 2, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]), av([1.0, 2.0]));
+    assert(g33.kind == scientific::F_VALUE && sz.data.len == 0);
 }
 
 // The cosine, sine and real transforms, pinned against SciPy.
@@ -4342,6 +4367,21 @@ fn test_matfun() {
     assert(lf.kind == scientific::F_NONE && all_near(lw, [0.41060867538102946, 2.095896048454904, 3.2338111188766776, 4.2489152019055245, 5.010768955381866]));
     let tw, tf = scientific::eigvals_banded(mx(3, 5, [0.0, 0.0, 1.0, 2.0, 3.0, 0.0, 0.5, 0.6, 0.7, 0.8, 4.0, 3.0, 2.0, 1.0, 5.0]));
     assert(tf.kind == scientific::F_NONE && all_near(tw, [-0.34285674122535553, -0.07369672660208344, 3.698430363453611, 4.441065369269095, 7.277057735104733]));
+    // the select of the banded eigenvalues
+    let sab = mx(2, 5, [0.0, 0.5, 0.7, 0.9, 0.2, 4.0, 3.0, 2.0, 1.0, 5.0]);
+    let sv1, sf1 = scientific::eigvals_banded(sab, false, "v", 1.0, 4.0);
+    assert(sf1.kind == scientific::F_NONE && all_near(sv1, [2.0958960484549043, 3.2338111188766776]));
+    let si1, si1f = scientific::eigvals_banded(sab, false, "i", 0.0, 0.0, 1, 3);
+    assert(si1f.kind == scientific::F_NONE && all_near(si1, [2.095896048454904, 3.233811118876678, 4.248915201905524]));
+    let sw2, sv2, sf2 = scientific::eig_banded(sab, false, "i", 0.0, 0.0, 0, 1);
+    assert(sf2.kind == scientific::F_NONE && all_near(sw2, [0.4106086753810293, 2.0958960484549043]) && sv2.shape[0] == 5 && sv2.shape[1] == 2);
+    assert(near(scientific_abs(sv2.data[3 * 2]), 0.8301897815947307) && near(scientific_abs(sv2.data[3 * 2 + 1]), 0.5091050040794023));
+    let sx1, sx1f = scientific::eigvals_banded(sab, false, "v", 4.0, 1.0);
+    assert(sx1f.kind == scientific::F_RANGE && sx1.data.len == 0);
+    let sx2, sx2f = scientific::eigvals_banded(sab, false, "i", 0.0, 0.0, 2, 9);
+    assert(sx2f.kind == scientific::F_RANGE && sx2.data.len == 0);
+    let sx3, sx3f = scientific::eigvals_banded(sab, false, "q");
+    assert(sx3f.kind == scientific::F_VALUE && sx3.data.len == 0);
     let n1, n1f = scientific::sqrtm(mx(2, 2, [-1.0, 0.0, 0.0, -1.0]));
     assert(n1f.kind == scientific::F_VALUE);
     let n2, n2f = scientific::logm(mx(2, 2, [0.0, 0.0, 0.0, 0.0]));
