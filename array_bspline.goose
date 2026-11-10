@@ -332,6 +332,120 @@ fn make_interp_spline_bc(x: f64[:], y: f64[:], k: i64, left_orders: i64[:], left
     return bs_make(k, t, sol.data), no_fault();
 }
 
+// bs_design_row gives the values of the k plus one basis functions
+// that hold at a point, and the column of the first one. The span of
+// the knot vector holds the point. The basis functions follow the
+// scheme of the knot insertion.
+fn bs_design_row(t: f64[:], k: i64, x: f64) -> i64, f64[>..] {
+    let nt = t.len;
+    var s = k;
+    if x >= t[nt - k - 1] { s = nt - k - 2; }
+    else {
+        while s < nt - k - 2 && x >= t[s + 1] { s += 1; }
+    }
+    var n: f64[>..] = [];
+    var left: f64[>..] = [];
+    var right: f64[>..] = [];
+    var i: i64 = 0;
+    while i <= k { n.push(0.0); left.push(0.0); right.push(0.0); i += 1; }
+    n[0] = 1.0;
+    var j: i64 = 1;
+    while j <= k {
+        left[j] = x - t[s + 1 - j];
+        right[j] = t[s + j] - x;
+        var saved: f64 = 0.0;
+        var r: i64 = 0;
+        while r < j {
+            let d = right[r + 1] + left[j - r];
+            var temp: f64 = 0.0;
+            if d != 0.0 { temp = n[r] / d; }
+            n[r] = saved + right[r + 1] * temp;
+            saved = left[j - r] * temp;
+            r += 1;
+        }
+        n[j] = saved;
+        j += 1;
+    }
+    return s - k, n;
+}
+
+// bspline_design_matrix gives the matrix of the basis functions of a
+// B-spline at the points. Each row holds the k plus one values of the
+// basis at one point, and the other values are zero. The matrix is
+// sparse, in the type Csr. The extrapolation is "no", "yes" or
+// "periodic".
+fn bspline_design_matrix(x: f64[:], t: f64[:], k: i64, extrapolate: const u8[:] = "no") -> Csr, Fault {
+    if k < 0 || k > 20 {
+        return csr_empty(), fault(F_RANGE, "bspline_design_matrix", "the degree is outside zero to twenty");
+    }
+    if extrapolate != "no" && extrapolate != "yes" && extrapolate != "periodic" {
+        return csr_empty(), fault(F_VALUE, "bspline_design_matrix", "the extrapolation holds an unknown name");
+    }
+    if t.len < 2 * k + 2 {
+        return csr_empty(), fault(F_SHAPE, "bspline_design_matrix", "the knots hold too few values for the degree");
+    }
+    if x.len < 1 {
+        return csr_empty(), fault(F_SHAPE, "bspline_design_matrix", "the list of points holds no value");
+    }
+    var i: i64 = 0;
+    while i < t.len {
+        if !(t[i] - t[i] == 0.0) {
+            return csr_empty(), fault(F_VALUE, "bspline_design_matrix", "a knot is not finite");
+        }
+        if i > 0 && t[i] < t[i - 1] {
+            return csr_empty(), fault(F_VALUE, "bspline_design_matrix", "the knots fall");
+        }
+        i += 1;
+    }
+    i = 0;
+    while i < x.len {
+        if !(x[i] - x[i] == 0.0) {
+            return csr_empty(), fault(F_VALUE, "bspline_design_matrix", "a point is not finite");
+        }
+        i += 1;
+    }
+    let nt = t.len;
+    let n = nt - k - 1;
+    let lo = t[k];
+    let hi = t[n];
+    if extrapolate == "no" {
+        i = 0;
+        while i < x.len {
+            if x[i] < lo || x[i] > hi {
+                return csr_empty(), fault(F_RANGE, "bspline_design_matrix", "a point stands outside the knots");
+            }
+            i += 1;
+        }
+    }
+    var pts: f64[>..] = [];
+    i = 0;
+    while i < x.len {
+        if extrapolate == "periodic" {
+            pts.push(lo + (x[i] - lo) - mathshim::floor_of((x[i] - lo) / (hi - lo)) * (hi - lo));
+        } else {
+            pts.push(x[i]);
+        }
+        i += 1;
+    }
+    var ptr: f64[>..] = [];
+    var idx: f64[>..] = [];
+    var val: f64[>..] = [];
+    i = 0;
+    while i < pts.len {
+        let off, row = bs_design_row(t, k, pts[i]);
+        var j: i64 = 0;
+        while j <= k {
+            idx.push(off + j);
+            val.push(row[j]);
+            j += 1;
+        }
+        ptr.push(i * (k + 1));
+        i += 1;
+    }
+    ptr.push(pts.len * (k + 1));
+    return csr_from_parts(pts.len, n, ptr, idx, val), no_fault();
+}
+
 // splrep builds the B-spline of the data. Only the interpolation
 // with s equal to zero holds. A smoothing factor above zero is a
 // fault.
