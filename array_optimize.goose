@@ -356,3 +356,93 @@ fn root_scalar<F: fn(f64) -> f64>(a: f64, b: f64, method: const u8[:] = "brentq"
     if method == "ridder" { return ridder(a, b, xtol, maxiter) { x => F(x) }; }
     return 0.0, fault(F_VALUE, "root_scalar", "the method holds an unknown name");
 }
+
+// secant finds a root of a function from two points. It takes the
+// function as a block. The method of the secant uses the last two
+// points of the function. A count of turns without a root is a fault.
+fn secant<F: fn(f64) -> f64>(x0: f64, x1: f64, xtol: f64, turns: i64) -> f64, Fault {
+    if xtol <= 0.0 {
+        return 0.0, fault(F_VALUE, "secant", "the tolerance holds a value of zero or below");
+    }
+    if turns < 1 {
+        return 0.0, fault(F_VALUE, "secant", "the count of turns holds a value below one");
+    }
+    if x0 == x1 {
+        return 0.0, fault(F_VALUE, "secant", "the two points hold the same value");
+    }
+    var p0 = x0;
+    var p1 = x1;
+    var q0 = F(copy(p0));
+    var q1 = F(copy(p1));
+    // The point with the smaller value is the second one.
+    if mathshim::abs_of(q1) < mathshim::abs_of(q0) {
+        let t = p0;
+        p0 = p1;
+        p1 = t;
+        let u = q0;
+        q0 = q1;
+        q1 = u;
+    }
+    var turn: i64 = 0;
+    while turn < turns {
+        if q1 == q0 {
+            return 0.0, fault(F_LIMIT, "secant", "the two values are the same and the method cannot go on");
+        }
+        var p: f64 = 0.0;
+        if mathshim::abs_of(q1) > mathshim::abs_of(q0) {
+            p = (-q0 / q1 * p1 + p0) / (1.0 - q0 / q1);
+        } else {
+            p = (-q1 / q0 * p0 + p1) / (1.0 - q1 / q0);
+        }
+        if mathshim::abs_of(p - p1) <= xtol {
+            return p, no_fault();
+        }
+        p0 = p1;
+        q0 = q1;
+        p1 = p;
+        q1 = F(copy(p1));
+        turn += 1;
+    }
+    return 0.0, fault(F_LIMIT, "secant", "the method did not reach the tolerance in the count of turns");
+}
+
+// halley finds a root of a function from a start point. It takes the
+// first and the second derivative as named functions of the caller, and
+// the function as a block. The method of Halley uses the second
+// derivative. A derivative of zero is a fault. A count of turns
+// without a root is a fault.
+fn halley<D: fn(f64) -> f64, E: fn(f64) -> f64, F: fn(f64) -> f64>(x0: f64, xtol: f64, turns: i64) -> f64, Fault {
+    if xtol <= 0.0 {
+        return 0.0, fault(F_VALUE, "halley", "the tolerance holds a value of zero or below");
+    }
+    if turns < 1 {
+        return 0.0, fault(F_VALUE, "halley", "the count of turns holds a value below one");
+    }
+    var p0 = x0;
+    var turn: i64 = 0;
+    while turn < turns {
+        let fval = F(copy(p0));
+        if fval == 0.0 {
+            return p0, no_fault();
+        }
+        let fder = D(p0);
+        if fder == 0.0 {
+            return 0.0, fault(F_VALUE, "halley", "the derivative holds zero");
+        }
+        let fder2 = E(p0);
+        var step = fval / fder;
+        // The change of the step by the second derivative. It is used
+        // only when the factor stays near one.
+        let adj = step * fder2 / fder / 2.0;
+        if mathshim::abs_of(adj) < 1.0 {
+            step = step / (1.0 - adj);
+        }
+        let p = p0 - step;
+        if mathshim::abs_of(p - p0) <= xtol {
+            return p, no_fault();
+        }
+        p0 = p;
+        turn += 1;
+    }
+    return 0.0, fault(F_LIMIT, "halley", "the method did not reach the tolerance in the count of turns");
+}

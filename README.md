@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.87.0";
+import scientific from "rekanalar/goose-scientific@v0.88.0";
 ```
 
 ## API
@@ -62,7 +62,7 @@ import scientific from "rekanalar/goose-scientific@v0.87.0";
 | Cuts | `split`, `array_split`, `hsplit`, `vsplit`, `part` |
 | Triangles | `tril`, `triu` |
 | Between the points | `interp`, `gradient`, `pad_value` |
-| Root finding | `brentq`, `brenth`, `newton`, `fsolve`, `root_scalar` |
+| Root finding | `brentq`, `brenth`, `newton`, `halley`, `secant`, `fsolve`, `root_scalar` |
 | Minimization | `minimize_scalar`, `minimize`, `minimize_grad`, `differential_evolution`, `least_squares`, `curve_fit` |
 | Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `cumulative_simpson`, `cumulative_simpson_dx`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
@@ -854,6 +854,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   its sign. The two points that hold no change of sign are a fault.
 - `brenth` finds the same root with the step of the false position.
   The step holds the root between the two points at every turn.
+- `secant` finds a root from two points. It takes the function as a
+  block. The method uses the last two points of the function. SciPy
+  takes the second point as an option, and it takes one point when the
+  second one is missing. The package takes both points.
+- `halley` finds a root from a start point with the method of Halley.
+  It takes the first and the second derivative as named functions of
+  the caller, and the function as a block. SciPy gives a value that
+  did not converge when the method cycles. The package gives a fault.
 - `root_scalar` takes a bracket and the method `brentq`, `brenth`,
   `bisect` or `ridder`. It gives no result object. The methods that
   need a derivative stay with `newton`. A call with a start point and
@@ -1053,6 +1061,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   faults on an unknown rule and on more than 257 coefficients. SciPy lets a
   negative `tol` give an empty group and an error deep in the call.
   The checks also bound the work of the root finder.
+- `secant` and `halley` check their input before they compute. They
+  fault on a tolerance of zero or below and on a count of turns below
+  one. The secant method also faults on two points that hold the same
+  value. The method of Halley faults on a derivative of zero.
 - `minimize_grad` checks its input before it computes. It faults on
   a start that holds no element and on a tolerance of zero or below.
   It also faults on a count of turns below one and on an unknown

@@ -1056,6 +1056,9 @@ fn dquad(x: f64) -> f64 { return 2.0 * x; }
 // dflat is the derivative of a function that never changes.
 fn dflat(x: f64) -> f64 { return 0.0; }
 
+// dsecond is the second derivative of the square of x and two.
+fn dsecond(x: f64) -> f64 { return 2.0; }
+
 fn test_optimize() {
     // The root of the square of x and two.
     let r1, f1 = scientific::brentq(0.0, 2.0, 1e-12, 100) { x => x * x - 2.0 };
@@ -1094,6 +1097,26 @@ fn test_optimize() {
     let bad6, fb6 = scientific::newton(1.0, 1e-12, 100, dflat) { x => x * x - 2.0 };
     assert(fb6.kind == scientific::F_VALUE);
     // The root of two equations at once.
+    // The secant method takes two points.
+    let r4b, f4b = scientific::secant(1.0, 1.5, 1e-12, 100) { x => x * x - 2.0 };
+    assert(f4b.kind == scientific::F_NONE && close(r4b, 1.4142135623730951, 1e-10));
+    let r4c, f4c = scientific::secant(0.0, 1.0, 1e-12, 100) { x => x * x * x - 2.0 * x + 2.0 };
+    assert(f4c.kind == scientific::F_NONE && close(r4c, -1.7692923542386314, 1e-10));
+    // The method of Halley takes the second derivative.
+    let r4d, f4d = scientific::halley(1.0, 1e-12, 100, dquad, dsecond) { x => x * x - 2.0 };
+    assert(f4d.kind == scientific::F_NONE && close(r4d, 1.4142135623730951, 1e-10));
+    let bad4b, fb4b = scientific::secant(1.0, 1.0, 1e-12, 100) { x => x * x - 2.0 };
+    assert(fb4b.kind != scientific::F_NONE);
+    let bad4c, fb4c = scientific::secant(1.0, 1.5, 0.0, 100) { x => x * x - 2.0 };
+    assert(fb4c.kind != scientific::F_NONE);
+    let bad4d, fb4d = scientific::secant(1.0, 1.5, 1e-12, 0) { x => x * x - 2.0 };
+    assert(fb4d.kind != scientific::F_NONE);
+    let bad4e, fb4e = scientific::halley(1.0, 1e-12, 100, dflat, dsecond) { x => x * x - 2.0 };
+    assert(fb4e.kind != scientific::F_NONE);
+    let bad4f, fb4f = scientific::halley(1.0, 0.0, 100, dquad, dsecond) { x => x * x - 2.0 };
+    assert(fb4f.kind != scientific::F_NONE);
+    let bad4g, fb4g = scientific::halley(1.0, 1e-12, 0, dquad, dsecond) { x => x * x - 2.0 };
+    assert(fb4g.kind != scientific::F_NONE);
     let r5, f5 = scientific::fsolve([1.0, 1.0], 1e-10, 50) { v => [v[0] * v[0] + v[1] * v[1] - 4.0, v[0] - v[1]] };
     assert(f5.kind == scientific::F_NONE);
     assert(r5.data.len == 2 && close(r5.data[0], 1.4142135623730951));
