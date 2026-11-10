@@ -4263,6 +4263,33 @@ fn test_cumulative_simpson() {
     return;
 }
 
+fn tq_zero(x: f64) -> f64 { return 0.0; }
+fn tq_one(x: f64) -> f64 { return 1.0; }
+fn tq_half_x(x: f64) -> f64 { return 0.5 * x; }
+fn tq_one_x(x: f64) -> f64 { return 1.0 + x; }
+fn tq_m1(x: f64) -> f64 { return -1.0; }
+fn tq_p1(x: f64) -> f64 { return 1.0; }
+fn tq_zero_xy(x: f64, y: f64) -> f64 { return 0.0; }
+fn tq_one_xy(x: f64, y: f64) -> f64 { return 1.0; }
+fn tq_half_y(x: f64, y: f64) -> f64 { return 0.5 * y; }
+fn tq_y_half(x: f64, y: f64) -> f64 { return y + 0.5; }
+fn tq_m1_xy(x: f64, y: f64) -> f64 { return -1.0; }
+fn tq_p1_xy(x: f64, y: f64) -> f64 { return 1.0; }
+
+// tplquad is pinned against SciPy.
+fn test_tplquad() {
+    let v1, e1, f1 = scientific::tplquad(0.0, 1.0, 1.49e-8, 1.49e-8, 50, tq_zero, tq_one, tq_zero_xy, tq_one_xy) { z, y, x => x * y * z };
+    assert(f1.kind == scientific::F_NONE && near(v1, 0.12499999999999999));
+    let v2, e2, f2 = scientific::tplquad(0.0, 1.0, 1.49e-8, 1.49e-8, 50, tq_half_x, tq_one_x, tq_half_y, tq_y_half) { z, y, x => mathshim_exp(-x - y - z) };
+    assert(f2.kind == scientific::F_NONE && near(v2, 0.14202386703691938));
+    let v3, e3, f3 = scientific::tplquad(0.0, 1.0, 1.49e-8, 1.49e-8, 50, tq_m1, tq_p1, tq_m1_xy, tq_p1_xy) { z, y, x => 1.0 / (1.0 + x * x + y * y + z * z) };
+    assert(f3.kind == scientific::F_NONE && near(v3, 2.143427031150922));
+    // A bad tolerance is a fault.
+    let v4, e4, f4 = scientific::tplquad(0.0, 1.0, -1.0, 1.49e-8, 50, tq_zero, tq_one, tq_zero_xy, tq_one_xy) { z, y, x => x * y * z };
+    assert(f4.kind == scientific::F_VALUE);
+    return;
+}
+
 fn test_matfun() {
     let eg, egf = scientific::from_rows(3, 3, [4.0, 1.0, 0.0, 1.0, 3.0, 0.5, 0.0, 0.5, 2.0]);
     let ew, ev, evf = scientific::eigh(eg);
@@ -4379,6 +4406,7 @@ fn main() {
     test_cheby2();
     test_bins_and_weights();
     test_cumulative_simpson();
+    test_tplquad();
     test_generators();
     test_indexing();
     test_sort_and_search();

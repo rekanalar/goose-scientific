@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.65.0";
+import scientific from "rekanalar/goose-scientific@v0.66.0";
 ```
 
 ## API
@@ -77,7 +77,7 @@ import scientific from "rekanalar/goose-scientific@v0.65.0";
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull` |
 | Cubic splines and `interp1d` | `cubic_spline`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
-| Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `solve_ivp`, `odeint` |
+| Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `solve_ivp`, `odeint` |
 | Programs of optimization | `linprog`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `freqz`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `spsolve`, `cg`, `bicgstab`, `gmres` |
@@ -201,6 +201,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   come last in the call, after the tolerances. Every limit is
   finite. A limit that is not finite is a fault. The error is the
   sum of the errors of the inner integrals.
+
+- `tplquad` takes the block `{ z, y, x => f }`. The four limit
+  functions come last, in the order `g`, `h`, `q`, `r`. The functions
+  `g` and `h` take x. The functions `q` and `r` take x and y.
+  A limit that is not finite is a fault.
+
 - `fixed_quad` takes up to 512 points.
 - `solve_ivp` takes the methods `RK45` and `RK23`. The steps equal the
   steps of SciPy. The result holds one row per time, where SciPy

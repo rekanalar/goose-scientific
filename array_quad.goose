@@ -36,19 +36,30 @@ fn quad_eval<F: fn(f64) -> f64>(mode: i64, lo: f64, t: f64) -> f64 {
 fn quad_rule<F: fn(f64) -> f64>(mode: i64, lo: f64, a: f64, b: f64) -> f64, f64 {
     let center = 0.5 * (a + b);
     let half = 0.5 * (b - a);
-    let fc = quad_eval(mode, lo, center) { x => F(x) };
+    // One call site of quad_eval keeps the count of copies of F small.
+    var fv1: f64[>..] = [];
+    var fv2: f64[>..] = [];
+    var fc: f64 = 0.0;
+    var j: i64 = 0;
+    while j < 11 {
+        let dx = half * GK_NODES[j];
+        let f1 = quad_eval(mode, lo, center - dx) { x => F(x) };
+        if j == 10 { fc = f1; } else { fv1.push(f1); }
+        j += 1;
+    }
+    j = 0;
+    while j < 10 {
+        let dx = half * GK_NODES[j];
+        fv2.push(quad_eval(mode, lo, center + dx) { x => F(x) });
+        j += 1;
+    }
     var resk = GK_WEIGHTS[10] * fc;
     var resg: f64 = 0.0;
     var resabs = mathshim::abs_of(resk);
-    var fv1: f64[>..] = [];
-    var fv2: f64[>..] = [];
-    var j: i64 = 0;
+    j = 0;
     while j < 10 {
-        let dx = half * GK_NODES[j];
-        let f1 = quad_eval(mode, lo, center - dx) { x => F(x) };
-        let f2 = quad_eval(mode, lo, center + dx) { x => F(x) };
-        fv1.push(f1);
-        fv2.push(f2);
+        let f1 = fv1[j];
+        let f2 = fv2[j];
         resk += GK_WEIGHTS[j] * (f1 + f2);
         resabs += GK_WEIGHTS[j] * (mathshim::abs_of(f1) + mathshim::abs_of(f2));
         if j % 2 == 1 { resg += GAUSS_WEIGHTS[j / 2] * (f1 + f2); }
@@ -82,36 +93,60 @@ fn quad_rule<F: fn(f64) -> f64>(mode: i64, lo: f64, a: f64, b: f64) -> f64, f64 
 fn quad_run<F: fn(f64) -> f64>(mode: i64, lo: f64, a: f64, b: f64, epsabs: f64, epsrel: f64, limit: i64) -> f64, f64, Fault {
     var ea: f64[>..] = [a];
     var eb: f64[>..] = [b];
-    var ev: f64[>..] = [];
-    var ee: f64[>..] = [];
-    let v0, e0 = quad_rule(mode, lo, a, b) { x => F(x) };
-    ev.push(v0);
-    ee.push(e0);
-    var total = v0;
-    var toterr = e0;
-    while toterr > epsabs && toterr > epsrel * mathshim::abs_of(total) {
-        if ea.len >= limit {
+    var ev: f64[>..] = [0.0];
+    var ee: f64[>..] = [0.0];
+    var worst: i64 = -1;
+    var total: f64 = 0.0;
+    var toterr: f64 = 1.0e300;
+    // One call site of quad_rule keeps the count of copies of F small.
+    // The first pass rates the whole range. Each later pass splits the
+    // interval of the largest error and rates the two halves.
+    while worst < 0 || (toterr > epsabs && toterr > epsrel * mathshim::abs_of(total)) {
+        if worst >= 0 && ea.len >= limit {
             return total, toterr, fault(F_LIMIT, "quad", "the count of intervals reached the limit before the error fell below the tolerance");
         }
-        var worst: i64 = 0;
-        var i: i64 = 1;
-        while i < ee.len { if ee[i] > ee[worst] { worst = i; } i += 1; }
-        let lo2 = ea[worst];
-        let hi2 = eb[worst];
-        let mid = 0.5 * (lo2 + hi2);
-        let v1, r1 = quad_rule(mode, lo, lo2, mid) { x => F(x) };
-        let v2, r2 = quad_rule(mode, lo, mid, hi2) { x => F(x) };
-        eb[worst] = mid;
-        ev[worst] = v1;
-        ee[worst] = r1;
-        ea.push(mid);
-        eb.push(hi2);
-        ev.push(v2);
-        ee.push(r2);
+        var pa: f64[>..] = [];
+        var pb: f64[>..] = [];
+        if worst < 0 {
+            pa.push(a);
+            pb.push(b);
+        } else {
+            let lo2 = ea[worst];
+            let hi2 = eb[worst];
+            let mid = 0.5 * (lo2 + hi2);
+            pa.push(lo2);
+            pb.push(mid);
+            pa.push(mid);
+            pb.push(hi2);
+        }
+        var pv: f64[>..] = [];
+        var pe: f64[>..] = [];
+        var k: i64 = 0;
+        while k < pa.len {
+            let v, r = quad_rule(mode, lo, pa[k], pb[k]) { x => F(x) };
+            pv.push(v);
+            pe.push(r);
+            k += 1;
+        }
+        if worst < 0 {
+            ev[0] = pv[0];
+            ee[0] = pe[0];
+        } else {
+            eb[worst] = pb[0];
+            ev[worst] = pv[0];
+            ee[worst] = pe[0];
+            ea.push(pa[1]);
+            eb.push(pb[1]);
+            ev.push(pv[1]);
+            ee.push(pe[1]);
+        }
         total = 0.0;
         toterr = 0.0;
-        i = 0;
+        var i: i64 = 0;
         while i < ev.len { total += ev[i]; toterr += ee[i]; i += 1; }
+        worst = 0;
+        i = 1;
+        while i < ee.len { if ee[i] > ee[worst] { worst = i; } i += 1; }
     }
     return total, toterr, no_fault();
 }
@@ -521,4 +556,81 @@ fn odeint<F: fn(f64[:], f64) -> f64[:]>(y0: f64[:], t: f64[:], rtol: f64 = 1.490
         k += 1;
     }
     return mat2(copy(out), m, n), no_fault();
+}
+
+// tplquad_mid integrates the function over y and z for one x. The
+// limits of y are given as numbers, already found by the caller.
+fn tplquad_mid<Q: fn(f64, f64) -> f64, R: fn(f64, f64) -> f64, F: fn(f64, f64, f64) -> f64>(x: f64, g: f64, h: f64, epsabs: f64, epsrel: f64, limit: i64) -> f64, f64, Fault {
+    if !(quad_finite(g) && quad_finite(h)) {
+        return 0.0, 0.0, fault(F_VALUE, "tplquad", "a limit of y holds a value that is not finite");
+    }
+    var a = g;
+    var b = h;
+    var sgn: f64 = 1.0;
+    if g > h { a = h; b = g; sgn = -1.0; }
+    var err: f64 = 0.0;
+    var bad: Fault = no_fault();
+    let v, e, f = quad_run(0, 0.0, a, b, epsabs, epsrel, limit) { y =>
+        let q = Q(x, y);
+        let r = R(x, y);
+        var out: f64 = 0.0;
+        if quad_finite(q) && quad_finite(r) {
+            if q == r { out = 0.0; }
+            else {
+                var z0 = q;
+                var z1 = r;
+                var zs: f64 = 1.0;
+                if q > r { z0 = r; z1 = q; zs = -1.0; }
+                let iv, ie, ifl = quad_run(0, 0.0, z0, z1, epsabs, epsrel, limit) { z => F(z, y, x) };
+                if ifl.kind != F_NONE { bad = ifl; }
+                err += ie;
+                out = zs * iv;
+            }
+        } else {
+            bad = fault(F_VALUE, "tplquad", "a limit of z holds a value that is not finite");
+        }
+        out
+    };
+    if bad.kind != F_NONE { return 0.0, 0.0, bad; }
+    return sgn * v, e + err, f;
+}
+
+// tplquad gives the triple integral of a function f(z, y, x) over x from
+// a to b, over y from g(x) to h(x) and over z from q(x, y) to r(x, y).
+// The limits are named functions of the caller. The function f is a
+// block. The call gives the value and the sum of the errors of the
+// inner integrals. A fault of an inner integral stops the call.
+fn tplquad<G: fn(f64) -> f64, H: fn(f64) -> f64, Q: fn(f64, f64) -> f64, R: fn(f64, f64) -> f64, F: fn(f64, f64, f64) -> f64>(a: f64, b: f64, epsabs: f64 = 1.49e-8, epsrel: f64 = 1.49e-8, limit: i64 = 50) -> f64, f64, Fault {
+    if a != a || b != b || !quad_finite(a) || !quad_finite(b) {
+        return 0.0, 0.0, fault(F_VALUE, "tplquad", "a limit of x holds a value that is not finite");
+    }
+    if !(epsabs >= 0.0) || !(epsrel >= 0.0) || (epsabs == 0.0 && epsrel < 5.0e-29) {
+        return 0.0, 0.0, fault(F_VALUE, "tplquad", "the tolerance holds a value that no result can meet");
+    }
+    if limit < 1 || limit > MAX_QUAD_LIMIT {
+        return 0.0, 0.0, fault(F_RANGE, "tplquad", "the limit stands outside one to the largest count");
+    }
+    if a == b { return 0.0, 0.0, no_fault(); }
+    var lo = a;
+    var hi = b;
+    var sgn: f64 = 1.0;
+    if a > b { lo = b; hi = a; sgn = -1.0; }
+    var err: f64 = 0.0;
+    var bad: Fault = no_fault();
+    let v, e, f = quad_run(0, 0.0, lo, hi, epsabs, epsrel, limit) { x =>
+        let g = G(x);
+        let h = H(x);
+        var out: f64 = 0.0;
+        if quad_finite(g) && quad_finite(h) {
+            let iv, ie, ifl = tplquad_mid(x, g, h, epsabs, epsrel, limit, Q, R) { z, y, xx => F(z, y, xx) };
+            if ifl.kind != F_NONE { bad = ifl; }
+            err += ie;
+            out = iv;
+        } else {
+            bad = fault(F_VALUE, "tplquad", "a limit of y holds a value that is not finite");
+        }
+        out
+    };
+    if bad.kind != F_NONE { return 0.0, 0.0, bad; }
+    return sgn * v, e + err, f;
 }
