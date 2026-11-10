@@ -118,6 +118,43 @@ fn nonzero(a) -> Arr, Fault {
     return Arr { ndim: 1, shape: s, data: d }, no_fault();
 }
 
+// flatnonzero gives the flat positions of the elements that are not
+// zero, in the order of the elements.
+fn flatnonzero(a) -> Arr, Fault {
+    return nonzero(a);
+}
+
+// argwhere gives the position of every element that is not zero. The
+// result has one row per element and one column per dimension. No
+// match gives a result of zero rows, as NumPy gives it.
+fn argwhere(a) -> Arr, Fault {
+    var d: f64[>..] = [];
+    var found: i64 = 0;
+    var i: i64 = 0;
+    while i < a.data.len {
+        if a.data[i] != 0.0 {
+            found += 1;
+            var rest = i;
+            var k: i64 = a.ndim - 1;
+            var pos: i64[..8] = [];
+            while k >= 0 { pos.push(0); k -= 1; }
+            k = a.ndim - 1;
+            while k >= 0 {
+                pos[k] = rest % a.shape[k];
+                rest /= a.shape[k];
+                k -= 1;
+            }
+            var j: i64 = 0;
+            while j < a.ndim { d.push(pos[j] as f64); j += 1; }
+        }
+        i += 1;
+    }
+    var s: i64[..8] = [];
+    s.push(found);
+    s.push(a.ndim);
+    return Arr { ndim: 2, shape: s, data: d }, no_fault();
+}
+
 // mask gives the elements that hold true. A zero is false and any
 // other value is true.
 fn mask(a, cond) -> Arr, Fault {

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.23.0";
+import scientific from "rekanalar/goose-scientific@v0.24.0";
 ```
 
 ## API
@@ -27,6 +27,7 @@ import scientific from "rekanalar/goose-scientific@v0.23.0";
 | Creation | `zeros`, `ones`, `full`, `arange`, `linspace`, `eye`, `identity`, `diag`, `diagflat`, `logspace`, `geomspace`, `from_rows`, `from_values`, `clone` |
 | Stacks | `vstack`, `hstack`, `dstack`, `column_stack` |
 | Grids | `meshgrid(x, y, indexing="xy", sparse=false)`, `cross` |
+| Positions | `argwhere`, `flatnonzero` |
 | Shape | `reshape`, `ravel`, `transpose`, `transpose_perm`, `squeeze`, `expand_dims`, `concatenate`, `stack`, `broadcast_shapes`, `index` |
 | Elementwise | `add`, `sub`, `mul`, `div`, `power`, `maximum`, `minimum`, `neg`, `abs`, `sqrt`, `exp`, `log`, `log2`, `log10`, `scale`, `clip`, `sign`, `floor`, `ceil`, `round`, `trunc`, `rint`, `fix`, `square`, `sin`, `cos`, `tan`, `arcsin`, `arccos`, `arctan`, `arctan2`, `sinh`, `cosh`, `tanh`, `arcsinh`, `arccosh`, `arctanh`, `expm1`, `log1p`, `reciprocal`, `deg2rad`, `rad2deg`, `signbit`, `isneginf`, `isposinf`, `floor_divide`, `mod`, `fmod`, `cbrt`, `hypot`, `exp2`, `nextafter`, `copysign`, `spacing` |
 | Names of NumPy | `array`, `subtract`, `multiply`, `divide`, `true_divide`, `negative`, `positive`, `fabs`, `absolute`, `around` |
@@ -95,6 +96,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   under one another. `hstack` joins the rows beside each other.
   `dstack` joins them in a third dimension. `column_stack` joins them
   as columns.
+- `argwhere` gives one row of positions per element that is not zero,
+  and one column per dimension. No match gives zero rows. NumPy gives
+  the same shape.
+- `flatnonzero` gives the flat positions of the elements that are not
+  zero. It holds the same result as `nonzero`.
 - `meshgrid` takes two vectors and returns two arrays. The indexing
   `"xy"` gives the shape (len(y), len(x)). The indexing `"ij"` gives
   (len(x), len(y)). It takes two inputs, not more.

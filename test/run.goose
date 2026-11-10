@@ -1746,6 +1746,38 @@ fn test_sets() {
 }
 
 // The stacks hold the values of NumPy.
+fn test_positions() {
+    // NumPy 2.5.3: argwhere and flatnonzero of a mask on a 3x3 grid.
+    let a, fa = scientific::from_rows(3, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
+    assert(fa.kind == scientific::F_NONE);
+    let m, fm = scientific::from_rows(3, 3, [1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]);
+    assert(fm.kind == scientific::F_NONE);
+    let w, fw = scientific::argwhere(m);
+    assert(fw.kind == scientific::F_NONE && w.shape[0] == 5 && w.shape[1] == 2);
+    assert(w.data[0] == 0.0 && w.data[1] == 0.0 && w.data[2] == 0.0 && w.data[3] == 2.0);
+    assert(w.data[4] == 1.0 && w.data[5] == 1.0 && w.data[6] == 2.0 && w.data[7] == 0.0);
+    assert(w.data[8] == 2.0 && w.data[9] == 2.0);
+    let flat, ff = scientific::flatnonzero(m);
+    assert(ff.kind == scientific::F_NONE && flat.data.len == 5);
+    assert(flat.data[0] == 0.0 && flat.data[1] == 2.0 && flat.data[2] == 4.0 && flat.data[3] == 6.0 && flat.data[4] == 8.0);
+    let w2, fw2 = scientific::argwhere(a);
+    assert(fw2.kind == scientific::F_NONE && w2.shape[0] == 9 && w2.shape[1] == 2);
+    assert(w2.data[0] == 0.0 && w2.data[16] == 2.0 && w2.data[17] == 2.0);
+    // A mask of one dimension gives one column.
+    let v, fv = scientific::from_values([0.0, 3.0, 0.0, 5.0]);
+    assert(fv.kind == scientific::F_NONE);
+    let f2, ff2 = scientific::flatnonzero(v);
+    assert(ff2.kind == scientific::F_NONE && f2.data.len == 2 && f2.data[0] == 1.0 && f2.data[1] == 3.0);
+    let w3, fw3 = scientific::argwhere(v);
+    assert(fw3.kind == scientific::F_NONE && w3.shape[0] == 2 && w3.shape[1] == 1);
+    assert(w3.data[0] == 1.0 && w3.data[1] == 3.0);
+    // No match gives zero rows.
+    let z, fz = scientific::from_values([0.0, 0.0]);
+    assert(fz.kind == scientific::F_NONE);
+    let w4, fw4 = scientific::argwhere(z);
+    assert(fw4.kind == scientific::F_NONE && w4.shape[0] == 0 && w4.shape[1] == 1 && w4.data.len == 0);
+}
+
 fn test_grids() {
     let x, fx = scientific::from_values([1.0, 2.0, 3.0]);
     let y, fy = scientific::from_values([10.0, 20.0]);
@@ -1895,6 +1927,7 @@ fn main() {
     test_sets();
     test_stacks();
     test_grids();
+    test_positions();
     test_indexing();
     test_sort_and_search();
     test_linalg();
