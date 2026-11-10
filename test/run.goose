@@ -4625,6 +4625,23 @@ fn test_bdf() {
     assert(mathshim_abs(eet.data[0] - 0.4154166021038258) < 1.0e-8 && mathshim_abs(eey.data[1] + 21.22445517558779) < 1.0e-5);
 }
 
+// The method Radau, pinned against SciPy 1.18.1. The count of steps
+// equals the count of SciPy.
+fn test_radau() {
+    let t1, y1, f1 = scientific::solve_ivp(0.0, 3.0, [1.0, 0.0], 0.001, 1e-6, "Radau") { t, v => [v[1], 1000.0 * (1.0 - v[0] * v[0]) * v[1] - v[0]] };
+    assert(f1.kind == scientific::F_NONE && t1.data.len == 68);
+    assert(mathshim_abs(t1.data[67] - 3.0) < 1.0e-12 && mathshim_abs(t1.data[3] - 0.034402725378283136) < 1.0e-4);
+    let t2, y2, f2 = scientific::solve_ivp(0.0, 40.0, [1.0, 0.0, 0.0], 1e-6, 1e-9, "Radau") { t, v => [-0.04 * v[0] + 1.0e4 * v[1] * v[2], 0.04 * v[0] - 1.0e4 * v[1] * v[2] - 3.0e7 * v[1] * v[1], 3.0e7 * v[1] * v[1]] };
+    assert(f2.kind == scientific::F_NONE && t2.data.len == 67);
+    assert(mathshim_abs(y2.data[3 * 66] - 0.715827074754968) < 1.0e-6);
+    let e3 = [1.0, 0.0, -2.000925847183714, 0.006655492040691016, -1.9975905328886725, 0.006679958122998222, -1.9929053915140043, 0.006706216921244254, -1.9848305494473333, 0.006752021194119795];
+    let t3, y3, f3 = scientific::solve_ivp(0.0, 3.0, [1.0, 0.0], 1e-4, 1e-7, "Radau", 1.0e308, [0.0, 0.5, 1.0, 1.7, 2.9]) { t, v => [v[1], 100.0 * (1.0 - v[0] * v[0]) * v[1] - v[0]] };
+    assert(f3.kind == scientific::F_NONE && all_close(y3, e3, 1.0e-8));
+    let et, ey, eet, eei, eey, ef = scientific::solve_ivp_events(0.0, 3.0, [1.0, 0.0], 1, [true], [0.0], 1e-6, 1e-9, "Radau") { t, v => [v[1], 100.0 * (1.0 - v[0] * v[0]) * v[1] - v[0], v[0] - 0.5] };
+    assert(ef.kind == scientific::F_NONE && et.data.len == 89);
+    assert(mathshim_abs(eet.data[0] - 0.41542002) < 1.0e-7 && mathshim_abs(eey.data[1] + 21.22437489) < 1.0e-5);
+}
+
 // The argument first_step sets the first step, as SciPy does.
 fn test_first_step() {
     let t1, y1, f1 = scientific::solve_ivp(0.0, 5.0, [1.0, 0.0], 0.001, 1e-6, "RK45", 1.0e308, [], 0.01) { t, v => [v[1], -v[0]] };
@@ -6255,6 +6272,7 @@ fn main() {
     test_dop853();
     test_first_step();
     test_bdf();
+    test_radau();
     test_cumulative_simpson_initial();
     test_bspline();
     test_spline_ends();

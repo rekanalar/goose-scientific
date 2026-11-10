@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.113.0";
+import scientific from "rekanalar/goose-scientific@v0.114.0";
 ```
 
 ## API
@@ -299,7 +299,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   SciPy, because the package holds no extrapolation.
 
 - `fixed_quad` takes up to 512 points.
-- `solve_ivp` takes the methods `RK45`, `RK23`, `DOP853` and `BDF`. The steps
+- `solve_ivp` takes the methods `RK45`, `RK23`, `DOP853`, `BDF` and
+  `Radau`. The steps
   equal the steps of SciPy. The result holds one row per time, where
   SciPy holds one column. The argument `t_eval` takes sorted times
   inside the span. It gives the values from the dense output.
@@ -311,12 +312,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   one to five. The Jacobian comes from finite differences, with the
   step control of SciPy. The count of steps equals the count of SciPy.
   The arguments `jac` and `jac_sparsity` stay out.
-- A singular matrix in `BDF` shrinks the step. A step below the
+- `Radau` is the implicit method of the order five. It solves the
+  three stages through one real and one complex system. The Jacobian
+  comes from finite differences. The count of steps equals the count
+  of SciPy. The arguments `jac` and `jac_sparsity` stay out.
+- A singular matrix in `BDF` or `Radau` shrinks the step. A step below the
   smallest step is a fault.
 - The argument `first_step` sets the first step. A value of zero lets
   the solver choose, where SciPy treats zero as a fault. A negative
-  value or a value beyond the span is a fault. The methods `Radau`
-  and `LSODA` stay out. A stiff system needs many steps. It may reach the
+  value or a value beyond the span is a fault. The method `LSODA`
+  stays out. A stiff system needs many steps. It may reach the
   limit of one million steps.
 - `solve_ivp_events` takes the events of SciPy. The block gives the
   derivative and then the event functions. The arrays `terminal` and
