@@ -1780,6 +1780,67 @@ fn line_bounds(line: scientific::Arr&) -> scientific::Arr {
     return scientific::Arr { ndim: 1, shape: s, data: d };
 }
 
+fn test_generators() {
+    // The names of NumPy call the generator of the package. A name
+    // gives the same numbers as the function under it.
+    let r = scientific::seed(42);
+    let r2 = scientific::default_rng(42);
+    assert(scientific::random_sample(r) == scientific::random_uniform(r2));
+    assert(scientific::randint(r, 1, 10) == scientific::integers(r2, 1, 10));
+    let r3 = scientific::seed(7);
+    let r4 = scientific::seed(7);
+    var d: f64[>..] = [3.0, 1.0, 4.0, 1.5];
+    var q = scientific::Arr { ndim: 1, shape: [4], data: copy(d) };
+    let f = scientific::shuffle(r3, q);
+    assert(f.kind == scientific::F_NONE);
+    var d2: f64[>..] = [3.0, 1.0, 4.0, 1.5];
+    scientific::mix(d2, r4.g);
+    var i: i64 = 0;
+    while i < 4 { assert(q.data[i] == d2[i]); i += 1; }
+    // The shuffled copy of the plain values holds the same order.
+    var d3: f64[>..] = [3.0, 1.0, 4.0, 1.5];
+    let r5 = scientific::seed(7);
+    let plain = scientific::Arr { ndim: 1, shape: [4], data: copy(d3) };
+    let c, fc = scientific::shuffled(r5, plain);
+    assert(fc.kind == scientific::F_NONE);
+    i = 0;
+    while i < 4 { assert(c.data[i] == d2[i]); i += 1; }
+    let r6 = scientific::seed(1);
+    let u, f2 = scientific::rand(r6, [2, 3]);
+    assert(f2.kind == scientific::F_NONE && u.ndim == 2 && u.shape[0] == 2 && u.shape[1] == 3);
+    assert(u.data[0] >= 0.0 && u.data[0] < 1.0 && u.data[5] >= 0.0 && u.data[5] < 1.0);
+    let r7 = scientific::seed(1);
+    let u2, f3 = scientific::rand(r7, [2, 3]);
+    i = 0;
+    while i < 6 { assert(u.data[i] == u2.data[i]); i += 1; }
+    let n, f4 = scientific::randn(r6, [2, 3]);
+    assert(f4.kind == scientific::F_NONE && n.data.len == 6);
+    // The state round trips through the word.
+    let r8 = scientific::seed(5);
+    var out: u8[>..] = [];
+    let g = scientific::bytes(r8, 4, out);
+    assert(g.kind == scientific::F_NONE && out.len == 4);
+    let st = scientific::get_state(r8);
+    let r9 = scientific::set_state(st);
+    assert(scientific::random_uniform(r9) == scientific::random_uniform(r8));
+    // The faults.
+    var bad: u8[>..] = [];
+    let r10 = scientific::seed(3);
+    let g2 = scientific::bytes(r10, 0, bad);
+    assert(g2.kind == scientific::F_RANGE);
+    let r11 = scientific::seed(3);
+    let e1, g3 = scientific::rand(r11, []);
+    assert(g3.kind == scientific::F_VALUE);
+    let e2, g4 = scientific::randn(r11, [2, 0]);
+    assert(g4.kind == scientific::F_VALUE);
+    var m: f64[>..] = [1.0, 2.0, 3.0, 4.0];
+    let q2 = scientific::Arr { ndim: 2, shape: [2, 2], data: copy(m) };
+    let r12 = scientific::seed(3);
+    let g5 = scientific::shuffle(r12, q2);
+    assert(g5.kind == scientific::F_SHAPE);
+    let badint = scientific::randint(r11, 5, 5);
+}
+
 fn test_filters() {
     // The values come from SciPy 1.18.1.
     let b, a, f = scientific::butter(3, [0.2], "lowpass");
@@ -2450,6 +2511,7 @@ fn main() {
     test_moves();
     test_constants();
     test_filters();
+    test_generators();
     test_indexing();
     test_sort_and_search();
     test_linalg();

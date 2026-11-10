@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.32.0";
+import scientific from "rekanalar/goose-scientific@v0.33.0";
 ```
 
 ## API
@@ -54,6 +54,7 @@ import scientific from "rekanalar/goose-scientific@v0.32.0";
 | Polynomials | `polyval`, `polyfit`, `roots` |
 | Transforms | `fft`, `ifft`, `fft2`, `fft2c`, `ifft2`, `fftn`, `ifftn`, `fftfreq`, `rfftfreq`, `fftshift`, `ifftshift`, `rfft`, `irfft` |
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
+| Names of NumPy | `seed`, `shuffle`, `random_sample`, `rand`, `randn`, `randint`, `bytes`, `get_state`, `set_state` |
 | Shapes of another array | `empty`, `full_like`, `zeros_like`, `ones_like`, `trim_zeros`, `insert` |
 | Writes | `putmask`, `place`, `put_along_axis` |
 | Cuts | `split`, `array_split`, `hsplit`, `vsplit`, `part` |
@@ -94,6 +95,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- The names of NumPy take the generator as the first argument,
+  because the package holds no global state. `seed` returns a
+  generator. `bytes` fills a buffer of the caller and returns no
+  value. `rand` and `randn` take the shape as one list.
+- The state of the generator holds one word. The state of NumPy
+  holds a key and a place. `get_state` and `set_state` carry one
+  word. The numbers differ from the numbers of NumPy.
 - `butter` gives the numerator and the denominator of the filter. It
   holds no `output='sos'` form and no `fs` argument: the cut is a
   fraction of the Nyquist rate. The order stays between 1 and 32.

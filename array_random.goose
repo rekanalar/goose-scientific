@@ -125,7 +125,7 @@ fn choice(r: Rng&, a, count: i64, replace: bool) -> Arr, Fault {
         var pos: f64[>..] = [];
         var i: i64 = 0;
         while i < a.data.len { pos.push(i as f64); i += 1; }
-        shuffle(pos, r.g);
+        mix(pos, r.g);
         i = 0;
         while i < count {
             d.push(a.data[pos[i] as i64]);
@@ -146,7 +146,7 @@ fn permutation(r: Rng&, n: i64) -> Arr, Fault {
     var d: f64[>..] = [];
     var i: i64 = 0;
     while i < n { d.push(i); i += 1; }
-    shuffle(d, r.g);
+    mix(d, r.g);
     var s: i64[..8] = [];
     s.push(n);
     return Arr { ndim: 1, shape: s, data: d }, no_fault();
@@ -161,7 +161,7 @@ fn shuffled(r: Rng&, a) -> Arr, Fault {
     var d: f64[>..] = [];
     var i: i64 = 0;
     while i < a.data.len { d.push(a.data[i]); i += 1; }
-    shuffle(d, r.g);
+    mix(d, r.g);
     var s: i64[..8] = [];
     s.push(d.len);
     return Arr { ndim: 1, shape: s, data: d }, no_fault();
@@ -190,4 +190,128 @@ fn shuffle_rows(r: Rng&, a) -> Fault {
         i -= 1;
     }
     return no_fault();
+}
+
+// The names of NumPy for the generator. The package holds no global
+// state, so seed returns a generator and the calls take the
+// generator as the first argument.
+
+// mix shuffles a buffer of numbers with the Fisher Yates loop of the
+// standard library, so a seed gives the same order as the standard
+// shuffle.
+fn mix(d: f64[>..]&, g: rng&) {
+    var i = d.len - 1;
+    while i > 0 {
+        let j = rand_int(g, i + 1);
+        let t = d[i];
+        d[i] = d[j];
+        d[j] = t;
+        i -= 1;
+    }
+}
+
+// seed gives a generator from a seed. The same seed gives the same
+// numbers. It is the name of NumPy for default_rng.
+fn seed(s: i64) -> Rng {
+    return default_rng(s);
+}
+
+// shuffle shuffles the elements of a one dimensional array in place.
+// The array of the caller changes. The method is the Fisher Yates
+// loop of the standard library, so a seed gives the same order.
+fn shuffle(r: Rng&, a) -> Fault {
+    if a.ndim != 1 {
+        return fault(F_SHAPE, "shuffle", "the array holds a count of dimensions that is not one");
+    }
+    var i = a.data.len - 1;
+    while i > 0 {
+        let j = rand_int(r.g, i + 1);
+        let t = a.data[i];
+        a.data[i] = a.data[j];
+        a.data[j] = t;
+        i -= 1;
+    }
+    return no_fault();
+}
+
+// random_sample gives one real number of the range zero to one.
+fn random_sample(r: Rng&) -> f64 {
+    return random_uniform(r);
+}
+
+// rand_shape builds an array of a shape from a seed value of zero to
+// one. The shape holds the length of every dimension.
+fn rand_shape(r: Rng&, shape: i64[:], seed_kind: bool) -> Arr, Fault {
+    let f = check_shape(shape);
+    if f.kind != F_NONE { return empty_arr(), f; }
+    let n = numel(shape);
+    var d: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n {
+        if seed_kind {
+            let v, g = normal(r, 0.0, 1.0);
+            if g.kind != F_NONE { return empty_arr(), g; }
+            d.push(v);
+        } else {
+            d.push(uniform(r, 0.0, 1.0));
+        }
+        i += 1;
+    }
+    var s: i64[..8] = [];
+    i = 0;
+    while i < shape.len { s.push(shape[i]); i += 1; }
+    return Arr { ndim: shape.len, shape: s, data: d }, no_fault();
+}
+
+// rand gives an array of uniform numbers of the range zero to one.
+// The shape holds the length of every dimension. An empty shape is a
+// fault.
+fn rand(r: Rng&, shape: i64[:]) -> Arr, Fault {
+    if shape.len < 1 {
+        return empty_arr(), fault(F_VALUE, "rand", "the shape holds no dimension");
+    }
+    return rand_shape(r, shape, false);
+}
+
+// randn gives an array of numbers of the standard normal law.
+fn randn(r: Rng&, shape: i64[:]) -> Arr, Fault {
+    if shape.len < 1 {
+        return empty_arr(), fault(F_VALUE, "randn", "the shape holds no dimension");
+    }
+    return rand_shape(r, shape, true);
+}
+
+// randint gives one whole number of the half-open range from low to
+// high. A range that holds no number is a fault.
+fn randint(r: Rng&, low: i64, high: i64) -> i64, Fault {
+    return integers(r, low, high);
+}
+
+// rand_bytes gives count random bytes. The caller passes an empty
+// buffer and the buffer of the caller holds the bytes. A count below
+// one is a fault.
+fn bytes(r: Rng&, count: i64, out: u8[>..]&) -> Fault {
+    if count < 1 || count > MAX_ELEMENTS {
+        return fault(F_RANGE, "bytes", "the count holds a value outside one to the limit");
+    }
+    var i: i64 = 0;
+    while i < count {
+        out.push(rand_int(r.g, 256) as u8);
+        i += 1;
+    }
+    return no_fault();
+}
+
+// get_state gives the word of the state of the generator. The state
+// holds one word, so the state of NumPy, which holds a key and a
+// place, has no name here.
+fn get_state(r: Rng&) -> i64 {
+    return r.g.s as i64;
+}
+
+// set_state gives a generator from a word of state. A generator that
+// set_state builds holds the same numbers as the generator that
+// get_state read.
+fn set_state(s: i64) -> Rng {
+    return Rng { g: rng { s: s as u64 }, cache: 0.0, holds_cache: false };
 }
