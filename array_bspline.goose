@@ -1,0 +1,244 @@
+// The B-spline of one variable: the object BSpl with the knots, the
+// coefficients and the degree, the interpolation of data by a B-spline
+// and the evaluation with derivatives. The names follow
+// scipy.interpolate.BSpline, make_interp_spline, splrep and splev.
+namespace scientific;
+
+import mathshim;
+
+// BSpl holds the degree, the count of knots and one buffer with the
+// knots followed by the coefficients. The count of knots is the count
+// of coefficients plus the degree plus one.
+struct BSpl { k: i64, nt: i64, buf: f64[>..] }
+
+fn bspl_empty() -> BSpl {
+    return BSpl { k: 0, nt: 0, buf: [] };
+}
+
+// bs_make joins the knots and the coefficients into one spline.
+fn bs_make(k: i64, t: f64[:], c: f64[:]) -> BSpl {
+    var buf: f64[>..] = copy_slice(t);
+    var i: i64 = 0;
+    while i < c.len { buf.push(c[i]); i += 1; }
+    return BSpl { k: k, nt: t.len, buf: buf };
+}
+
+fn bs_knots_of(b) -> f64[>..] {
+    var t: f64[>..] = [];
+    var i: i64 = 0;
+    while i < b.nt { t.push(b.buf[i]); i += 1; }
+    return t;
+}
+
+fn bs_coefs_of(b) -> f64[>..] {
+    var c: f64[>..] = [];
+    var i = b.nt;
+    while i < b.buf.len { c.push(b.buf[i]); i += 1; }
+    return c;
+}
+
+// bspline builds a B-spline from the knots, the coefficients and the
+// degree. The knots must not fall, and a knot may repeat at most
+// degree plus one times.
+fn bspline(t: f64[:], c: f64[:], k: i64) -> BSpl, Fault {
+    if k < 0 || k > 20 {
+        return bspl_empty(), fault(F_RANGE, "bspline", "the degree is outside zero to twenty");
+    }
+    if c.len < k + 1 || t.len != c.len + k + 1 {
+        return bspl_empty(), fault(F_SHAPE, "bspline", "the knots need the count of the coefficients plus the degree plus one");
+    }
+    var i: i64 = 0;
+    while i < t.len {
+        if !(t[i] - t[i] == 0.0) {
+            return bspl_empty(), fault(F_VALUE, "bspline", "a knot is not finite");
+        }
+        if i > 0 && t[i] < t[i - 1] {
+            return bspl_empty(), fault(F_VALUE, "bspline", "the knots fall");
+        }
+        i += 1;
+    }
+    i = 0;
+    while i < c.len {
+        if !(c[i] - c[i] == 0.0) {
+            return bspl_empty(), fault(F_VALUE, "bspline", "a coefficient is not finite");
+        }
+        i += 1;
+    }
+    if !(t[k] < t[c.len]) {
+        return bspl_empty(), fault(F_VALUE, "bspline", "the base interval holds no width");
+    }
+    return bs_make(k, t, c), no_fault();
+}
+
+// bs_derivative gives the coefficients and the knots of the derivative
+// spline of one order lower.
+fn bs_derivative(t: f64[:], c: f64[:], k: i64) -> f64[>..], f64[>..] {
+    var nc: f64[>..] = [];
+    var i: i64 = 0;
+    while i + 1 < c.len {
+        let d = t[i + k + 1] - t[i + 1];
+        if d == 0.0 { nc.push(0.0); } else { nc.push((k * 1.0) * (c[i + 1] - c[i]) / d); }
+        i += 1;
+    }
+    var nt: f64[>..] = [];
+    i = 1;
+    while i + 1 < t.len { nt.push(t[i]); i += 1; }
+    return nt, nc;
+}
+
+// bs_value evaluates the spline of the degree k at a point by the
+// scheme of de Boor. A point outside the base interval takes the end
+// polynomial.
+fn bs_value(t: f64[:], c: f64[:], k: i64, x: f64) -> f64 {
+    let n = c.len;
+    var i = k;
+    while i < n - 1 && x >= t[i + 1] { i += 1; }
+    var d: f64[>..] = [];
+    var j: i64 = 0;
+    while j <= k { d.push(c[j + i - k]); j += 1; }
+    var r: i64 = 1;
+    while r <= k {
+        j = k;
+        while j >= r {
+            let lo = t[j + i - k];
+            let den = t[j + 1 + i - r] - lo;
+            var a: f64 = 0.0;
+            if den != 0.0 { a = (x - lo) / den; }
+            d[j] = (1.0 - a) * d[j - 1] + a * d[j];
+            j -= 1;
+        }
+        r += 1;
+    }
+    return d[k];
+}
+
+// bspline_eval gives the nu-th derivative of the spline at the points.
+// A derivative above the degree is zero.
+fn bspline_eval(b, xs: f64[:], nu: i64 = 0) -> Arr, Fault {
+    if nu < 0 {
+        return empty_arr(), fault(F_RANGE, "bspline_eval", "the derivative order is below zero");
+    }
+    if xs.len < 1 {
+        return empty_arr(), fault(F_SHAPE, "bspline_eval", "the list of points holds no value");
+    }
+    var t = bs_knots_of(b);
+    var c = bs_coefs_of(b);
+    var k = b.k;
+    var o: i64 = 0;
+    while o < nu && k > 0 {
+        let nt, nc = bs_derivative(t, c, k);
+        t = copy_slice(nt);
+        c = copy_slice(nc);
+        k -= 1;
+        o += 1;
+    }
+    var out: f64[>..] = [];
+    var j: i64 = 0;
+    while j < xs.len {
+        if xs[j] != xs[j] { out.push(xs[j]); }
+        else if o < nu { out.push(0.0); }
+        else { out.push(bs_value(t, c, k, xs[j])); }
+        j += 1;
+    }
+    return line_arr(copy(out)), no_fault();
+}
+
+// splev follows scipy.interpolate.splev: the points first, then the
+// spline and the derivative order.
+fn splev(xs: f64[:], b, der: i64 = 0) -> Arr, Fault {
+    return bspline_eval(b, xs, der);
+}
+
+// bs_knots gives the knot vector of the interpolation by the rule of
+// the not-a-knot condition.
+fn bs_knots(x: f64[:], k: i64) -> f64[>..] {
+    var base: f64[>..] = [];
+    var i: i64 = 0;
+    if k % 2 == 1 {
+        while i < x.len { base.push(x[i]); i += 1; }
+    } else {
+        while i + 1 < x.len { base.push((x[i + 1] + x[i]) / 2.0); i += 1; }
+    }
+    let k2 = (k + 1) / 2;
+    var t: f64[>..] = [];
+    i = 0;
+    while i <= k { t.push(x[0]); i += 1; }
+    i = k2;
+    while i < base.len - k2 { t.push(base[i]); i += 1; }
+    i = 0;
+    while i <= k { t.push(x[x.len - 1]); i += 1; }
+    return t;
+}
+
+// make_interp_spline builds the B-spline of degree k that passes
+// through the points. The knots follow the rule of not-a-knot.
+fn make_interp_spline(x: f64[:], y: f64[:], k: i64 = 3) -> BSpl, Fault {
+    if k < 0 || k > 20 {
+        return bspl_empty(), fault(F_RANGE, "make_interp_spline", "the degree is outside zero to twenty");
+    }
+    if x.len != y.len || x.len < k + 1 {
+        return bspl_empty(), fault(F_SHAPE, "make_interp_spline", "the data need equal counts and at least degree plus one points");
+    }
+    var i: i64 = 0;
+    while i < x.len {
+        if !(x[i] - x[i] == 0.0) || !(y[i] - y[i] == 0.0) {
+            return bspl_empty(), fault(F_VALUE, "make_interp_spline", "a point or a value is not finite");
+        }
+        if i > 0 && !(x[i] > x[i - 1]) {
+            return bspl_empty(), fault(F_VALUE, "make_interp_spline", "the points do not rise strictly");
+        }
+        i += 1;
+    }
+    let n = x.len;
+    if k == 0 {
+        // Steps: the knots lie at the midpoints.
+        var t0: f64[>..] = [x[0]];
+        i = 0;
+        while i + 1 < n { t0.push((x[i] + x[i + 1]) / 2.0); i += 1; }
+        t0.push(x[n - 1]);
+        t0[n] = x[n - 1];
+        return bs_make(0, t0, y), no_fault();
+    }
+    let t = bs_knots(x, k);
+    // The matrix of the collocation. A row holds the values of the
+    // basis at one point.
+    var a: f64[>..] = [];
+    i = 0;
+    while i < n * n { a.push(0.0); i += 1; }
+    i = 0;
+    while i < n {
+        var j: i64 = 0;
+        while j < n {
+            var unit: f64[>..] = [];
+            var q: i64 = 0;
+            while q < n { if q == j { unit.push(1.0); } else { unit.push(0.0); } q += 1; }
+            let v = bs_value(t, unit, k, x[i]);
+            a[i * n + j] = v;
+            j += 1;
+        }
+        i += 1;
+    }
+    var sa: i64[..8] = [];
+    sa.push(n);
+    sa.push(n);
+    var sb: i64[..8] = [];
+    sb.push(n);
+    let sol, fs = solve(Arr { ndim: 2, shape: sa, data: copy(a) }, Arr { ndim: 1, shape: sb, data: copy_slice(y) });
+    if fs.kind != F_NONE {
+        return bspl_empty(), fault(F_VALUE, "make_interp_spline", "the collocation matrix holds no solution");
+    }
+    return bs_make(k, t, sol.data), no_fault();
+}
+
+// splrep builds the B-spline of the data. Only the interpolation
+// with s equal to zero holds. A smoothing factor above zero is a
+// fault.
+fn splrep(x: f64[:], y: f64[:], k: i64 = 3, s: f64 = 0.0) -> BSpl, Fault {
+    if s != 0.0 {
+        return bspl_empty(), fault(F_VALUE, "splrep", "a smoothing factor above zero is not supported");
+    }
+    if k < 1 || k > 5 {
+        return bspl_empty(), fault(F_RANGE, "splrep", "the degree is outside one to five");
+    }
+    return make_interp_spline(x, y, k);
+}
