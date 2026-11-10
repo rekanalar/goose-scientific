@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.128.0";
+import scientific from "rekanalar/goose-scientific@v0.129.0";
 ```
 
 ## API
@@ -77,7 +77,7 @@ import scientific from "rekanalar/goose-scientific@v0.128.0";
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dct_axis`, `idct_axis`, `dst_axis`, `idst_axis`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `hfft_axis`, `ihfft_axis`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn`, `hfftn_ex`, `ihfftn_ex`, `fht`, `ifht`, `fhtoffset` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull`, `delaunay`, `delaunay_simplices`, `delaunay_find_simplex`, `griddata` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
-| Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
+| Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_jac`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `bessel`, `residue`, `residue_complex`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `welch_ex`, `stft`, `istft`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
@@ -318,11 +318,22 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   formulas, with the modified formulas of SciPy. The order runs from
   one to five. The Jacobian comes from finite differences, with the
   step control of SciPy. The count of steps equals the count of SciPy.
-  The arguments `jac` and `jac_sparsity` stay out.
+  The argument `jac_sparsity` stays out.
 - `Radau` is the implicit method of the order five. It solves the
   three stages through one real and one complex system. The Jacobian
   comes from finite differences. The count of steps equals the count
-  of SciPy. The arguments `jac` and `jac_sparsity` stay out.
+  of SciPy. The argument `jac_sparsity` stays out.
+- `solve_ivp_jac` takes the Jacobian of the caller for `BDF` and
+  `Radau`. The block gets the time, the state and a mode. Mode zero
+  gives the derivative. Mode one gives the matrix in row-major order.
+  A growable vector holds both results. The step counts equal those of
+  SciPy with the same Jacobian.
+- A matrix of the wrong size or with a value that is not finite is a
+  fault in `solve_ivp_jac`.
+- A wrong value in the matrix of `solve_ivp_jac` is not detected. It
+  shrinks the steps until the run faults. The methods `RK45`, `RK23`
+  and `DOP853` ignore the Jacobian, as in SciPy. A Jacobian does not
+  combine with events or dense output.
 - A singular matrix in `BDF` or `Radau` shrinks the step. A step below the
   smallest step is a fault.
 - The argument `first_step` sets the first step. A value of zero lets

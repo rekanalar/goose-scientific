@@ -292,7 +292,19 @@ fn ivp_tableau(kind: i32, c: f64[>..]&, a: f64[>..]&, b: f64[>..]&, e: f64[>..]&
 // absolute error of one step. A count of steps above 1000000 is a
 // fault.
 fn solve_ivp<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64 = 0.001, atol: f64 = 1.0e-6, method: const u8[:] = "RK45", max_step: f64 = 1.0e308, t_eval: f64[:] = [], first_step: f64 = 0.0) -> Arr, Arr, Fault {
-    let t, y, et, ei, ey, dn, f = ivp_run(t0, t1, y0, rtol, atol, method, max_step, t_eval, 0, [], [], false, first_step) { tt, yy => F(tt, copy(yy)) };
+    let t, y, et, ei, ey, dn, f = ivp_run(t0, t1, y0, rtol, atol, method, max_step, t_eval, 0, [], [], false, first_step, false) { tt, yy => F(tt, copy(yy)) };
+    return t, y, f;
+}
+
+// solve_ivp_jac integrates like solve_ivp with the methods BDF and
+// Radau, and takes the Jacobian from the caller. The block gets the
+// time, the state and a mode. The mode zero asks for the derivative of
+// n values. The mode one asks for the Jacobian: n times n values in
+// row-major order, where row i holds the partial derivatives of the
+// component i. The methods RK45, RK23 and DOP853 ignore the Jacobian.
+fn solve_ivp_jac<G: fn(f64, f64[:], i64) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64 = 0.001, atol: f64 = 1.0e-6, method: const u8[:] = "BDF", max_step: f64 = 1.0e308, t_eval: f64[:] = [], first_step: f64 = 0.0) -> Arr, Arr, Fault {
+    let n = y0.len;
+    let t, y, et, ei, ey, dn, f = ivp_run(t0, t1, y0, rtol, atol, method, max_step, t_eval, 0, [], [], false, first_step, true) { tt, yy => if yy.len == n + 1 { G(tt, yy[0..n], 1) } else { G(tt, copy(yy), 0) } };
     return t, y, f;
 }
 
@@ -308,7 +320,7 @@ fn solve_ivp_events<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], 
     if nev < 1 || nev > 64 || terminal.len != nev || direction.len != nev {
         return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), fault(F_SHAPE, "solve_ivp_events", "the flags and the directions do not hold one value per event");
     }
-    let t, y, et, ei, ey, dn, f = ivp_run(t0, t1, y0, rtol, atol, method, max_step, t_eval, nev, terminal, direction, false, first_step) { tt, yy => F(tt, copy(yy)) };
+    let t, y, et, ei, ey, dn, f = ivp_run(t0, t1, y0, rtol, atol, method, max_step, t_eval, nev, terminal, direction, false, first_step, false) { tt, yy => F(tt, copy(yy)) };
     return t, y, et, ei, ey, f;
 }
 
@@ -316,7 +328,7 @@ fn solve_ivp_events<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], 
 // each step. It gives the times, the states and the dense output. Read
 // the dense output with dense_eval.
 fn solve_ivp_dense<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64 = 0.001, atol: f64 = 1.0e-6, method: const u8[:] = "RK45", max_step: f64 = 1.0e308, first_step: f64 = 0.0) -> Arr, Arr, Dense, Fault {
-    let t, y, et, ei, ey, dn, f = ivp_run(t0, t1, y0, rtol, atol, method, max_step, [], 0, [], [], true, first_step) { tt, yy => F(tt, copy(yy)) };
+    let t, y, et, ei, ey, dn, f = ivp_run(t0, t1, y0, rtol, atol, method, max_step, [], 0, [], [], true, first_step, false) { tt, yy => F(tt, copy(yy)) };
     return t, y, dn, f;
 }
 
@@ -483,7 +495,7 @@ fn dense_none() -> Dense {
 // gives n values of the derivative, then nev values of the event
 // functions. It gives the times and the states, the times, the numbers
 // and the states of the events, and the dense output of the steps.
-fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64, atol: f64, method: const u8[:], max_step: f64, t_eval: f64[:], nev: i64, terminal: bool[:], direction: f64[:], want_dense: bool, first_step: f64) -> Arr, Arr, Arr, Arr, Arr, Dense, Fault {
+fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64, atol: f64, method: const u8[:], max_step: f64, t_eval: f64[:], nev: i64, terminal: bool[:], direction: f64[:], want_dense: bool, first_step: f64, use_jac: bool) -> Arr, Arr, Arr, Arr, Arr, Dense, Fault {
     if method != "RK45" && method != "RK23" && method != "DOP853" && method != "BDF" && method != "Radau" {
         return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "the method holds an unknown name");
     }
@@ -611,6 +623,7 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
     var bist: i64[>..] = [1, 0, 0];
     var bjm: f64[>..] = [];
     var bjfac: f64[>..] = [];
+    if use_jac { bjfac.push(-1.0); }
     var blum: f64[>..] = [];
     var bpiv: i64[>..] = [];
     var btn: f64[>..] = [0.0];

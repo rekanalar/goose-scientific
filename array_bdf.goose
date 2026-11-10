@@ -157,6 +157,26 @@ fn bdf_lu_solve(a: f64[:], n: i64, piv: i64[:], b: f64[>..]&) {
 // The matrix holds one row per component of the function.
 fn bdf_jac<F: fn(f64, f64[:]) -> f64[:]>(t: f64, y: f64[>..]&, n: i64, nev: i64, threshold: f64, jfac: f64[>..]&, jm: f64[>..]&) -> Fault {
     let eps: f64 = 2.220446049250313e-16;
+    // A negative first factor marks a Jacobian that the caller gives. The
+    // call then holds a state of one more value, and the function answers
+    // with the matrix in row-major order.
+    if jfac.len > 0 && jfac[0] < 0.0 {
+        var ext: f64[>..] = copy_slice(y);
+        ext.push(0.0);
+        let jv = F(t, copy(ext));
+        if jv.len != n * n {
+            return fault(F_SHAPE, "solve_ivp_jac", "the Jacobian does not hold the square of the count of values");
+        }
+        var q: i64 = 0;
+        while q < n * n {
+            if !(jv[q] - jv[q] == 0.0) {
+                return fault(F_VALUE, "solve_ivp_jac", "the Jacobian holds a value that is not finite");
+            }
+            jm[q] = jv[q];
+            q += 1;
+        }
+        return no_fault();
+    }
     let f0 = F(t, copy(y));
     if f0.len != n + nev {
         return fault(F_SHAPE, "solve_ivp", "the function holds a different count of values");
