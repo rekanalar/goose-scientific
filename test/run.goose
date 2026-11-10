@@ -3951,6 +3951,30 @@ fn test_dctn() {
     return;
 }
 
+fn dbl_lo1(x: f64) -> f64 { return 0.5 * x; }
+fn dbl_hi1(x: f64) -> f64 { return 1.0 + x; }
+fn dbl_zero(x: f64) -> f64 { return 0.0; }
+fn dbl_sq(x: f64) -> f64 { return x * x; }
+fn dbl_m1(x: f64) -> f64 { return -1.0; }
+fn dbl_p1(x: f64) -> f64 { return 1.0; }
+
+// dblquad is pinned against SciPy.
+fn test_dblquad() {
+    let v1, e1, f1 = scientific::dblquad(0.0, 2.0, dbl_lo1, dbl_hi1) { y, x => mathshim_exp(-x * y) * mathshim_sin(x + y) };
+    assert(f1.kind == scientific::F_NONE && near(v1, 0.7360958517002549) && e1 >= 0.0);
+    let v2, e2, f2 = scientific::dblquad(1.0, 3.0, dbl_zero, dbl_sq) { y, x => x * y * y };
+    assert(f2.kind == scientific::F_NONE && near(v2, 273.33333333333337));
+    let v3, e3, f3 = scientific::dblquad(0.0, 1.0, dbl_m1, dbl_p1) { y, x => 1.0 / (1.0 + x * x + y * y) };
+    assert(f3.kind == scientific::F_NONE && near(v3, 1.2790207037406225));
+    // The limits in the wrong order change the sign.
+    let v4, e4, f4 = scientific::dblquad(3.0, 1.0, dbl_zero, dbl_sq) { y, x => x * y * y };
+    assert(f4.kind == scientific::F_NONE && near(v4, -273.33333333333337));
+    // A bad tolerance is a fault.
+    let v5, e5, f5 = scientific::dblquad(0.0, 1.0, -1.0, 1.49e-8, 50, dbl_zero, dbl_sq) { y, x => x * y };
+    assert(f5.kind == scientific::F_VALUE);
+    return;
+}
+
 fn test_matfun() {
     let eg, egf = scientific::from_rows(3, 3, [4.0, 1.0, 0.0, 1.0, 3.0, 0.5, 0.0, 0.5, 2.0]);
     let ew, ev, evf = scientific::eigh(eg);
@@ -4055,6 +4079,7 @@ fn main() {
     test_carray();
     test_pad_stats();
     test_dctn();
+    test_dblquad();
     test_generators();
     test_indexing();
     test_sort_and_search();
