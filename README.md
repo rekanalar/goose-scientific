@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.86.0";
+import scientific from "rekanalar/goose-scientific@v0.87.0";
 ```
 
 ## API
@@ -63,7 +63,7 @@ import scientific from "rekanalar/goose-scientific@v0.86.0";
 | Triangles | `tril`, `triu` |
 | Between the points | `interp`, `gradient`, `pad_value` |
 | Root finding | `brentq`, `brenth`, `newton`, `fsolve`, `root_scalar` |
-| Minimization | `minimize_scalar`, `minimize`, `differential_evolution`, `least_squares`, `curve_fit` |
+| Minimization | `minimize_scalar`, `minimize`, `minimize_grad`, `differential_evolution`, `least_squares`, `curve_fit` |
 | Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `cumulative_simpson`, `cumulative_simpson_dx`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
 | Signals | `convolve`, `correlate`, `detrend`, `welch` |
@@ -881,6 +881,22 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `minimize` finds the smallest point of a function of several
   variables. The method of Nelder and Mead holds a simplex. A start
   far from the point of the smallest value can end at a local point.
+- `minimize_grad` finds the smallest point with a method that uses the
+  gradient. The block of the caller takes a vector. It gives the
+  value first and the gradient after it. The methods are `bfgs`,
+  `cg` and `lbfgsb`. The bounds hold one value per variable. The
+  start that lies outside the bounds moves to the border.
+- `minimize_grad` replaces the methods `bfgs` and `cg` with `lbfgsb`
+  when bounds are given, as SciPy does. SciPy prints a warning in that
+  case. The package does not.
+- `minimize_grad` stops on the gradient alone for the methods `bfgs`
+  and `cg`, as SciPy does. The method `lbfgsb` also stops on the
+  value.
+- `minimize_grad` has no `hess`, no `epsilon` and no `callback`. A
+  function without a gradient has no method of the gradient, so the
+  caller gives the gradient.
+- `minimize_grad` gives the point and the value. It holds no count of
+  the turns and no status of the end.
 - `curve_fit` takes the model as a block `{ x, p => ... }`, the data
   and a start. It gives the parameters and the covariance. The
   covariance uses the scale of SciPy for the default setting. It has
@@ -1037,6 +1053,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   faults on an unknown rule and on more than 257 coefficients. SciPy lets a
   negative `tol` give an empty group and an error deep in the call.
   The checks also bound the work of the root finder.
+- `minimize_grad` checks its input before it computes. It faults on
+  a start that holds no element and on a tolerance of zero or below.
+  It also faults on a count of turns below one and on an unknown
+  method. The bounds of a wrong count are a fault. So is a lower
+  bound above the upper bound.
 - `invres`, `invresz`, `residuez` and `unique_roots` check their input
   as `residue` does. They fault on a value that is not finite.
   They also fault on a bad `tol`, a bad rule and a count above the
