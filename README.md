@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.15.0";
+import scientific from "rekanalar/goose-scientific@v0.16.0";
 ```
 
 ## API
@@ -52,6 +52,7 @@ import scientific from "rekanalar/goose-scientific@v0.15.0";
 | Minimization | `minimize_scalar`, `minimize`, `least_squares` |
 | Integration | `trapezoid`, `simpson`, `cumulative_trapezoid`, `romberg` |
 | Interpolation | `interp`, `spline`, `spline_value`, `spline_values` |
+| Signals | `convolve`, `correlate`, `detrend`, `welch` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
@@ -267,6 +268,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `spline_value` gives the value of a spline at a point. A point
   outside the points of the signal is a fault.
 - `spline_values` gives the values of a spline at a row of points.
+- `convolve` gives the overlap of two signals. The result holds a
+  count that is the sum of the two counts minus one.
+- `correlate` gives the match of a pattern in a signal. It is the
+  overlap with the pattern turned around, as SciPy holds it under
+  its full form.
+- `detrend` takes the straight line under a signal out of it. The
+  line comes from the least squares of the package.
+- `welch` gives the size of the parts of a signal by their
+  frequency. The parts overlap by half. Every part takes the window
+  of Hann. The sizes come as the mean of the squares of the values of
+  the transform. The result holds the positive frequencies of one
+  side.
 
 ## Security
 
@@ -339,6 +352,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The integration functions hold no adaptive method that calls the
   function of the caller at every point of a grid. A caller that
   needs a fine integral samples the function on a fine grid.
+- `welch` takes the size of a part from the caller. A caller that
+  wants the parts of SciPy gives the same size and the same count of
+  parts. The parts of SciPy start at every half of the size too.
 
 ## License
 
