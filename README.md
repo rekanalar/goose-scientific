@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.27.0";
+import scientific from "rekanalar/goose-scientific@v0.28.0";
 ```
 
 ## API
@@ -48,7 +48,7 @@ import scientific from "rekanalar/goose-scientific@v0.27.0";
 | Solving | `solve`, `inv`, `det`, `slogdet`, `matrix_power` |
 | Decompositions | `cholesky`, `qr` |
 | Eigenvalues | `eigvals`, `eig`, `eigvalsh`, `eigh` |
-| Singular values | `svd`, `svdvals`, `lstsq`, `matrix_rank`, `cond` |
+| Singular values | `svd`, `svdvals`, `lstsq`, `matrix_rank`, `cond`, `pinv(a, rtol=-1)` |
 | Polynomials | `polyval`, `polyfit`, `roots` |
 | Transforms | `fft`, `ifft`, `fft2`, `fftfreq`, `fftshift`, `rfft`, `irfft` |
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
@@ -303,8 +303,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The singular values hold only the count of the smaller dimension.
 - `lstsq` uses the singular values. A singular value below the
   tolerance gives a zero in the solution, as NumPy gives it.
-- `matrix_rank` and `cond` use the tolerance of the largest singular
-  value, as NumPy does.
+- `matrix_rank` uses the larger side of the matrix, the machine
+  epsilon and the largest singular value, as NumPy 2 does.
+- `pinv` uses the same cutoff. A negative `rtol` takes that default.
+  A singular value at or under the cutoff counts as zero. A matrix
+  of exact rank deficiency gives the result of NumPy to about 1e-14.
 - The coefficients of a polynomial come from the highest power to the
   lowest, as NumPy holds them.
 - `roots` uses the eigenvalues of the companion matrix. A root that

@@ -1747,6 +1747,75 @@ fn test_sets() {
 }
 
 // The stacks hold the values of NumPy.
+fn test_pinv() {
+    // NumPy 2.5.3: the pseudo-inverse of a tall matrix, of a matrix
+    // of rank one, of zeros and of a wide matrix.
+    let a, fa = scientific::from_rows(3, 2, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    assert(fa.kind == scientific::F_NONE);
+    let p, fp = scientific::pinv(a);
+    assert(fp.kind == scientific::F_NONE && p.shape[0] == 2 && p.shape[1] == 3);
+    let want = [-1.3333333333333337, -0.33333333333333287, 0.6666666666666665, 1.0833333333333335, 0.3333333333333329, -0.4166666666666665];
+    var i: i64 = 0;
+    while i < 6 {
+        var diff = p.data[i] - want[i];
+        if diff < 0.0 { diff = -diff; }
+        assert(diff < 1.0e-12);
+        i += 1;
+    }
+    let b, fb = scientific::from_rows(2, 2, [1.0, 2.0, 2.0, 4.0]);
+    assert(fb.kind == scientific::F_NONE);
+    let pb, fpb = scientific::pinv(b);
+    assert(fpb.kind == scientific::F_NONE);
+    let wb = [0.04, 0.08, 0.08, 0.16];
+    i = 0;
+    while i < 4 {
+        var diff = pb.data[i] - wb[i];
+        if diff < 0.0 { diff = -diff; }
+        assert(diff < 1.0e-12);
+        i += 1;
+    }
+    let z, fz = scientific::from_rows(2, 3, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+    assert(fz.kind == scientific::F_NONE);
+    let pz, fpz = scientific::pinv(z);
+    assert(fpz.kind == scientific::F_NONE && pz.shape[0] == 3 && pz.shape[1] == 2 && pz.data[5] == 0.0);
+    // A singular value under the cutoff counts as zero.
+    let c, fc = scientific::from_rows(2, 2, [1.0, 0.0, 0.0, 1.0e-20]);
+    assert(fc.kind == scientific::F_NONE);
+    let pc, fpc = scientific::pinv(c);
+    assert(fpc.kind == scientific::F_NONE && pc.data[0] == 1.0 && pc.data[3] == 0.0);
+    let pc2, fpc2 = scientific::pinv(c, 1.0e-30);
+    assert(fpc2.kind == scientific::F_NONE && pc2.data[3] > 9.0e19);
+    // The product of a matrix, its inverse and the matrix gives the matrix.
+    let pa, fpa = scientific::matmul(a, p);
+    assert(fpa.kind == scientific::F_NONE);
+    let back, fback = scientific::matmul(pa, a);
+    assert(fback.kind == scientific::F_NONE);
+    i = 0;
+    while i < 6 {
+        var diff = back.data[i] - a.data[i];
+        if diff < 0.0 { diff = -diff; }
+        assert(diff < 1.0e-10);
+        i += 1;
+    }
+    // A matrix whose first row is zero still gives the values from the
+    // largest to the smallest, and the rank of NumPy. NumPy 2.5.3
+    // gives the values 2519.1989127, 1136.8725513, 0 and the rank 2.
+    let zr, fzr = scientific::from_rows(3, 3, [0.0, 0.0, 0.0, 610.6409992957679, 577.0754169394714, 2332.7120253825424, -336.52552992851207, -914.8298592004128, 735.687023006662]);
+    assert(fzr.kind == scientific::F_NONE);
+    let sz, fsz = scientific::svdvals(zr);
+    assert(fsz.kind == scientific::F_NONE);
+    assert(sz.data[0] > 2519.19 && sz.data[0] < 2519.20 && sz.data[1] > 1136.87 && sz.data[1] < 1136.88);
+    assert(sz.data[2] < 1.0e-10);
+    let rz, frz = scientific::matrix_rank(zr);
+    assert(frz.kind == scientific::F_NONE && rz == 2);
+    let pz2, fpz2 = scientific::pinv(zr);
+    assert(fpz2.kind == scientific::F_NONE && pz2.data[0] == 0.0);
+    let v, fv = scientific::from_values([1.0, 2.0]);
+    assert(fv.kind == scientific::F_NONE);
+    let _q, bad = scientific::pinv(v);
+    assert(bad.kind == scientific::F_SHAPE);
+}
+
 fn test_buffer() {
     // NumPy 2.5.3: little endian numbers of 64 bits decode from bytes.
     var b: u8[>..] = [0, 0, 0, 0, 0, 0, 248, 63, 0, 0, 0, 0, 0, 0, 0, 192, 0, 0, 0, 0, 0, 0, 10, 64, 0, 0, 0, 0, 0, 0, 16, 64];
@@ -2086,6 +2155,7 @@ fn main() {
     test_closeness();
     test_histogram2d();
     test_buffer();
+    test_pinv();
     test_indexing();
     test_sort_and_search();
     test_linalg();

@@ -52,17 +52,19 @@ fn jacobi_svd(a, m: i64, n: i64) -> Arr, Arr, Fault {
                     gamma += w[p * m + r] * w[q * m + r];
                     r += 1;
                 }
-                if gamma != 0.0 {
+                var gabs = gamma;
+                if gabs < 0.0 { gabs = -gabs; }
+                if gabs > 1.0e-16 * mathshim::root(alpha * beta) && gamma != 0.0 {
                     // The turn runs when the two columns hold a real
                     // part of their product. The angle comes from
                     // the two lengths and their product.
                     let diff = alpha - beta;
                     let root = mathshim::root(diff * diff + 4.0 * gamma * gamma);
-                    // The root of the smaller size gives the better
-                    // accuracy.
                     var t: f64 = 0.0;
-                    if diff >= 0.0 { t = (diff - root) / (2.0 * gamma); }
-                    else { t = (diff + root) / (2.0 * gamma); }
+                    // The two forms are equal by algebra. These ones
+                    // hold no subtraction of two close numbers.
+                    if diff >= 0.0 { t = -2.0 * gamma / (diff + root); }
+                    else { t = 2.0 * gamma / (root - diff); }
                     let c = 1.0 / mathshim::root(t * t + 1.0);
                     let sn = t * c;
                     // The turn mixes the two columns.
@@ -95,19 +97,27 @@ fn jacobi_svd(a, m: i64, n: i64) -> Arr, Arr, Fault {
     // The singular values are the lengths of the columns. They come in
     // the order of their size, from the largest to the smallest.
     var order: i64[>..] = [];
+    var len2: f64[>..] = [];
     i = 0;
-    while i < n { order.push(i); i += 1; }
+    while i < n {
+        order.push(i);
+        var sum: f64 = 0.0;
+        var rr: i64 = 0;
+        while rr < m {
+            sum += w[i * m + rr] * w[i * m + rr];
+            rr += 1;
+        }
+        len2.push(sum);
+        i += 1;
+    }
+    // The sort takes the whole length of each column, not one entry.
     i = 1;
     while i < n {
         let key = order[i];
         var j = i - 1;
         while j >= 0 {
             let other = order[j];
-            let x = w[other * m];
-            let y = w[key * m];
-            let sx = mathshim::root(x * x);
-            let sy = mathshim::root(y * y);
-            if sx < sy {
+            if len2[other] < len2[key] {
                 order[j + 1] = other;
                 j -= 1;
             } else { break; }
@@ -385,13 +395,66 @@ fn lstsq(a, b) -> Arr, Fault {
     return Arr { ndim: 1, shape: s, data: d }, no_fault();
 }
 
+// pinv gives the pseudo-inverse of a matrix. It sums the outer
+// products of the right and left vectors, each divided by its
+// singular value. A singular value at or under the cutoff counts as
+// zero. The default cutoff is the larger side times the machine
+// epsilon, times the largest singular value, as NumPy 2 gives it. A
+// negative rtol takes that default.
+fn pinv(a, rtol: f64 = -1.0) -> Arr, Fault {
+    if a.ndim != 2 {
+        return empty_arr(), fault(F_SHAPE, "pinv", "the operand holds a count of dimensions that is not two");
+    }
+    let m = a.shape[0];
+    let n = a.shape[1];
+    let u, sv, vt, f = svd(a);
+    if f.kind != F_NONE { return empty_arr(), f; }
+    var k = m;
+    if n < k { k = n; }
+    var cut = rtol;
+    if cut < 0.0 {
+        var big = m;
+        if n > big { big = n; }
+        cut = big as f64 * 2.220446049250313e-16;
+    }
+    var d: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n * m { d.push(0.0); i += 1; }
+    if k > 0 {
+        let limit = cut * sv.data[0];
+        var t: i64 = 0;
+        while t < k {
+            if sv.data[t] > limit {
+                var r: i64 = 0;
+                while r < n {
+                    var c: i64 = 0;
+                    while c < m {
+                        d[r * m + c] += vt.data[t * n + r] * u.data[c * m + t] / sv.data[t];
+                        c += 1;
+                    }
+                    r += 1;
+                }
+            }
+            t += 1;
+        }
+    }
+    var sh: i64[..8] = [];
+    sh.push(n);
+    sh.push(m);
+    return Arr { ndim: 2, shape: sh, data: d }, no_fault();
+}
+
 // matrix_rank gives the count of the singular values that hold a
-// value above the tolerance.
+// value above the tolerance. The tolerance is the larger side times
+// the machine epsilon times the largest singular value, as NumPy
+// gives it.
 fn matrix_rank(a) -> i64, Fault {
     let vals, f = svdvals(a);
     if f.kind != F_NONE { return 0, f; }
     if vals.data.len == 0 { return 0, no_fault(); }
-    let tol = vals.data[0] * 0.000001;
+    var big = a.shape[0];
+    if a.shape[1] > big { big = a.shape[1]; }
+    let tol = vals.data[0] * big as f64 * 2.220446049250313e-16;
     var count: i64 = 0;
     var i: i64 = 0;
     while i < vals.data.len {
