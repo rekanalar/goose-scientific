@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.148.0";
+import scientific from "rekanalar/goose-scientific@v0.149.0";
 ```
 
 ## API
@@ -76,6 +76,7 @@ import scientific from "rekanalar/goose-scientific@v0.148.0";
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `companion`, `fiedler_companion`, `hadamard`, `pascal`, `invpascal`, `invhilbert`, `leslie`, `fiedler`, `helmert`, `convolution_matrix`, `khatri_rao`, `bandwidth`, `bandwidth_stack`, `issymmetric`, `ishermitian`, `solve_toeplitz`, `solve_circulant`, `matmul_toeplitz`, `diagsvd`, `orthogonal_procrustes`, `subspace_angles`, `pinvh`, `null_space`, `orth`, `expm` |
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dct_axis`, `idct_axis`, `dst_axis`, `idst_axis`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `hfft_axis`, `ihfft_axis`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn`, `hfftn_ex`, `ihfftn_ex`, `fht`, `ifht`, `fhtoffset` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull`, `delaunay`, `delaunay_simplices`, `delaunay_find_simplex`, `griddata`, `nd_interpolator`, `nd_interpolate` |
+| Filters of N dimensions | `correlate1d`, `convolve1d`, `uniform_filter1d`, `gaussian_filter1d`, `correlate_nd`, `convolve_nd`, `uniform_filter`, `gaussian_filter` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_jac`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
@@ -485,6 +486,36 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   and `NearestNDInterpolator` of SciPy. `griddata` calls them. An
   interpolator of 2000 points answered 1000 points in about 0.14
   seconds.
+- The filters of N dimensions follow `scipy.ndimage`: `correlate1d`,
+  `convolve1d`, `uniform_filter1d`, `gaussian_filter1d`, `uniform_filter`
+  and `gaussian_filter`. SciPy names the filter of an array of weights
+  `correlate` and `convolve`. Those names hold the signals of one
+  dimension here, so the filters of N dimensions are `correlate_nd` and
+  `convolve_nd`. The values agree with SciPy 1.18 to `1.0e-12`. This holds
+  for every mode, for even and odd weights and for every valid origin. It
+  holds for the derivative orders 0 to 3.
+- The modes are `reflect`, `constant`, `nearest`, `mirror` and `wrap`.
+  The names `grid-mirror`, `grid-constant` and `grid-wrap` are the same
+  as `reflect`, `constant` and `wrap`, as in SciPy. The mode is one name
+  for all axes. SciPy also takes a list of modes. `cval` fills the
+  values outside the array in the mode `constant`.
+- The filters take no `output`, no `axes` and no `radius` argument, and
+  no complex array. The filters take `f64` arrays only. The median, rank,
+  minimum, maximum, Sobel, Prewitt and Laplace filters are not in the
+  package.
+- A size or a sigma of one value holds for every axis. `uniform_filter`
+  needs a size. A `gaussian_filter` axis with a sigma of 1.0e-15 or less
+  stays as it is, as in SciPy. `gaussian_filter1d` gives a fault for such
+  a sigma, where SciPy raises an error for a sigma of zero or below.
+- The cost of a call is the count of values times the count of weights.
+  A cost above 1.0e9 is a fault of kind `F_LIMIT`. A Gaussian radius above
+  1000000 and a derivative order above 64 are the same fault. SciPy has
+  no such limit. A matrix of 512 by 512 with a Gaussian of sigma 2.0 filters
+  in under one second, build time included.
+- `uniform_filter1d` moves a running sum along the line, as SciPy does. A
+  line with a NaN or an infinity takes the direct sum. So a NaN spoils
+  only the windows that hold it. SciPy spoils every value after the
+  first NaN.
 - A tie between two nearest points in `griddata` goes to the lower
   coordinate in one dimension. In more dimensions it goes to the lower
   place. SciPy leaves such a tie to the order of its tree.
@@ -1684,6 +1715,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   product overflows. A result above `MAX_ELEMENTS` is a fault. A
   complex array holds two values for each element. The largest result
   holds 536870912 values, which is 4 GiB.
+- The filters of N dimensions check the shape and the buffer of the array
+  before they read a value. They check the origin, the size, the axis
+  `i64` is a fault, so no index wraps. The count of values times the
+  count of weights has a limit. So a hostile size or sigma cannot hold
+  the process for hours.
+- `gaussian_filter1d` gives a fault for a sigma whose square underflows.
+  SciPy builds weights of NaN for such a sigma and returns NaN without an
+  error. A sigma or a truncation that is not finite is a fault.
 
 ## License
 
