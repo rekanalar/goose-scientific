@@ -11258,6 +11258,428 @@ fn test_csvd_hostile() {
     return;
 }
 
+// sort_eig orders the eigenvalues of a general matrix by the real part and then
+// by the imaginary part, as the generator of the pinned values does. The
+// vectors follow. Real parts that differ by less than 1e-9 count as equal.
+fn sort_eig(w: scientific::CArr&, v: scientific::CArr&, n: i64, ws: f64[>..]&, vs: f64[>..]&) {
+    var order: i64[>..] = [];
+    var top: f64 = 0.0;
+    var i: i64 = 0;
+    while i < n {
+        order.push(i);
+        var mr = w.data[2 * i];
+        if mr < 0.0 { mr = -mr; }
+        var mi = w.data[2 * i + 1];
+        if mi < 0.0 { mi = -mi; }
+        if mr > top { top = mr; }
+        if mi > top { top = mi; }
+        i += 1;
+    }
+    // The tolerance is relative to the largest eigenvalue.
+    let tol = 1.0e-9 * top;
+    i = 1;
+    while i < n {
+        let key = order[i];
+        var j = i - 1;
+        while j >= 0 {
+            let dr = w.data[2 * order[j]] - w.data[2 * key];
+            var before = false;
+            if dr > tol { before = true; }
+            if dr <= tol && dr >= -tol && w.data[2 * order[j] + 1] > w.data[2 * key + 1] { before = true; }
+            if before {
+                order[j + 1] = order[j];
+                j -= 1;
+            } else { break; }
+        }
+        order[j + 1] = key;
+        i += 1;
+    }
+    i = 0;
+    while i < n {
+        ws.push(w.data[2 * order[i]]);
+        ws.push(w.data[2 * order[i] + 1]);
+        i += 1;
+    }
+    var r: i64 = 0;
+    while r < n {
+        var c: i64 = 0;
+        while c < n {
+            vs.push(v.data[2 * (r * n + order[c])]);
+            vs.push(v.data[2 * (r * n + order[c]) + 1]);
+            c += 1;
+        }
+        r += 1;
+    }
+    return;
+}
+
+// check_eig tests the properties of the eigenpairs of a complex matrix. Each
+// pair satisfies the eigen equation. Each vector has the length one and a real
+// largest component above zero.
+fn check_eig(a: scientific::CArr&, w: scientific::CArr&, v: scientific::CArr&) {
+    let n = a.shape[0];
+    var norm: f64 = 0.0;
+    var i: i64 = 0;
+    while i < a.data.len {
+        var x = a.data[i];
+        if x < 0.0 { x = -x; }
+        if x > norm { norm = x; }
+        i += 1;
+    }
+    var col: i64 = 0;
+    while col < n {
+        var len2: f64 = 0.0;
+        var best: f64 = -1.0;
+        var br: f64 = 0.0;
+        var bi: f64 = 0.0;
+        var r: i64 = 0;
+        while r < n {
+            // The row r of A v minus lambda v.
+            var sr: f64 = 0.0;
+            var si: f64 = 0.0;
+            var k: i64 = 0;
+            while k < n {
+                let ar = a.data[2 * (r * n + k)];
+                let ai = a.data[2 * (r * n + k) + 1];
+                let xr = v.data[2 * (k * n + col)];
+                let xi = v.data[2 * (k * n + col) + 1];
+                sr += ar * xr - ai * xi;
+                si += ar * xi + ai * xr;
+                k += 1;
+            }
+            let vr = v.data[2 * (r * n + col)];
+            let vi = v.data[2 * (r * n + col) + 1];
+            let lr = w.data[2 * col];
+            let li = w.data[2 * col + 1];
+            var er = sr - (lr * vr - li * vi);
+            var ei = si - (lr * vi + li * vr);
+            if er < 0.0 { er = -er; }
+            if ei < 0.0 { ei = -ei; }
+            assert(er <= 1.0e-10 * (1.0 + norm * (n as f64)));
+            assert(ei <= 1.0e-10 * (1.0 + norm * (n as f64)));
+            len2 += vr * vr + vi * vi;
+            if vr * vr + vi * vi > best {
+                best = vr * vr + vi * vi;
+                br = vr;
+                bi = vi;
+            }
+            r += 1;
+        }
+        assert(close(len2, 1.0, 1.0e-12));
+        var abi = bi;
+        if abi < 0.0 { abi = -abi; }
+        assert(br > 0.0 && abi < 1.0e-12);
+        col += 1;
+    }
+    return;
+}
+
+// random_hermitian gives a Hermitian matrix of normal complex values.
+fn random_hermitian(rng: scientific::Rng&, n: i64) -> scientific::CArr {
+    let m = random_complex(rng, n, n);
+    var d: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n {
+        var j: i64 = 0;
+        while j < n {
+            d.push(m.data[2 * (i * n + j)] + m.data[2 * (j * n + i)]);
+            d.push(m.data[2 * (i * n + j) + 1] - m.data[2 * (j * n + i) + 1]);
+            j += 1;
+        }
+        i += 1;
+    }
+    let h, f = scientific::complex_array(scientific::from_rows(n, n, c_parts(d, 0)), scientific::from_rows(n, n, c_parts(d, 1)));
+    assert(f.kind == scientific::F_NONE);
+    return h;
+}
+
+// c_parts gives the real parts, when which is zero, or the imaginary parts of
+// an interleaved buffer.
+fn c_parts(d: f64[:], which: i64) -> f64[>..] {
+    var out: f64[>..] = [];
+    var i: i64 = 0;
+    while i < d.len / 2 {
+        out.push(d[2 * i + which]);
+        i += 1;
+    }
+    return out;
+}
+
+// check_eigh tests the properties of the result of ceigh for a Hermitian matrix.
+fn check_eigh(a: scientific::CArr&) {
+    let n = a.shape[0];
+    let w, v, f = scientific::ceigh(a);
+    assert(f.kind == scientific::F_NONE);
+    assert(w.data.len == n);
+    var i: i64 = 1;
+    while i < n {
+        assert(w.data[i - 1] <= w.data[i]);
+        i += 1;
+    }
+    assert(gram_dev(v, true, n) < 1.0e-12);
+    var wc: f64[>..] = [];
+    i = 0;
+    while i < n {
+        wc.push(w.data[i]);
+        wc.push(0.0);
+        i += 1;
+    }
+    var shape: i64[..8] = [];
+    shape.push(n);
+    let wcarr = scientific::CArr { ndim: 1, shape: shape, data: copy(wc) };
+    check_eig(a, wcarr, v);
+    let vals, fv = scientific::ceigvalsh(a);
+    assert(fv.kind == scientific::F_NONE);
+    i = 0;
+    while i < n {
+        assert(vals.data[i] == w.data[i]);
+        i += 1;
+    }
+    return;
+}
+
+// check_general_pin compares ceig with the values of NumPy. The values come
+// sorted. The vectors are compared when withv holds.
+fn check_general_pin(n: i64, are: f64[:], aim: f64[:], wre: f64[:], wim: f64[:], vre: f64[:], vim: f64[:], withv: bool) {
+    let a, f0 = scientific::complex_array(scientific::from_rows(n, n, are), scientific::from_rows(n, n, aim));
+    assert(f0.kind == scientific::F_NONE);
+    let w, v, f = scientific::ceig(a);
+    assert(f.kind == scientific::F_NONE);
+    assert(w.data.len == 2 * n && v.shape[0] == n && v.shape[1] == n);
+    var ws: f64[>..] = [];
+    var vs: f64[>..] = [];
+    sort_eig(w, v, n, ws, vs);
+    var i: i64 = 0;
+    while i < n {
+        assert(close(ws[2 * i], wre[i], 1.0e-12) && close(ws[2 * i + 1], wim[i], 1.0e-12));
+        i += 1;
+    }
+    if withv {
+        i = 0;
+        while i < n * n {
+            assert(close(vs[2 * i], vre[i], 1.0e-12) && close(vs[2 * i + 1], vim[i], 1.0e-12));
+            i += 1;
+        }
+    }
+    check_eig(a, w, v);
+    let w2, f2 = scientific::ceigvals(a);
+    assert(f2.kind == scientific::F_NONE);
+    assert(cmat_err(w, w2) == 0.0);
+    return;
+}
+
+// test_ceig pins the eigenvalues and the vectors against NumPy.
+fn test_ceig() {
+    check_general_pin(2, [1.0, 2.0, 3.0, 4.0], [1.0, 0.0, -2.0, 1.0], [-0.4511489635772472, 5.451148963577246], [1.6777021508177925, 0.32229784918220716], [0.7805646436529173, 0.4013293303259815, -0.5663577868209877, 0.9138933768694496], [0.0, 0.06110371784313384, 0.26449516892795305, 0.0], true);
+    check_general_pin(3, [1.0, 2.0, 0.0, 0.0, 3.0, 1.0, 2.0, -0.0, 1.0], [0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, -2.0], [0.3927309427175605, 0.6304421702494745, 3.976826887032966], [0.21202518511613053, -2.305046500316191, 0.09302131520006082], [0.7390582988548714, -0.20800049299100482, 0.47717948350295286, -0.21086268909420808, -0.38244507545935064, 0.7222179920517278, -0.07881950397052173, 0.8351271337240647, 0.018979818536928615], [0.0, -0.3185988424604842, -0.2575244998400774, -0.02708185823394555, 0.10737321487716754, 0.0, -0.6343373045865587, 0.0, -0.42897763455808363], true);
+    check_general_pin(3, [2.0, 1.0, 3.0, 0.0, 0.0, 2.0, 0.0, 0.0, -1.0], [0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0], [-1.0, 0.0, 2.0], [0.0, 1.0, 0.0], [0.13363062095621217, -0.16903085094570333, 1.0, 0.8017837257372731, 0.8451542547285166, 0.0, -0.40089186286863654, 0.0, 0.0], [0.13363062095621217, -0.50709255283711, 0.0, 0.0, 0.0, 0.0, -0.40089186286863654, 0.0, 0.0], true);
+    check_general_pin(1, [3.0], [-4.0], [3.0], [-4.0], [1.0], [0.0], true);
+    check_general_pin(2, [1.0, 1.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], [1.0, 1.0], [0.0, 0.0], [1.0, 1.0, 0.0, -2.220446049250313e-16], [0.0, 0.0, 0.0, -0.0], false);
+    check_general_pin(2, [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [1.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], true);
+    // A defective matrix gives nearly parallel vectors.
+    let d, fd = scientific::complex_array(mx(2, 2, [1.0, 1.0, 0.0, 1.0]), mx(2, 2, [0.0, 0.0, 0.0, 0.0]));
+    assert(fd.kind == scientific::F_NONE);
+    let dw, dv, df = scientific::ceig(d);
+    assert(df.kind == scientific::F_NONE);
+    var sine = dv.data[0] * dv.data[6] - dv.data[4] * dv.data[2];
+    if sine < 0.0 { sine = -sine; }
+    assert(sine < 1.0e-12);
+    // The properties hold for random matrices of several sides.
+    var rng = scientific::default_rng(297);
+    var t: i64 = 0;
+    while t < 20 {
+        let m = random_complex(rng, 4, 4);
+        let mw, mv, mf = scientific::ceig(m);
+        assert(mf.kind == scientific::F_NONE);
+        check_eig(m, mw, mv);
+        t += 1;
+    }
+    let sides = [1, 2, 3, 6, 12];
+    var si: i64 = 0;
+    while si < sides.len {
+        let m = random_complex(rng, sides[si], sides[si]);
+        let mw, mv, mf = scientific::ceig(m);
+        assert(mf.kind == scientific::F_NONE);
+        check_eig(m, mw, mv);
+        si += 1;
+    }
+    // The values of a matrix near the limits of the number format keep the scale.
+    let big, fb = scientific::complex_array(mx(2, 2, [1.0e300, 2.0e300, 3.0e300, 4.0e300]), mx(2, 2, [1.0e300, 0.0, -2.0e300, 1.0e300]));
+    assert(fb.kind == scientific::F_NONE);
+    let bw, bv, bf = scientific::ceig(big);
+    assert(bf.kind == scientific::F_NONE);
+    var bs: f64[>..] = [];
+    var bvs: f64[>..] = [];
+    sort_eig(bw, bv, 2, bs, bvs);
+    assert(close(bs[0] / 1.0e300, -0.4511489635772472, 1.0e-12) && close(bs[1] / 1.0e300, 1.6777021508177925, 1.0e-12));
+    assert(close(bvs[0], 0.7805646436529173, 1.0e-12));
+    let small, fs = scientific::complex_array(mx(2, 2, [1.0e-300, 2.0e-300, 3.0e-300, 4.0e-300]), mx(2, 2, [1.0e-300, 0.0, -2.0e-300, 1.0e-300]));
+    assert(fs.kind == scientific::F_NONE);
+    let sw, sv, sf = scientific::ceig(small);
+    assert(sf.kind == scientific::F_NONE);
+    var ss: f64[>..] = [];
+    var svs: f64[>..] = [];
+    sort_eig(sw, sv, 2, ss, svs);
+    assert(close(ss[2] / 1.0e-300, 5.451148963577246, 1.0e-12));
+    return;
+}
+
+// test_ceig_hostile covers the faults of the general eigenvalue calls.
+fn test_ceig_hostile() {
+    let v, f0 = scientific::complex_from_values([1.0, 2.0], [0.0, 0.0]);
+    assert(f0.kind == scientific::F_NONE);
+    let w1, v1, g1 = scientific::ceig(v);
+    assert(g1.kind == scientific::F_SHAPE);
+    let short = scientific::CArr { ndim: 2, shape: [2, 2], data: [1.0] };
+    let w2, v2, g2 = scientific::ceig(short);
+    assert(g2.kind == scientific::F_SHAPE);
+    let lie = scientific::CArr { ndim: 2, shape: [2], data: [1.0, 0.0, 2.0, 0.0] };
+    let w3, v3, g3 = scientific::ceig(lie);
+    assert(g3.kind == scientific::F_SHAPE);
+    let rect = scientific::CArr { ndim: 2, shape: [1, 2], data: [1.0, 0.0, 2.0, 0.0] };
+    let w4, v4, g4 = scientific::ceig(rect);
+    assert(g4.kind == scientific::F_SHAPE);
+    let nan = 0.0 / 0.0;
+    let bad = scientific::CArr { ndim: 2, shape: [1, 1], data: [nan, 0.0] };
+    let w5, v5, g5 = scientific::ceig(bad);
+    assert(g5.kind == scientific::F_VALUE);
+    var big: f64[>..] = [];
+    var bi: i64 = 0;
+    while bi < 2 * 257 * 257 { big.push(0.0); bi += 1; }
+    let wide = scientific::CArr { ndim: 2, shape: [257, 257], data: copy(big) };
+    let w6, v6, g6 = scientific::ceig(wide);
+    assert(g6.kind == scientific::F_LIMIT);
+    let w7, g7 = scientific::ceigvals(wide);
+    assert(g7.kind == scientific::F_LIMIT);
+    let w8, v8, g8 = scientific::ceig(mx(2, 2, [1.0, 2.0, 3.0, 4.0]));
+    assert(g8.kind == scientific::F_SHAPE);
+    // The iteration stops with a limit of one step for one eigenvalue.
+    var rng = scientific::default_rng(2970);
+    let m = random_complex(rng, 4, 4);
+    var hr: f64[>..] = [];
+    var hi: f64[>..] = [];
+    scientific::c_split(m.data, 4, 1.0, hr, hi);
+    var qr = scientific::qz_identity(4);
+    var qi = scientific::c_zeros(16);
+    scientific::c_hessenberg(hr, hi, qr, qi, 4);
+    assert(!scientific::c_schur(hr, hi, qr, qi, 4, 1));
+    return;
+}
+
+// test_ceigh pins the eigenvalues and the vectors against NumPy.
+fn test_ceigh() {
+    let h1, fh1 = scientific::complex_array(scientific::from_rows(2, 2, [2.0, 1.0, 1.0, 3.0]), scientific::from_rows(2, 2, [0.0, -1.0, 1.0, 0.0]));
+    assert(fh1.kind == scientific::F_NONE);
+    let h1w, h1v, h1f = scientific::ceigh(h1);
+    assert(h1f.kind == scientific::F_NONE);
+    var h1i: i64 = 0;
+    while h1i < 2 { assert(close(h1w.data[h1i], [0.9999999999999993, 3.9999999999999987][h1i], 1.0e-12)); h1i += 1; }
+    let h1uw, h1uv, h1uf = scientific::ceigh(h1, "U");
+    assert(h1uf.kind == scientific::F_NONE);
+    h1i = 0;
+    while h1i < 2 { assert(close(h1uw.data[h1i], [0.9999999999999992, 4.0][h1i], 1.0e-12)); h1i += 1; }
+    assert(all_close_c(h1v, [0.8164965809277258, 0.40824829046386313, -0.4082482904638631, 0.8164965809277255], [-0.0, -0.40824829046386324, -0.4082482904638632, -4.543221347549799e-17], 1.0e-12));
+    let h2, fh2 = scientific::complex_array(scientific::from_rows(3, 3, [2.0, 1.0, 0.0, 1.0, 3.0, 0.0, 0.0, -0.0, 1.0]), scientific::from_rows(3, 3, [0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0]));
+    assert(fh2.kind == scientific::F_NONE);
+    let h2w, h2v, h2f = scientific::ceigh(h2);
+    assert(h2f.kind == scientific::F_NONE);
+    var h2i: i64 = 0;
+    while h2i < 3 { assert(close(h2w.data[h2i], [0.32486912943335366, 1.4608111271891109, 4.214319743377535][h2i], 1.0e-12)); h2i += 1; }
+    let h2uw, h2uv, h2uf = scientific::ceigh(h2, "U");
+    assert(h2uf.kind == scientific::F_NONE);
+    h2i = 0;
+    while h2i < 3 { assert(close(h2uw.data[h2i], [0.3248691294333537, 1.4608111271891109, 4.214319743377535][h2i], 1.0e-12)); h2i += 1; }
+    assert(all_close_c(h2v, [0.30202813664790923, 0.7392387395392241, 0.3681603558983795, -2.5536906328208355e-17, -0.19929465135514815, 0.8152247447946817, 0.7493904923263159, -0.4324866297626548, -4.561233510770051e-18], [0.3020281366479092, -0.0, -0.36816035589837964, -0.5059366554786339, -0.1992946513551482, -4.561794771291678e-17, 4.93891608702895e-17, 0.4324866297626546, -0.2536227910973356], 1.0e-12));
+    let h3, fh3 = scientific::complex_array(scientific::from_rows(2, 2, [2.0, 0.0, 0.0, 2.0]), scientific::from_rows(2, 2, [0.0, 0.0, 0.0, 0.0]));
+    assert(fh3.kind == scientific::F_NONE);
+    let h3w, h3v, h3f = scientific::ceigh(h3);
+    assert(h3f.kind == scientific::F_NONE);
+    var h3i: i64 = 0;
+    while h3i < 2 { assert(close(h3w.data[h3i], [2.0, 2.0][h3i], 1.0e-12)); h3i += 1; }
+    let h3uw, h3uv, h3uf = scientific::ceigh(h3, "U");
+    assert(h3uf.kind == scientific::F_NONE);
+    h3i = 0;
+    while h3i < 2 { assert(close(h3uw.data[h3i], [2.0, 2.0][h3i], 1.0e-12)); h3i += 1; }
+    let h4, fh4 = scientific::complex_array(scientific::from_rows(1, 1, [5.0]), scientific::from_rows(1, 1, [0.0]));
+    assert(fh4.kind == scientific::F_NONE);
+    let h4w, h4v, h4f = scientific::ceigh(h4);
+    assert(h4f.kind == scientific::F_NONE);
+    var h4i: i64 = 0;
+    while h4i < 1 { assert(close(h4w.data[h4i], [5.0][h4i], 1.0e-12)); h4i += 1; }
+    let h4uw, h4uv, h4uf = scientific::ceigh(h4, "U");
+    assert(h4uf.kind == scientific::F_NONE);
+    h4i = 0;
+    while h4i < 1 { assert(close(h4uw.data[h4i], [5.0][h4i], 1.0e-12)); h4i += 1; }
+    let h5, fh5 = scientific::complex_array(scientific::from_rows(3, 3, [1.0, 5.0, 5.0, 2.0, 3.0, 5.0, 4.0, 1.0, 2.0]), scientific::from_rows(3, 3, [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -2.0, 0.0]));
+    assert(fh5.kind == scientific::F_NONE);
+    let h5w, h5v, h5f = scientific::ceigh(h5);
+    assert(h5f.kind == scientific::F_NONE);
+    var h5i: i64 = 0;
+    while h5i < 3 { assert(close(h5w.data[h5i], [-2.751918833193568, 1.2035075963077457, 7.548411236885824][h5i], 1.0e-12)); h5i += 1; }
+    let h5uw, h5uv, h5uf = scientific::ceigh(h5, "U");
+    assert(h5uf.kind == scientific::F_NONE);
+    h5i = 0;
+    while h5i < 3 { assert(close(h5uw.data[h5i], [-3.5991143153843557, -2.4452643834117493, 12.044378698796105][h5i], 1.0e-12)); h5i += 1; }
+    // The lower case of the choice of the triangle gives the same result.
+    let lw, lv, lf = scientific::ceigh(h5, "u");
+    assert(lf.kind == scientific::F_NONE);
+    assert(lw.data[0] == h5uw.data[0] && lw.data[2] == h5uw.data[2]);
+    // The properties hold for random Hermitian matrices.
+    var rng = scientific::default_rng(2971);
+    var t: i64 = 0;
+    while t < 20 {
+        let m = random_hermitian(rng, 4);
+        check_eigh(m);
+        t += 1;
+    }
+    let r1 = random_hermitian(rng, 1);
+    check_eigh(r1);
+    let r7 = random_hermitian(rng, 7);
+    check_eigh(r7);
+    // A scaled matrix keeps its scale.
+    let big, fb = scientific::complex_array(mx(2, 2, [2.0e300, 1.0e300, 1.0e300, 3.0e300]), mx(2, 2, [0.0, -1.0e300, 1.0e300, 0.0]));
+    assert(fb.kind == scientific::F_NONE);
+    let bw, bv, bf = scientific::ceigh(big);
+    assert(bf.kind == scientific::F_NONE);
+    assert(close(bw.data[0] / 1.0e300, 1.0, 1.0e-12) && close(bw.data[1] / 1.0e300, 4.0, 1.0e-12));
+    return;
+}
+
+// test_ceigh_hostile covers the faults of the Hermitian eigenvalue calls.
+fn test_ceigh_hostile() {
+    let m, f0 = scientific::complex_array(mx(2, 2, [2.0, 1.0, 1.0, 3.0]), mx(2, 2, [0.0, -1.0, 1.0, 0.0]));
+    assert(f0.kind == scientific::F_NONE);
+    let w1, v1, g1 = scientific::ceigh(m, "X");
+    assert(g1.kind == scientific::F_VALUE);
+    let w2, v2, g2 = scientific::ceigh(m, "");
+    assert(g2.kind == scientific::F_VALUE);
+    let w3, v3, g3 = scientific::ceigh(m, "LU");
+    assert(g3.kind == scientific::F_VALUE);
+    let w4, g4 = scientific::ceigvalsh(m, "x");
+    assert(g4.kind == scientific::F_VALUE);
+    let rect = scientific::CArr { ndim: 2, shape: [1, 2], data: [1.0, 0.0, 2.0, 0.0] };
+    let w5, v5, g5 = scientific::ceigh(rect);
+    assert(g5.kind == scientific::F_SHAPE);
+    let short = scientific::CArr { ndim: 2, shape: [2, 2], data: [1.0] };
+    let w6, v6, g6 = scientific::ceigh(short);
+    assert(g6.kind == scientific::F_SHAPE);
+    let nan = 0.0 / 0.0;
+    let bad = scientific::CArr { ndim: 2, shape: [1, 1], data: [nan, 0.0] };
+    let w7, v7, g7 = scientific::ceigh(bad);
+    assert(g7.kind == scientific::F_VALUE);
+    var big: f64[>..] = [];
+    var bi: i64 = 0;
+    while bi < 2 * 257 * 257 { big.push(0.0); bi += 1; }
+    let wide = scientific::CArr { ndim: 2, shape: [257, 257], data: copy(big) };
+    let w8, v8, g8 = scientific::ceigh(wide);
+    assert(g8.kind == scientific::F_LIMIT);
+    let w9, g9 = scientific::ceigvalsh(wide);
+    assert(g9.kind == scientific::F_LIMIT);
+    let w10, v10, g10 = scientific::ceigh(mx(2, 2, [1.0, 2.0, 3.0, 4.0]));
+    assert(g10.kind == scientific::F_SHAPE);
+    return;
+}
+
 fn main() {
     test_schur_funm_ldl();
     test_eigvalsh_larger();
@@ -11407,6 +11829,10 @@ fn main() {
     test_csvd_hostile();
     test_cfactor_scale();
     test_csvd_real_product();
+    test_ceig();
+    test_ceig_hostile();
+    test_ceigh();
+    test_ceigh_hostile();
     print("ok\n");
     return;
 }

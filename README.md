@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.145.0";
+import scientific from "rekanalar/goose-scientific@v0.146.0";
 ```
 
 ## API
@@ -90,7 +90,7 @@ import scientific from "rekanalar/goose-scientific@v0.145.0";
 | Cosine-sine decomposition | `cossin`, `cossin_separate`, `cossin_blocks` |
 | Generalized Schur form of a pair | `qz`, `ordqz`, `qz_complex`, `ordqz_complex`, `qz_c`, `ordqz_c`, `ordqz_by`, `ordqz_complex_by`, `ordqz_c_by` |
 | Algebraic Riccati equations | `solve_continuous_are`, `solve_discrete_are`, `solve_discrete_are_pencil` |
-| Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `cdot`, `cvdot`, `csolve`, `cinv`, `cdet`, `ccholesky`, `cfft`, `cifft`, `cfftn`, `cifftn`, `cqr`, `csvd`, `eigvals_complex` |
+| Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `cdot`, `cvdot`, `csolve`, `cinv`, `cdet`, `ccholesky`, `cfft`, `cifft`, `cfftn`, `cifftn`, `cqr`, `csvd`, `ceig`, `ceigvals`, `ceigh`, `ceigvalsh`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -155,8 +155,7 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   triangle by default. SciPy gives a fault for a matrix that is not
   Hermitian. The package follows NumPy.
 - `cfftn` and `cifftn` transform every axis. They take no choice of
-  axes and no shape. The eigenvalues and the eigenvectors of a
-  complex matrix stay open.
+  axes and no shape.
 - `cqr` gives the reduced form. The diagonal of the upper triangle
   holds real values, and the sign follows LAPACK, as NumPy does. It
   takes no `mode` and no pivoting.
@@ -171,6 +170,22 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `csvd` runs at most 60 sweeps. A matrix of random values of side 512
   took about 70 seconds. A matrix that needs all 60 sweeps takes longer.
   Cap the side of untrusted input.
+- `ceig` and `ceigvals` give the eigenvalues in the order of the
+  diagonal of the Schur form. NumPy calls its order unordered, so
+  compare sorted values. Each vector has length one with its largest
+  component real and above zero. A defective matrix gives vectors that
+  are nearly parallel, as LAPACK does. A matrix that needs more than
+  30 steps for one eigenvalue gives a fault.
+- `ceigh` and `ceigvalsh` read one triangle, `"L"` or `"U"` in either
+  case, and take the real part of the diagonal. The eigenvalues rise.
+  NumPy fixes no phase for the vectors. The package makes the largest
+  component of each vector real and above zero. The vectors of a
+  repeated eigenvalue differ from NumPy. The Jacobi method runs at most
+  60 sweeps.
+- An unknown `uplo` is a fault.
+- The four eigen calls take a side up to 256. A matrix of random
+  values of side 256 took about 1.4 seconds for each of `ceig` and
+  `ceigh`. The eigenproblem of a pair of complex matrices stays open.
 - `solve_sylvester` and the two Lyapunov solvers build the Kronecker
   form. The product of the sides stays at 4096 or below.
 - `schur` holds the real form. The form is not unique, so the signs
@@ -1625,6 +1640,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `cqr` and `csvd` scale an operand whose largest part lies outside
   1e-100 to 1e100. The squares of the parts then cannot overflow or
   underflow. A matrix near 1e300 gives finite factors, not infinity.
+- `ceig`, `ceigvals`, `ceigh` and `ceigvalsh` check the buffer, the
+  shape, the side and every value. A side above 256 is a fault. A value
+  that is not finite is a fault. They scale an operand whose largest
+  part lies outside 1e-100 to 1e100 and scale the eigenvalues back.
+  Both iterations have a fixed cap, so hostile input cannot loop
+  forever.
 - `ccholesky` checks the side of the matrix before it reads a value.
   A side above 1024 is a fault. It checks every element for a value
   that is not finite. A matrix that is not positive definite gives a

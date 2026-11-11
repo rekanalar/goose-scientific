@@ -91,6 +91,7 @@ import array_sparse;
 import array_matfun;
 import array_carray;
 import array_cfactor;
+import array_ceig;
 import array_bins;
 import array_grid;
 import array_buffer;
