@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.135.0";
+import scientific from "rekanalar/goose-scientific@v0.136.0";
 ```
 
 ## API
@@ -85,7 +85,7 @@ import scientific from "rekanalar/goose-scientific@v0.135.0";
 | Tridiagonal, banded and RQ forms | `eigvalsh_tridiagonal`, `eigh_tridiagonal`, `cholesky_banded`, `cho_solve_banded`, `solveh_banded`, `rq` |
 | DFT matrix and QR product | `dft`, `qr_multiply` |
 | Balance of a matrix and the exponential | `matrix_balance`, `matrix_balance_separate`, `expm_frechet`, `expm_cond` |
-| Update of the QR decomposition | `qr_update` |
+| Update of the QR decomposition | `qr_update`, `qr_insert`, `qr_delete` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
@@ -504,6 +504,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `qr_update` follows scipy.linalg.qr_update. It takes the factors of a matrix, the left vector and the right vector. The right vector holds one column or many columns. The reduced form needs a square triangle.
 
   A side above 4096 gives a limit fault. The rank of the change must not be above the size of the factors. The full form needs the rows below the triangle to hold the rank.
+- `qr_insert` follows scipy.linalg.qr_insert. It takes the factors, the new rows or columns, the place and the word `row` or `col`. A negative place counts from the end. The new rows or the new columns hold one row or one column, or many. The reduced form needs a square triangle.
+
+  A matrix that loses rank can give other signs than SciPy in the orthogonal factor. SciPy states that the result can vary.
+- `qr_delete` follows scipy.linalg.qr_delete. It takes the factors of a matrix, the place, the count and the word `row` or `col`. A negative place counts from the end. The count holds the number of the removed rows or the removed columns.
+
+  The count must hold at least one. The count must not hold more rows or more columns than the factors hold. A matrix of one column and the reduced form give the rows that stay as one vector of unit length.
 - `qr_multiply` takes the modes `left` and `right`. It holds no pivoting and no conjugate option.
   The mode `economic` drops the zero rows and the zero columns of the
   wide matrix.
@@ -1407,6 +1413,20 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   they are. SciPy divides by the length of the vector and writes a
   division by zero to its error stream. The package gives the same
   factors and writes nothing.
+- `qr_insert` and `qr_delete` check the length of the buffer of every
+  operand against its shape before they read a value. A shape that
+  lies about its buffer is a fault, so a bad shape cannot read outside
+  the buffer.
+- `qr_insert` and `qr_delete` check the side of every factor against
+  the limit before they copy. A side above 4096 is a fault, so a bad
+  side cannot grow the memory without bound.
+- `qr_insert` and `qr_delete` fault on a value that is not finite.
+  SciPy takes the same check in its default. A value that is not
+  finite would spread through every factor.
+- `qr_delete` checks the count of the removed lines against the
+  size of the factors before it removes anything.
+  A count above the size is a fault, so a bad count cannot read
+  outside the buffer.
 
 ## License
 
