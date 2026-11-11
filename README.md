@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.130.0";
+import scientific from "rekanalar/goose-scientific@v0.131.0";
 ```
 
 ## API
@@ -73,7 +73,7 @@ import scientific from "rekanalar/goose-scientific@v0.130.0";
 | Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
 | Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `einsum3`, `einsum_set`, `ESet`, `eset_new`, `eset_add`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `general_cosine`, `general_hamming`, `general_gaussian`, `taylor`, `chebwin`, `kaiser_bessel_derived`, `dpss`, `dpss_ratios`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
-| Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `companion`, `fiedler_companion`, `hadamard`, `pascal`, `invpascal`, `invhilbert`, `leslie`, `fiedler`, `helmert`, `convolution_matrix`, `khatri_rao`, `bandwidth`, `issymmetric`, `ishermitian`, `null_space`, `orth`, `expm` |
+| Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `companion`, `fiedler_companion`, `hadamard`, `pascal`, `invpascal`, `invhilbert`, `leslie`, `fiedler`, `helmert`, `convolution_matrix`, `khatri_rao`, `bandwidth`, `issymmetric`, `ishermitian`, `solve_toeplitz`, `solve_circulant`, `matmul_toeplitz`, `diagsvd`, `orthogonal_procrustes`, `subspace_angles`, `pinvh`, `null_space`, `orth`, `expm` |
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dct_axis`, `idct_axis`, `dst_axis`, `idst_axis`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `hfft_axis`, `ihfft_axis`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn`, `hfftn_ex`, `ihfftn_ex`, `fht`, `ifht`, `fhtoffset` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull`, `delaunay`, `delaunay_simplices`, `delaunay_find_simplex`, `griddata` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
@@ -460,6 +460,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `lu_factor` and `lu` follow LAPACK. The row i swaps with the row
   `piv[i]`. A singular matrix gives no fault there. `lu_solve` gives a
   fault when it meets a zero on the diagonal. `solve` takes a matrix on the right side.
+- `solve_toeplitz` builds the matrix and runs the dense solve of the
+  package, where SciPy runs the recursion of Levinson. The values
+  agree. The cost grows with the cube of n, where the recursion grows
+  with the square. A singular matrix is a fault. `solve_circulant`
+  runs through the transform, as SciPy does, and a frequency at or
+  below the cutoff is a fault. The name `raise` of the argument
+  `singular` is the only behavior.
+- The angles of `subspace_angles` may differ from SciPy in the last
+  digits. The bases of the two spaces come from different singular
+  value decompositions.
 - The special matrices follow `scipy.linalg` and give floating point
   values. `invpascal` stops at the order 30, where the integer entries
   still fit in 64 bits. `invhilbert` stops at 150 and `pascal` of the
