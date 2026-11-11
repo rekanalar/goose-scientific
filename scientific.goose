@@ -94,6 +94,7 @@ import array_cfactor;
 import array_ceig;
 import array_geneig;
 import array_ndimage;
+import array_rank;
 import array_bins;
 import array_grid;
 import array_buffer;

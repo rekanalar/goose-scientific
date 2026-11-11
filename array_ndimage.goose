@@ -137,10 +137,35 @@ fn nd_box(line: f64[:], size: i64, shift: i64, mode: i64, cval: f64, res: f64[>.
     }
 }
 
-// nd_along filters every line of src along one axis. A size above zero
-// gives the mean of a window. Else the weights w give the sum. The
+// nd_less orders two values. A NaN is the largest value.
+fn nd_less(a: f64, b: f64) -> bool {
+    return a < b || (a == a && !(b == b));
+}
+
+// nd_extreme gives the minimum or the maximum of a window of size values.
+// The window of the output at i starts at i - shift.
+fn nd_extreme(line: f64[:], size: i64, shift: i64, mode: i64, cval: f64, high: bool, res: f64[>..]&) {
+    let n = line.len;
+    var i: i64 = 0;
+    while i < n {
+        let first = i - shift;
+        var m = nd_val(line, first, mode, cval);
+        var j: i64 = 1;
+        while j < size {
+            let v = nd_val(line, first + j, mode, cval);
+            if high { if nd_less(m, v) { m = v; } } else { if nd_less(v, m) { m = v; } }
+            j += 1;
+        }
+        res[i] = m;
+        i += 1;
+    }
+}
+
+// nd_along filters every line of src along one axis. The operation 1 gives
+// the mean of a window, 2 its minimum and 3 its maximum. The operation 0
+// gives the weighted sum with the weights w. The
 // buffer out holds as many zeros as src holds values.
-fn nd_along(src: f64[:], shape: i64[:], axis: i64, w: f64[:], size: i64, shift: i64, mode: i64, cval: f64, out: f64[>..]&) {
+fn nd_along(src: f64[:], shape: i64[:], axis: i64, w: f64[:], op: i64, size: i64, shift: i64, mode: i64, cval: f64, out: f64[>..]&) {
     let n = shape[axis];
     var inner: i64 = 1;
     var k: i64 = axis + 1;
@@ -155,8 +180,10 @@ fn nd_along(src: f64[:], shape: i64[:], axis: i64, w: f64[:], size: i64, shift: 
             let base = o * n * inner + q;
             var i: i64 = 0;
             while i < n { line[i] = src[base + i * inner]; i += 1; }
-            if size > 0 {
+            if op == 1 {
                 nd_box(line, size, shift, mode, cval, res);
+            } else if op == 2 || op == 3 {
+                nd_extreme(line, size, shift, mode, cval, op == 3, res);
             } else {
                 nd_taps(line, w, shift, mode, cval, res);
             }
@@ -197,7 +224,7 @@ fn nd_weights1d(a, w: f64[:], axis: i64, mode: const u8[:], cval: f64, origin: i
         return empty_arr(), fault(F_LIMIT, tag, "the cost of the filter is above the limit");
     }
     var out: f64[>..] = nd_zeros(a.data.len);
-    nd_along(a.data, a.shape, ax, wk, 0, w.len / 2 + o, m, cval, out);
+    nd_along(a.data, a.shape, ax, wk, 0, 0, w.len / 2 + o, m, cval, out);
     return arr_of(copy(out), a.shape), no_fault();
 }
 
@@ -213,7 +240,7 @@ fn convolve1d(a, weights: f64[:], axis: i64 = -1, mode: const u8[:] = "reflect",
 
 // nd_box_axis applies the mean of a window along one axis. It gives the
 // result of the axis in out, or a fault.
-fn nd_box_axis(src: f64[:], shape: i64[:], axis: i64, size: i64, origin: i64, mode: i64, cval: f64, tag: const u8[:], out: f64[>..]&) -> Fault {
+fn nd_box_axis(src: f64[:], shape: i64[:], axis: i64, op: i64, size: i64, origin: i64, mode: i64, cval: f64, tag: const u8[:], out: f64[>..]&) -> Fault {
     if size < 1 { return fault(F_VALUE, tag, "the size holds a value below one"); }
     if origin < -(size / 2) || origin > size - 1 - size / 2 {
         return fault(F_RANGE, tag, "the origin stands outside the window");
@@ -222,7 +249,7 @@ fn nd_box_axis(src: f64[:], shape: i64[:], axis: i64, size: i64, origin: i64, mo
     if lines > ND_COST / size {
         return fault(F_LIMIT, tag, "the cost of the filter is above the limit");
     }
-    nd_along(src, shape, axis, [], size, size / 2 + origin, mode, cval, out);
+    nd_along(src, shape, axis, [], op, size, size / 2 + origin, mode, cval, out);
     return no_fault();
 }
 
@@ -233,7 +260,7 @@ fn uniform_filter1d(a, size: i64, axis: i64 = -1, mode: const u8[:] = "reflect",
     let ax = nd_axis(axis, a.ndim);
     if ax < 0 { return empty_arr(), fault(F_RANGE, "uniform_filter1d", "the axis stands outside the array"); }
     var out: f64[>..] = nd_zeros(a.data.len);
-    let g = nd_box_axis(a.data, a.shape, ax, size, origin, m, cval, "uniform_filter1d", out);
+    let g = nd_box_axis(a.data, a.shape, ax, 1, size, origin, m, cval, "uniform_filter1d", out);
     if g.kind != F_NONE { return empty_arr(), g; }
     return arr_of(copy(out), a.shape), no_fault();
 }
@@ -306,7 +333,7 @@ fn nd_gauss_axis(src: f64[:], shape: i64[:], axis: i64, sigma: f64, order: i64, 
     if src.len > ND_COST / len { return fault(F_LIMIT, tag, "the cost of the filter is above the limit"); }
     var w: f64[>..] = [];
     nd_gauss_kernel(sigma, order, radius, w);
-    nd_along(src, shape, axis, w, 0, radius, mode, cval, out);
+    nd_along(src, shape, axis, w, 0, 0, radius, mode, cval, out);
     return no_fault();
 }
 
@@ -450,7 +477,7 @@ fn uniform_filter(a, size: i64[:], mode: const u8[:] = "reflect", cval: f64 = 0.
     var d: i64 = 0;
     while d < a.ndim {
         var nxt: f64[>..] = nd_zeros(a.data.len);
-        let g = nd_box_axis(cur, a.shape, d, sz[d], og[d], m, cval, "uniform_filter", nxt);
+        let g = nd_box_axis(cur, a.shape, d, 1, sz[d], og[d], m, cval, "uniform_filter", nxt);
         if g.kind != F_NONE { return empty_arr(), g; }
         cur = copy(nxt);
         d += 1;

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.149.0";
+import scientific from "rekanalar/goose-scientific@v0.150.0";
 ```
 
 ## API
@@ -77,6 +77,7 @@ import scientific from "rekanalar/goose-scientific@v0.149.0";
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dct_axis`, `idct_axis`, `dst_axis`, `idst_axis`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `hfft_axis`, `ihfft_axis`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn`, `hfftn_ex`, `ihfftn_ex`, `fht`, `ifht`, `fhtoffset` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull`, `delaunay`, `delaunay_simplices`, `delaunay_find_simplex`, `griddata`, `nd_interpolator`, `nd_interpolate` |
 | Filters of N dimensions | `correlate1d`, `convolve1d`, `uniform_filter1d`, `gaussian_filter1d`, `correlate_nd`, `convolve_nd`, `uniform_filter`, `gaussian_filter` |
+| Rank and derivative filters of N dimensions | `rank_filter`, `median_filter`, `percentile_filter`, `minimum_filter`, `maximum_filter`, the forms `rank_filter_fp`, `median_filter_fp`, `percentile_filter_fp`, `minimum_filter_fp` and `maximum_filter_fp`, `minimum_filter1d`, `maximum_filter1d`, `sobel`, `prewitt`, `laplace`, `gaussian_laplace`, `gaussian_gradient_magnitude` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_jac`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
@@ -516,6 +517,27 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   line with a NaN or an infinity takes the direct sum. So a NaN spoils
   only the windows that hold it. SciPy spoils every value after the
   first NaN.
+- The rank filters take a box size, or with the suffix `_fp` a footprint
+  array. A nonzero value marks a place of the window. The rank, the
+  percentile, the origin and the five modes follow SciPy 1.18 and agree to
+  `1.0e-12`. A NaN counts as the largest value, so the result is defined.
+  A median of 5 by 5 on a matrix of 256 by 256 takes under one second.
+  That time includes the build.
+- SciPy filters data of one dimension through a fast path that ignores the
+  holes of a footprint. The result there differs from the definition of
+  the window. This package follows the definition for every count of
+  dimensions. So a footprint of one dimension with holes can differ from
+  SciPy.
+- The cost of a rank filter is the count of values times the count of places
+  of the window. A cost above 2.0e8 is a fault of kind `F_LIMIT`. A box
+  that sorts a window takes time in proportion to its size times its log.
+  The calls `minimum_filter` and `maximum_filter` with a size filter one
+  axis at a time. They scan each window, where SciPy uses a method that
+  needs less time for a large window. Their limit is 1.0e9.
+- `sobel`, `prewitt`, `laplace`, `gaussian_laplace` and
+  `gaussian_gradient_magnitude` equal SciPy. They take one mode for all
+  axes. `generic_filter`, `generic_laplace` and the morphology calls are not in
+  the package.
 - A tie between two nearest points in `griddata` goes to the lower
   coordinate in one dimension. In more dimensions it goes to the lower
   place. SciPy leaves such a tie to the order of its tree.
@@ -1723,6 +1745,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `gaussian_filter1d` gives a fault for a sigma whose square underflows.
   SciPy builds weights of NaN for such a sigma and returns NaN without an
   error. A sigma or a truncation that is not finite is a fault.
+- The rank filters sort a window with a heap sort, so no data gives a
+  slow case. The cost limit holds for a footprint, for a size and for a
+  size that lies by its product. A footprint with no nonzero place and a
+  rank outside the window are faults.
 
 ## License
 
