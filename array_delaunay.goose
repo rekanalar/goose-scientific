@@ -278,152 +278,254 @@ fn dl_sort_order(v: f64[:]) -> i64[>..] {
     return ord;
 }
 
-// griddata interpolates scattered data at the rows of xi. The points
-// hold a column for each dimension, and one column of values holds one
-// value for each point. The method nearest takes the value of the
-// nearest point in any count of dimensions. The method linear takes the
-// piecewise linear function on the Delaunay triangles of a plane, or on
-// the intervals of one dimension. A point outside the hull takes
-// fill_value. The flag rescale scales each axis to the unit interval
-// before the search.
-fn griddata(points, values, xi, method: const u8[:] = "linear", fill_value: f64 = 0.0 / 0.0, rescale: bool = false) -> Arr, Fault {
+// NDInterp holds the data of an interpolator of scattered data: the method
+// (0 nearest, 1 linear), the count of dimensions, the count of points, the
+// count of columns of the values, whether the values hold one dimension, the
+// count of triangles and the fill value. One buffer holds, in this order, the
+// scaled points, the corner places of the triangles of a plane, the values,
+// the lower end and the width of each axis, and the order of the points of one
+// dimension. The first fields match Delaunay, so dl_locate takes it.
+struct NDInterp { method: i64, dim: i64, npts: i64, k: i64, single: bool, nsimp: i64, fill: f64, buf: f64[>..] }
+
+// nd_values gives the place of the values in the buffer of an interpolator.
+fn nd_values(d) -> i64 { return d.npts * d.dim + d.nsimp * 3; }
+
+// nd_axes gives the place of the lower ends of the axes. The widths follow.
+fn nd_axes(d) -> i64 { return nd_values(d) + d.npts * d.k; }
+
+// nd_order gives the place of the order of the points of one dimension.
+fn nd_order(d) -> i64 { return nd_axes(d) + 2 * d.dim; }
+
+// nd_interpolator builds an interpolator of scattered data. The points hold a
+// column for each dimension. The values hold one value for each point, or a
+// row of k values for each point. The method nearest takes any count of
+// dimensions. The method linear takes one dimension or two. The flag rescale
+// scales each axis to the unit interval. The triangulation is built once.
+fn nd_interpolator(points, values, method: const u8[:] = "linear", fill_value: f64 = 0.0 / 0.0, rescale: bool = false) -> NDInterp, Fault {
+    let none = NDInterp { method: 0, dim: 0, npts: 0, k: 0, single: true, nsimp: 0, fill: 0.0, buf: [] };
     if method != "nearest" && method != "linear" {
-        return empty_arr(), fault(F_VALUE, "griddata", "the method is not nearest or linear");
+        return none, fault(F_VALUE, "nd_interpolator", "the method is not nearest or linear");
     }
-    if points.ndim < 1 || points.ndim > 2 || xi.ndim < 1 || xi.ndim > 2 || values.ndim != 1 {
-        return empty_arr(), fault(F_SHAPE, "griddata", "the points are not a vector or a matrix");
+    if points.ndim < 1 || points.ndim > 2 || values.ndim < 1 || values.ndim > 2 {
+        return none, fault(F_SHAPE, "nd_interpolator", "the points or the values hold a wrong count of dimensions");
     }
-    // A vector of points is one dimension.
     let n: i64 = points.shape[0];
     var dim: i64 = 1;
     if points.ndim == 2 { dim = points.shape[1]; }
+    var k: i64 = 1;
+    if values.ndim == 2 { k = values.shape[1]; }
+    if n < 1 || dim < 1 || k < 1 {
+        return none, fault(F_SHAPE, "nd_interpolator", "the data hold no point");
+    }
     if values.shape[0] != n {
-        return empty_arr(), fault(F_SHAPE, "griddata", "the values do not hold one number for each point");
+        return none, fault(F_SHAPE, "nd_interpolator", "the values do not hold one row for each point");
     }
-    let m: i64 = xi.shape[0];
-    var xdim: i64 = 1;
-    if xi.ndim == 2 { xdim = xi.shape[1]; }
-    if xdim != dim {
-        return empty_arr(), fault(F_SHAPE, "griddata", "the points to find do not match the dimension of the data");
+    if dim > MAX_ELEMENTS / n || k > MAX_ELEMENTS / n {
+        return none, fault(F_LIMIT, "nd_interpolator", "the points or the table of values are too large");
     }
-    if n < 1 || dim < 1 {
-        return empty_arr(), fault(F_SHAPE, "griddata", "the data hold no point");
+    if points.data.len != n * dim || values.data.len != n * k {
+        return none, fault(F_SHAPE, "nd_interpolator", "a buffer does not match its shape");
     }
     var i: i64 = 0;
     while i < n * dim {
         if !(points.data[i] - points.data[i] == 0.0) {
-            return empty_arr(), fault(F_VALUE, "griddata", "a point is not finite");
+            return none, fault(F_VALUE, "nd_interpolator", "a point is not finite");
         }
         i += 1;
     }
     i = 0;
-    while i < n {
+    while i < n * k {
         if !(values.data[i] - values.data[i] == 0.0) {
-            return empty_arr(), fault(F_VALUE, "griddata", "a value is not finite");
+            return none, fault(F_VALUE, "nd_interpolator", "a value is not finite");
         }
         i += 1;
     }
-    i = 0;
-    while i < m * dim {
-        if !(xi.data[i] - xi.data[i] == 0.0) {
-            return empty_arr(), fault(F_VALUE, "griddata", "a point to find is not finite");
-        }
-        i += 1;
-    }
-    // The scaled copies of the points.
+    var lo: f64[>..] = [];
+    var sc: f64[>..] = [];
     var pts: f64[>..] = copy_slice(points.data);
-    var qs: f64[>..] = copy_slice(xi.data);
-    if rescale {
-        var c: i64 = 0;
-        while c < dim {
-            var lo = pts[c];
-            var hi = lo;
+    var c: i64 = 0;
+    while c < dim {
+        var a0: f64 = 0.0;
+        var w: f64 = 1.0;
+        if rescale {
+            a0 = pts[c];
+            var hi = a0;
             i = 1;
             while i < n {
-                if pts[i * dim + c] < lo { lo = pts[i * dim + c]; }
+                if pts[i * dim + c] < a0 { a0 = pts[i * dim + c]; }
                 if pts[i * dim + c] > hi { hi = pts[i * dim + c]; }
                 i += 1;
             }
-            var sc = hi - lo;
-            if sc == 0.0 { sc = 1.0; }
+            w = hi - a0;
+            if w == 0.0 { w = 1.0; }
             i = 0;
-            while i < n { pts[i * dim + c] = (pts[i * dim + c] - lo) / sc; i += 1; }
+            while i < n { pts[i * dim + c] = (pts[i * dim + c] - a0) / w; i += 1; }
+        }
+        lo.push(a0);
+        sc.push(w);
+        c += 1;
+    }
+    var mth: i64 = 0;
+    var ord: i64[>..] = [];
+    var corners: f64[>..] = [];
+    var nsimp: i64 = 0;
+    if method == "linear" {
+        mth = 1;
+        if dim > 2 {
+            return none, fault(F_LIMIT, "nd_interpolator", "the method linear holds one or two dimensions");
+        }
+        if dim == 1 {
+            ord = dl_sort_order(pts);
+        } else {
+            var sh: i64[..8] = [];
+            sh.push(n);
+            sh.push(2);
+            let d, fd = delaunay(Arr { ndim: 2, shape: sh, data: copy(pts) });
+            if fd.kind != F_NONE { return none, fd; }
+            nsimp = d.nsimp;
             i = 0;
-            while i < m { qs[i * dim + c] = (qs[i * dim + c] - lo) / sc; i += 1; }
-            c += 1;
+            while i < nsimp * 3 { corners.push(d.buf[n * 2 + i]); i += 1; }
         }
     }
-    var out: f64[>..] = [];
-    if method == "nearest" {
+    var buf: f64[>..] = copy(pts);
+    i = 0;
+    while i < corners.len { buf.push(corners[i]); i += 1; }
+    i = 0;
+    while i < n * k { buf.push(values.data[i]); i += 1; }
+    i = 0;
+    while i < dim { buf.push(lo[i]); i += 1; }
+    i = 0;
+    while i < dim { buf.push(sc[i]); i += 1; }
+    i = 0;
+    while i < ord.len { buf.push(ord[i] as f64); i += 1; }
+    return NDInterp { method: mth, dim: dim, npts: n, k: k, single: values.ndim == 1, nsimp: nsimp, fill: fill_value, buf: buf }, no_fault();
+}
+
+// nd_interpolate gives the values of an interpolator at the rows of xi. A
+// point outside the hull takes the fill value in the method linear. The result
+// has one dimension when the values held one dimension, else the shape m by k.
+// The interpolator does not change.
+fn nd_interpolate(interp, xi) -> Arr, Fault {
+    if xi.ndim < 1 || xi.ndim > 2 {
+        return empty_arr(), fault(F_SHAPE, "nd_interpolate", "the points to find are not a vector or a matrix");
+    }
+    let dim: i64 = interp.dim;
+    let n: i64 = interp.npts;
+    let k: i64 = interp.k;
+    let ov = nd_values(interp);
+    let oa = nd_axes(interp);
+    let oo = nd_order(interp);
+    let m: i64 = xi.shape[0];
+    var xdim: i64 = 1;
+    if xi.ndim == 2 { xdim = xi.shape[1]; }
+    if xdim != dim {
+        return empty_arr(), fault(F_SHAPE, "nd_interpolate", "the points to find do not match the dimension of the data");
+    }
+    if m >= 1 && (dim > MAX_ELEMENTS / m || k > MAX_ELEMENTS / m) {
+        return empty_arr(), fault(F_LIMIT, "nd_interpolate", "the points to find or the table of results are too large");
+    }
+    if m < 1 || xi.data.len != m * dim {
+        return empty_arr(), fault(F_SHAPE, "nd_interpolate", "the points to find hold no point or a buffer that does not match its shape");
+    }
+    var i: i64 = 0;
+    while i < m * dim {
+        if !(xi.data[i] - xi.data[i] == 0.0) {
+            return empty_arr(), fault(F_VALUE, "nd_interpolate", "a point to find is not finite");
+        }
+        i += 1;
+    }
+    var qs: f64[>..] = copy_slice(xi.data);
+    var c: i64 = 0;
+    while c < dim {
         i = 0;
-        while i < m {
+        while i < m { qs[i * dim + c] = (qs[i * dim + c] - interp.buf[oa + c]) / interp.buf[oa + dim + c]; i += 1; }
+        c += 1;
+    }
+    var out: f64[>..] = [];
+    var cs: f64[>..] = [0.0, 0.0, 0.0];
+    i = 0;
+    while i < m {
+        if interp.method == 0 {
             var best: i64 = 0;
             var bd: f64 = -1.0;
             var j: i64 = 0;
             while j < n {
                 var s: f64 = 0.0;
-                var c: i64 = 0;
+                c = 0;
                 while c < dim {
-                    let df = pts[j * dim + c] - qs[i * dim + c];
+                    let df = interp.buf[j * dim + c] - qs[i * dim + c];
                     s += df * df;
                     c += 1;
                 }
                 // A tie in one dimension goes to the lower coordinate,
                 // and a tie in more dimensions goes to the lower place.
-                if bd < 0.0 || s < bd || (dim == 1 && s == bd && pts[j] < pts[best]) {
+                if bd < 0.0 || s < bd || (dim == 1 && s == bd && interp.buf[j] < interp.buf[best]) {
                     bd = s;
                     best = j;
                 }
                 j += 1;
             }
-            out.push(values.data[best]);
-            i += 1;
-        }
-        return line_arr(copy(out)), no_fault();
-    }
-    if dim == 1 {
-        let ord = dl_sort_order(pts);
-        i = 0;
-        while i < m {
+            c = 0;
+            while c < k { out.push(interp.buf[ov + best * k + c]); c += 1; }
+        } else if dim == 1 {
             let q = qs[i];
-            var r = fill_value;
-            if q >= pts[ord[0]] && q <= pts[ord[n - 1]] {
+            let first = interp.buf[oo] as i64;
+            let last = interp.buf[oo + n - 1] as i64;
+            var inside = q >= interp.buf[first] && q <= interp.buf[last];
+            var k0: i64 = 0;
+            if inside {
                 // The last interval whose left end lies at or below q.
-                var k: i64 = 0;
-                while k < n - 2 && pts[ord[k + 1]] <= q { k += 1; }
-                if n == 1 {
-                    r = values.data[ord[0]];
-                } else {
-                    let x0 = pts[ord[k]];
-                    let x1 = pts[ord[k + 1]];
-                    let y0 = values.data[ord[k]];
-                    let y1 = values.data[ord[k + 1]];
-                    if x1 == x0 { r = y0; } else { r = y0 + (y1 - y0) * (q - x0) / (x1 - x0); }
-                }
+                while k0 < n - 2 && interp.buf[interp.buf[oo + k0 + 1] as i64] <= q { k0 += 1; }
             }
-            out.push(r);
-            i += 1;
-        }
-        return line_arr(copy(out)), no_fault();
-    }
-    if dim != 2 {
-        return empty_arr(), fault(F_LIMIT, "griddata", "the method linear holds one or two dimensions");
-    }
-    var sh: i64[..8] = [];
-    sh.push(n);
-    sh.push(2);
-    let d, fd = delaunay(Arr { ndim: 2, shape: sh, data: copy(pts) });
-    if fd.kind != F_NONE { return empty_arr(), fd; }
-    var cs: f64[>..] = [0.0, 0.0, 0.0];
-    i = 0;
-    while i < m {
-        let t = dl_locate(d, qs[i * 2], qs[i * 2 + 1], cs);
-        if t < 0 {
-            out.push(fill_value);
+            c = 0;
+            while c < k {
+                var r = interp.fill;
+                if inside {
+                    if n == 1 {
+                        r = interp.buf[ov + first * k + c];
+                    } else {
+                        let p0 = interp.buf[oo + k0] as i64;
+                        let p1 = interp.buf[oo + k0 + 1] as i64;
+                        let x0 = interp.buf[p0];
+                        let x1 = interp.buf[p1];
+                        let y0 = interp.buf[ov + p0 * k + c];
+                        let y1 = interp.buf[ov + p1 * k + c];
+                        if x1 == x0 { r = y0; } else { r = y0 + (y1 - y0) * (q - x0) / (x1 - x0); }
+                    }
+                }
+                out.push(r);
+                c += 1;
+            }
         } else {
-            out.push(cs[0] * values.data[dl_corner(d, t * 3)] + cs[1] * values.data[dl_corner(d, t * 3 + 1)] + cs[2] * values.data[dl_corner(d, t * 3 + 2)]);
+            let t = dl_locate(interp, qs[i * 2], qs[i * 2 + 1], cs);
+            c = 0;
+            while c < k {
+                if t < 0 {
+                    out.push(interp.fill);
+                } else {
+                    out.push(cs[0] * interp.buf[ov + dl_corner(interp, t * 3) * k + c] + cs[1] * interp.buf[ov + dl_corner(interp, t * 3 + 1) * k + c] + cs[2] * interp.buf[ov + dl_corner(interp, t * 3 + 2) * k + c]);
+                }
+                c += 1;
+            }
         }
         i += 1;
     }
-    return line_arr(copy(out)), no_fault();
+    if interp.single { return line_arr(copy(out)), no_fault(); }
+    var sh: i64[..8] = [];
+    sh.push(m);
+    sh.push(k);
+    return Arr { ndim: 2, shape: sh, data: copy(out) }, no_fault();
+}
+
+// griddata interpolates scattered data at the rows of xi. The points hold a
+// column for each dimension. The values hold one value for each point, or a
+// row of values for each point. The method nearest takes the value of the
+// nearest point in any count of dimensions. The method linear takes the
+// piecewise linear function on the Delaunay triangles of a plane, or on the
+// intervals of one dimension. A point outside the hull takes fill_value. The
+// flag rescale scales each axis to the unit interval before the search.
+fn griddata(points, values, xi, method: const u8[:] = "linear", fill_value: f64 = 0.0 / 0.0, rescale: bool = false) -> Arr, Fault {
+    let interp, f = nd_interpolator(points, values, method, fill_value, rescale);
+    if f.kind != F_NONE { return empty_arr(), f; }
+    return nd_interpolate(interp, xi);
 }
