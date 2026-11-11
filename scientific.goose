@@ -72,6 +72,7 @@ import array_balance;
 import array_expmf;
 import array_qrtools;
 import array_qrupdate;
+import array_schur_cplx;
 import array_bspline;
 import array_curfit;
 import array_delaunay;
