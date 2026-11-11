@@ -8349,6 +8349,584 @@ fn test_cossin() {
     ct_close(gprod.data, big.data, 1.0e-9);
 }
 
+// qt_pair builds a pair of side n from a small integer generator. The
+// kind 1 makes the second matrix singular.
+fn qt_pair(n: i64, seed: i64, kind: i64) -> scientific::Arr, scientific::Arr {
+    var a: f64[>..] = [];
+    var b: f64[>..] = [];
+    var s: i64 = seed;
+    var i: i64 = 0;
+    while i < n * n {
+        s = (s * 1103515245 + 12345) % 2147483648;
+        a.push((s as f64) / 1073741824.0 - 1.0);
+        s = (s * 1103515245 + 12345) % 2147483648;
+        b.push((s as f64) / 1073741824.0 - 1.0);
+        i += 1;
+    }
+    if kind == 1 {
+        i = 0;
+        while i < n { b[i * n + 1] = 0.0; i += 1; }
+    }
+    return scientific::Arr { ndim: 2, shape: [n, n], data: a }, scientific::Arr { ndim: 2, shape: [n, n], data: b };
+}
+
+// qt_recon gives the largest entry of Q X Z^T - A for matrices of side
+// n that start at the place off of their buffers.
+fn qt_recon(q: f64[:], x: f64[:], z: f64[:], a: f64[:], off: i64, n: i64) -> f64 {
+    var worst: f64 = 0.0;
+    var i: i64 = 0;
+    while i < n {
+        var j: i64 = 0;
+        while j < n {
+            var s: f64 = 0.0;
+            var k: i64 = 0;
+            while k < n {
+                var l: i64 = 0;
+                while l < n {
+                    s += q[off + i * n + k] * x[off + k * n + l] * z[off + j * n + l];
+                    l += 1;
+                }
+                k += 1;
+            }
+            let d = mathshim_abs(s - a[off + i * n + j]);
+            if d > worst { worst = d; }
+            j += 1;
+        }
+        i += 1;
+    }
+    return worst;
+}
+
+// qt_orth gives the largest entry of F^T F - I.
+fn qt_orth(f: f64[:], off: i64, n: i64) -> f64 {
+    var worst: f64 = 0.0;
+    var i: i64 = 0;
+    while i < n {
+        var j: i64 = 0;
+        while j < n {
+            var s: f64 = 0.0;
+            var k: i64 = 0;
+            while k < n { s += f[off + k * n + i] * f[off + k * n + j]; k += 1; }
+            if i == j { s -= 1.0; }
+            let d = mathshim_abs(s);
+            if d > worst { worst = d; }
+            j += 1;
+        }
+        i += 1;
+    }
+    return worst;
+}
+
+// qt_shape gives the largest entry that breaks the form: b under the
+// diagonal, a under the first subdiagonal, and two subdiagonal entries
+// in a row.
+fn qt_shape(aa: f64[:], bb: f64[:], off: i64, n: i64) -> f64 {
+    var worst: f64 = 0.0;
+    var i: i64 = 0;
+    while i < n {
+        var j: i64 = 0;
+        while j < i {
+            let d = mathshim_abs(bb[off + i * n + j]);
+            if d > worst { worst = d; }
+            if j < i - 1 {
+                let e = mathshim_abs(aa[off + i * n + j]);
+                if e > worst { worst = e; }
+            }
+            j += 1;
+        }
+        if i > 1 && aa[off + i * n + i - 1] != 0.0 && aa[off + (i - 1) * n + i - 2] != 0.0 { worst = 1.0; }
+        i += 1;
+    }
+    return worst;
+}
+
+// qt_real_case checks one real decomposition of a pair.
+fn qt_real_case(a: scientific::Arr&, b: scientific::Arr&, n: i64) {
+    let aa, bb, q, z, f = scientific::qz(a, b);
+    assert(f.kind == scientific::F_NONE);
+    assert(qt_recon(q.data, aa.data, z.data, a.data, 0, n) < 1.0e-12);
+    assert(qt_recon(q.data, bb.data, z.data, b.data, 0, n) < 1.0e-12);
+    assert(qt_orth(q.data, 0, n) < 1.0e-12);
+    assert(qt_orth(z.data, 0, n) < 1.0e-12);
+    assert(qt_shape(aa.data, bb.data, 0, n) < 1.0e-12);
+    var i: i64 = 0;
+    while i < n { assert(bb.data[i * n + i] >= 0.0); i += 1; }
+}
+
+// qt_sorted sorts a small buffer in place.
+fn qt_sorted(v: f64[>..]&) {
+    var i: i64 = 1;
+    while i < v.len {
+        let x = v[i];
+        var j = i - 1;
+        while j >= 0 && v[j] > x { v[j + 1] = v[j]; j -= 1; }
+        v[j + 1] = x;
+        i += 1;
+    }
+}
+
+// qt_chosen tells whether a rule chooses the eigenvalue alpha / beta.
+fn qt_chosen(rule: const u8[:], are: f64, aim: f64, be: f64) -> bool {
+    if rule == "ouc" {
+        if be == 0.0 { return are != 0.0 || aim != 0.0; }
+        return (are * are + aim * aim) > be * be;
+    }
+    if be == 0.0 { return false; }
+    if rule == "lhp" { return are / be < 0.0; }
+    if rule == "rhp" { return are / be > 0.0; }
+    return (are * are + aim * aim) < be * be;
+}
+
+// qt_ord checks one ordered decomposition. The products and the forms
+// hold, and no unchosen eigenvalue sits before a chosen one.
+fn qt_ord(a: scientific::Arr&, b: scientific::Arr&, n: i64, rule: const u8[:]) {
+    let aa, bb, al, be, q, z, f = scientific::ordqz(a, b, rule);
+    assert(f.kind == scientific::F_NONE);
+    assert(qt_recon(q.data, aa.data, z.data, a.data, 0, n) < 1.0e-12);
+    assert(qt_recon(q.data, bb.data, z.data, b.data, 0, n) < 1.0e-12);
+    assert(qt_orth(q.data, 0, n) < 1.0e-12);
+    assert(qt_orth(z.data, 0, n) < 1.0e-12);
+    assert(qt_shape(aa.data, bb.data, 0, n) < 1.0e-12);
+    assert(al.data.len == 2 * n && be.data.len == n);
+    var seen_unchosen = false;
+    var i: i64 = 0;
+    while i < n {
+        let c = qt_chosen(rule, al.data[2 * i], al.data[2 * i + 1], be.data[i]);
+        if c { assert(!seen_unchosen); } else { seen_unchosen = true; }
+        i += 1;
+    }
+}
+
+// qt_group checks the eigenvalues of the first group of a rule on the
+// pinned pair. The values are compared as sets.
+fn qt_group(rule: const u8[:], first: f64[:], rest: f64[:]) {
+    let a = scientific::Arr { ndim: 2, shape: [4, 4], data: [2.0, 5.0, 8.0, 7.0, 5.0, 2.0, 2.0, 8.0, 7.0, 5.0, 6.0, 6.0, 5.0, 4.0, 4.0, 8.0] };
+    let b = scientific::Arr { ndim: 2, shape: [4, 4], data: [0.0, 6.0, 0.0, 0.0, 5.0, 0.0, 2.0, 1.0, 5.0, 2.0, 6.0, 6.0, 4.0, 7.0, 7.0, 7.0] };
+    let aa, bb, al, be, q, z, f = scientific::ordqz(a, b, rule);
+    assert(f.kind == scientific::F_NONE);
+    var g1: f64[>..] = [];
+    var g2: f64[>..] = [];
+    var i: i64 = 0;
+    while i < 4 {
+        let e = al.data[2 * i] / be.data[i];
+        assert(mathshim_abs(al.data[2 * i + 1]) < 1.0e-12);
+        if i < first.len { g1.push(e); } else { g2.push(e); }
+        i += 1;
+    }
+    qt_sorted(g1);
+    qt_sorted(g2);
+    var fs: f64[>..] = [];
+    var rs: f64[>..] = [];
+    i = 0;
+    while i < first.len { fs.push(first[i]); i += 1; }
+    i = 0;
+    while i < rest.len { rs.push(rest[i]); i += 1; }
+    qt_sorted(fs);
+    qt_sorted(rs);
+    ct_close(g1, fs, 1.0e-10);
+    ct_close(g2, rs, 1.0e-10);
+}
+
+// qt_finite_all tells whether every value of a buffer is finite.
+fn qt_finite_all(d: f64[:]) -> bool {
+    var i: i64 = 0;
+    while i < d.len {
+        if !(d[i] - d[i] == 0.0) { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+fn test_qz() {
+    // The pinned pair: the diagonals and the factor Q of SciPy 1.18.1.
+    let a = scientific::Arr { ndim: 2, shape: [4, 4], data: [2.0, 5.0, 8.0, 7.0, 5.0, 2.0, 2.0, 8.0, 7.0, 5.0, 6.0, 6.0, 5.0, 4.0, 4.0, 8.0] };
+    let b = scientific::Arr { ndim: 2, shape: [4, 4], data: [0.0, 6.0, 0.0, 0.0, 5.0, 0.0, 2.0, 1.0, 5.0, 2.0, 6.0, 6.0, 4.0, 7.0, 7.0, 7.0] };
+    let aa, bb, q, z, f = scientific::qz(a, b);
+    assert(f.kind == scientific::F_NONE);
+    var da: f64[>..] = [];
+    var db: f64[>..] = [];
+    var i: i64 = 0;
+    while i < 4 { da.push(aa.data[i * 5]); db.push(bb.data[i * 5]); i += 1; }
+    ct_close(da, [-5.270293137251562, 7.883398770030825, -3.2624551158330526, 1.4312283083412392], 1.0e-10);
+    ct_close(db, [0.33086466778775225, 5.107944262314686, 5.324800314897024, 7.3340533962845464], 1.0e-10);
+    let qs = [0.22562988846509258, 0.4481573789938411, -0.8641145394068567, 0.03939771402348438, -0.8139678162481551, -0.05817839652006695, -0.21830884882022003, 0.5351755925089948, -0.04866640526786121, 0.869549266552417, 0.4475270197776592, 0.2030645725019108, -0.533084541645829, 0.19913390185972188, -0.0732589645121516, -0.8190236166967266];
+    var c: i64 = 0;
+    while c < 4 {
+        var plus: f64 = 0.0;
+        var minus: f64 = 0.0;
+        var r: i64 = 0;
+        while r < 4 {
+            plus += mathshim_abs(q.data[r * 4 + c] - qs[r * 4 + c]);
+            minus += mathshim_abs(q.data[r * 4 + c] + qs[r * 4 + c]);
+            r += 1;
+        }
+        assert(plus < 1.0e-9 || minus < 1.0e-9);
+        c += 1;
+    }
+    qt_real_case(a, b, 4);
+
+    // Random pairs of side 2 to 10, and the same pairs with a singular b.
+    var n: i64 = 2;
+    while n <= 10 {
+        var k: i64 = 0;
+        while k < 6 {
+            let pa, pb = qt_pair(n, n * 100 + k, k % 2);
+            qt_real_case(pa, pb, n);
+            k += 1;
+        }
+        n += 1;
+    }
+
+    // The singular a, the zeros, the rotation, the side 1 and the identity.
+    var sa = copy(a.data);
+    i = 0;
+    while i < 4 { sa[i * 4 + 1] = 0.0; i += 1; }
+    let sing = scientific::Arr { ndim: 2, shape: [4, 4], data: copy(sa) };
+    qt_real_case(sing, b, 4);
+    let zero = scientific::Arr { ndim: 2, shape: [3, 3], data: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] };
+    let zaa, zbb, zal, zbe, zq, zz, zf = scientific::ordqz(zero, zero, "lhp");
+    assert(zf.kind == scientific::F_NONE);
+    i = 0;
+    while i < 3 { assert(zal.data[2 * i] == 0.0 && zbe.data[i] == 0.0); i += 1; }
+    let eye2 = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0, 0.0, 0.0, 1.0] };
+    let rot = scientific::Arr { ndim: 2, shape: [2, 2], data: [0.0, 1.0, -1.0, 0.0] };
+    qt_real_case(rot, eye2, 2);
+    let raa, rbb, ral, rbe, rq, rz, rf = scientific::ordqz(rot, eye2, "lhp");
+    assert(rf.kind == scientific::F_NONE);
+    assert(mathshim_abs(ral.data[0] / rbe.data[0]) < 1.0e-12);
+    assert(mathshim_abs(mathshim_abs(ral.data[1] / rbe.data[0]) - 1.0) < 1.0e-12);
+    assert(ral.data[1] > 0.0 && ral.data[3] < 0.0);
+    assert(rbb.data[0] > 0.0 && rbb.data[3] > 0.0 && rbb.data[1] == 0.0 && rbb.data[2] == 0.0);
+    let s1a, s1b, s1q, s1z, s1f = scientific::qz(scientific::Arr { ndim: 2, shape: [1, 1], data: [3.0] }, scientific::Arr { ndim: 2, shape: [1, 1], data: [-2.0] });
+    assert(s1f.kind == scientific::F_NONE);
+    assert(s1a.data[0] == -3.0 && s1b.data[0] == 2.0);
+    qt_real_case(eye2, eye2, 2);
+
+    // A stack with a broadcast operand equals the single calls.
+    var sd: f64[>..] = [];
+    var s: i64 = 0;
+    while s < 2 {
+        let p1, p2 = qt_pair(3, 70 + s, 0);
+        i = 0;
+        while i < 9 { sd.push(p1.data[i]); i += 1; }
+        s += 1;
+    }
+    let sb1, sb2 = qt_pair(3, 99, 0);
+    let stack_a = scientific::Arr { ndim: 3, shape: [2, 3, 3], data: copy(sd) };
+    let ta, tb, tq, tz, tf = scientific::qz(stack_a, sb2);
+    assert(tf.kind == scientific::F_NONE);
+    assert(tq.ndim == 3 && tq.shape[0] == 2 && tq.shape[1] == 3);
+    s = 0;
+    while s < 2 {
+        let u1, u2 = qt_pair(3, 70 + s, 0);
+        let ua, ub, uq, uz, uf = scientific::qz(u1, sb2);
+        var d: i64 = 0;
+        while d < 9 {
+            assert(mathshim_abs(ta.data[s * 9 + d] - ua.data[d]) < 1.0e-12);
+            assert(mathshim_abs(tq.data[s * 9 + d] - uq.data[d]) < 1.0e-12);
+            d += 1;
+        }
+        s += 1;
+    }
+}
+
+fn test_ordqz() {
+    // The first group of each rule on the pinned pair.
+    qt_group("lhp", [-15.928848409502654, -0.6126906030083017], [0.19514833489844835, 1.543360374582167]);
+    qt_group("rhp", [0.19514833489844835, 1.543360374582167], [-15.928848409502654, -0.6126906030083017]);
+    qt_group("iuc", [-0.6126906030083017, 0.19514833489844835], [-15.928848409502654, 1.543360374582167]);
+    qt_group("ouc", [-15.928848409502654, 1.543360374582167], [-0.6126906030083017, 0.19514833489844835]);
+    // Random pairs, each with the four rules.
+    var n: i64 = 2;
+    while n <= 10 {
+        var k: i64 = 0;
+        while k < 6 {
+            let pa, pb = qt_pair(n, n * 131 + k, k % 3 % 2);
+            qt_ord(pa, pb, n, "lhp");
+            qt_ord(pa, pb, n, "rhp");
+            qt_ord(pa, pb, n, "iuc");
+            qt_ord(pa, pb, n, "ouc");
+            k += 1;
+        }
+        n += 1;
+    }
+    // An infinite eigenvalue is outside the unit circle.
+    let ia, ib = qt_pair(5, 4242, 1);
+    let aa, bb, al, be, q, z, f = scientific::ordqz(ia, ib, "ouc");
+    assert(f.kind == scientific::F_NONE);
+    var small: i64 = -1;
+    var i: i64 = 0;
+    while i < 5 { if mathshim_abs(be.data[i]) < 1.0e-12 { small = i; } i += 1; }
+    assert(small >= 0);
+    i = 0;
+    while i <= small { assert(qt_chosen("ouc", al.data[2 * i], al.data[2 * i + 1], be.data[i])); i += 1; }
+    // A rule that is no rule.
+    let ba1, ba2, ba3, ba4, ba5, ba6, bf = scientific::ordqz(ia, ib, "xyz");
+    assert(bf.kind == scientific::F_VALUE);
+    let ea1, ea2, ea3, ea4, ea5, ea6, ef = scientific::ordqz(ia, ib, "");
+    assert(ef.kind == scientific::F_VALUE);
+
+    // A stack with a broadcast operand. The values alpha and beta hold
+    // the shape of the batch followed by the side.
+    var sd: f64[>..] = [];
+    var s: i64 = 0;
+    while s < 2 {
+        let p1, p2 = qt_pair(3, 210 + s, 0);
+        var d: i64 = 0;
+        while d < 9 { sd.push(p1.data[d]); d += 1; }
+        s += 1;
+    }
+    let sb1, sb2 = qt_pair(3, 299, 0);
+    let stack_a = scientific::Arr { ndim: 3, shape: [2, 3, 3], data: copy(sd) };
+    let ta, tb, tal, tbe, tq, tz, tf = scientific::ordqz(stack_a, sb2, "rhp");
+    assert(tf.kind == scientific::F_NONE);
+    assert(tal.ndim == 2 && tal.shape[0] == 2 && tal.shape[1] == 3 && tbe.ndim == 2 && tbe.shape[1] == 3);
+    assert(tal.data.len == 12 && tbe.data.len == 6 && tq.shape[0] == 2);
+    s = 0;
+    while s < 2 {
+        let u1, u2 = qt_pair(3, 210 + s, 0);
+        let ua, ub, ual, ube, uq, uz, uf = scientific::ordqz(u1, sb2, "rhp");
+        var d2: i64 = 0;
+        while d2 < 9 { assert(mathshim_abs(tq.data[s * 9 + d2] - uq.data[d2]) < 1.0e-12); d2 += 1; }
+        d2 = 0;
+        while d2 < 3 { assert(mathshim_abs(tbe.data[s * 3 + d2] - ube.data[d2]) < 1.0e-12); d2 += 1; }
+        s += 1;
+    }
+    // A pair of zeros: no rule chooses an eigenvalue (0, 0), and the call
+    // does not fault.
+    let zero = scientific::Arr { ndim: 2, shape: [3, 3], data: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] };
+    let z1, z2, z3, z4, z5, z6, zf = scientific::ordqz(zero, zero, "ouc");
+    assert(zf.kind == scientific::F_NONE);
+    assert(!qt_chosen("ouc", z3.data[0], z3.data[1], z4.data[0]));
+}
+
+// qt_crecon gives the largest entry of Q X Z^H - A for complex buffers.
+fn qt_crecon(q: f64[:], x: f64[:], z: f64[:], a: f64[:], n: i64) -> f64 {
+    var worst: f64 = 0.0;
+    var i: i64 = 0;
+    while i < n {
+        var j: i64 = 0;
+        while j < n {
+            var sr: f64 = 0.0;
+            var si: f64 = 0.0;
+            var k: i64 = 0;
+            while k < n {
+                var l: i64 = 0;
+                while l < n {
+                    let qr = q[2 * (i * n + k)];
+                    let qi = q[2 * (i * n + k) + 1];
+                    let xr = x[2 * (k * n + l)];
+                    let xi = x[2 * (k * n + l) + 1];
+                    let zr = z[2 * (j * n + l)];
+                    let zi = -z[2 * (j * n + l) + 1];
+                    let pr = qr * xr - qi * xi;
+                    let pi = qr * xi + qi * xr;
+                    sr += pr * zr - pi * zi;
+                    si += pr * zi + pi * zr;
+                    l += 1;
+                }
+                k += 1;
+            }
+            let d1 = mathshim_abs(sr - a[2 * (i * n + j)]);
+            let d2 = mathshim_abs(si - a[2 * (i * n + j) + 1]);
+            if d1 > worst { worst = d1; }
+            if d2 > worst { worst = d2; }
+            j += 1;
+        }
+        i += 1;
+    }
+    return worst;
+}
+
+// qt_complex_case checks one triangular complex decomposition.
+fn qt_complex_case(a: scientific::Arr&, b: scientific::Arr&, n: i64) {
+    let aa, bb, q, z, f = scientific::qz_complex(a, b);
+    assert(f.kind == scientific::F_NONE);
+    var ar: f64[>..] = [];
+    var br: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n * n { ar.push(a.data[i]); ar.push(0.0); br.push(b.data[i]); br.push(0.0); i += 1; }
+    assert(qt_crecon(q.data, aa.data, z.data, ar, n) < 1.0e-12);
+    assert(qt_crecon(q.data, bb.data, z.data, br, n) < 1.0e-12);
+    i = 0;
+    while i < n {
+        var j: i64 = 0;
+        while j < i {
+            assert(mathshim_abs(aa.data[2 * (i * n + j)]) < 1.0e-12 && mathshim_abs(aa.data[2 * (i * n + j) + 1]) < 1.0e-12);
+            assert(mathshim_abs(bb.data[2 * (i * n + j)]) < 1.0e-12 && mathshim_abs(bb.data[2 * (i * n + j) + 1]) < 1.0e-12);
+            j += 1;
+        }
+        assert(bb.data[2 * (i * n + i)] >= 0.0 && bb.data[2 * (i * n + i) + 1] == 0.0);
+        i += 1;
+    }
+}
+
+fn test_qz_complex() {
+    var n: i64 = 2;
+    while n <= 10 {
+        var k: i64 = 0;
+        while k < 6 {
+            let pa, pb = qt_pair(n, n * 977 + k, k % 2);
+            qt_complex_case(pa, pb, n);
+            k += 1;
+        }
+        n += 1;
+    }
+    // The ordered form puts the chosen eigenvalues first.
+    let a = scientific::Arr { ndim: 2, shape: [4, 4], data: [2.0, 5.0, 8.0, 7.0, 5.0, 2.0, 2.0, 8.0, 7.0, 5.0, 6.0, 6.0, 5.0, 4.0, 4.0, 8.0] };
+    let b = scientific::Arr { ndim: 2, shape: [4, 4], data: [0.0, 6.0, 0.0, 0.0, 5.0, 0.0, 2.0, 1.0, 5.0, 2.0, 6.0, 6.0, 4.0, 7.0, 7.0, 7.0] };
+    let aa, bb, al, be, q, z, f = scientific::ordqz_complex(a, b, "lhp");
+    assert(f.kind == scientific::F_NONE);
+    var ar: f64[>..] = [];
+    var i: i64 = 0;
+    while i < 16 { ar.push(a.data[i]); ar.push(0.0); i += 1; }
+    assert(qt_crecon(q.data, aa.data, z.data, ar, 4) < 1.0e-12);
+    assert(be.data.len == 4 && al.data.len == 8);
+    assert(al.data[0] / be.data[0] < 0.0 && al.data[2] / be.data[1] < 0.0);
+    assert(al.data[4] / be.data[2] > 0.0 && al.data[6] / be.data[3] > 0.0);
+    // A pair of complex eigenvalues keeps its place under a rule.
+    let rot = scientific::Arr { ndim: 2, shape: [2, 2], data: [0.0, 1.0, -1.0, 0.0] };
+    let eye2 = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0, 0.0, 0.0, 1.0] };
+    let c1, c2, c3, c4, c5, c6, cf = scientific::ordqz_complex(rot, eye2, "iuc");
+    assert(cf.kind == scientific::F_NONE);
+    qt_complex_case(rot, eye2, 2);
+
+    // A stack with a broadcast operand gives complex results of the batch
+    // shape. Each slice equals the single call.
+    var sd: f64[>..] = [];
+    var s: i64 = 0;
+    while s < 2 {
+        let p1, p2 = qt_pair(3, 330 + s, 0);
+        var d: i64 = 0;
+        while d < 9 { sd.push(p1.data[d]); d += 1; }
+        s += 1;
+    }
+    let sb1, sb2 = qt_pair(3, 399, 0);
+    let stack_a = scientific::Arr { ndim: 3, shape: [2, 3, 3], data: copy(sd) };
+    let ta, tb, tq, tz, tf = scientific::qz_complex(stack_a, sb2);
+    assert(tf.kind == scientific::F_NONE);
+    assert(tq.ndim == 3 && tq.shape[0] == 2 && tq.data.len == 36);
+    s = 0;
+    while s < 2 {
+        let u1, u2 = qt_pair(3, 330 + s, 0);
+        let ua, ub, uq, uz, uf = scientific::qz_complex(u1, sb2);
+        var d2: i64 = 0;
+        while d2 < 18 { assert(mathshim_abs(ta.data[s * 18 + d2] - ua.data[d2]) < 1.0e-12); d2 += 1; }
+        s += 1;
+    }
+    let oa, ob, oal, obe, oq, oz, of = scientific::ordqz_complex(stack_a, sb2, "lhp");
+    assert(of.kind == scientific::F_NONE);
+    assert(oal.shape[0] == 2 && oal.shape[1] == 3 && obe.shape[1] == 3);
+}
+
+fn test_qz_hostile() {
+    let a = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0, 2.0, 3.0, 4.0] };
+    let r1 = scientific::Arr { ndim: 3, shape: [2, 2], data: [1.0, 2.0, 3.0, 4.0] };
+    let x1, x2, x3, x4, f1 = scientific::qz(r1, a);
+    assert(f1.kind == scientific::F_SHAPE);
+    let r2 = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0, 2.0, 3.0] };
+    let y1, y2, y3, y4, f2 = scientific::qz(a, r2);
+    assert(f2.kind == scientific::F_SHAPE);
+    var big: f64[>..] = [];
+    var i: i64 = 0;
+    while i < 513 * 513 { big.push(0.0); i += 1; }
+    let bg = scientific::Arr { ndim: 2, shape: [513, 513], data: copy(big) };
+    let z1, z2, z3, z4, f3 = scientific::qz(bg, bg);
+    assert(f3.kind == scientific::F_LIMIT);
+    let nan = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0, 0.0 / 0.0, 3.0, 4.0] };
+    let w1, w2, w3, w4, f4 = scientific::qz(nan, a);
+    assert(f4.kind == scientific::F_VALUE);
+    let inf = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0, 1.0 / 0.0, 3.0, 4.0] };
+    let v1, v2, v3, v4, f5 = scientific::qz(a, inf);
+    assert(f5.kind == scientific::F_VALUE);
+    let a3 = scientific::Arr { ndim: 2, shape: [3, 3], data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0] };
+    let u1, u2, u3, u4, f6 = scientific::qz(a, a3);
+    assert(f6.kind == scientific::F_SHAPE);
+    let rect = scientific::Arr { ndim: 2, shape: [2, 3], data: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0] };
+    let t1, t2, t3, t4, f7 = scientific::qz(rect, rect);
+    assert(f7.kind == scientific::F_SHAPE);
+    var s2: f64[>..] = [];
+    var s3: f64[>..] = [];
+    i = 0;
+    while i < 8 { s2.push(1.0); i += 1; }
+    i = 0;
+    while i < 12 { s3.push(1.0); i += 1; }
+    let b2 = scientific::Arr { ndim: 3, shape: [2, 2, 2], data: copy(s2) };
+    let b3 = scientific::Arr { ndim: 3, shape: [3, 2, 2], data: copy(s3) };
+    let r1a, r1b, r1c, r1d, f8 = scientific::qz(b2, b3);
+    assert(f8.kind == scientific::F_SHAPE);
+    // Two valid batches whose broadcast holds too many matrices.
+    var l1: f64[>..] = [];
+    i = 0;
+    while i < 6000 * 9 { l1.push(1.0); i += 1; }
+    let la = scientific::Arr { ndim: 4, shape: [6000, 1, 3, 3], data: copy(l1) };
+    let lb = scientific::Arr { ndim: 4, shape: [1, 6000, 3, 3], data: copy(l1) };
+    let m1, m2, m3, m4, f9 = scientific::qz(la, lb);
+    assert(f9.kind == scientific::F_LIMIT);
+    // The iteration limit and the swap that fails.
+    let pa, pb = qt_pair(5, 31, 0);
+    var ca = copy(pa.data);
+    var cb = copy(pb.data);
+    var cq = scientific::qz_identity(5);
+    var cz = scientific::qz_identity(5);
+    scientific::qz_reduce(ca, cb, cq, cz, 5);
+    assert(!scientific::qz_iterate(ca, cb, cq, cz, 5, 1));
+    var sa: f64[>..] = [1.0, 2.0, 0.0, 1.0];
+    var sb: f64[>..] = [1.0, 0.0, 0.0, 1.0];
+    var sq = scientific::qz_identity(2);
+    var sz = scientific::qz_identity(2);
+    assert(!scientific::qz_swap(sa, sb, sq, sz, 2, 0, 1, 1));
+
+    // Entries near the limit of the number format. The call gives a
+    // fault, or all results are finite. A NaN never comes back.
+    var hd: f64[>..] = [];
+    i = 0;
+    while i < 9 { hd.push(1.0e300 * (1.0 + (i as f64) / 7.0)); i += 1; }
+    hd[1] = -1.0e300;
+    hd[5] = 3.0e300;
+    let h1 = scientific::Arr { ndim: 2, shape: [3, 3], data: copy(hd) };
+    let h2 = scientific::Arr { ndim: 2, shape: [3, 3], data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0] };
+    let ha, hb, hq, hz, hf = scientific::qz(h1, h2);
+    if hf.kind == scientific::F_NONE {
+        assert(qt_finite_all(ha.data) && qt_finite_all(hb.data) && qt_finite_all(hq.data) && qt_finite_all(hz.data));
+    } else {
+        assert(hf.kind == scientific::F_VALUE);
+    }
+    print("overflow case fault kind ", hf.kind, "\n");
+
+    // A pair whose entries are far below the entries of the other
+    // matrix. The swap of the two blocks cannot complete, so the call
+    // gives a fault of kind F_VALUE and never a wrong order.
+    let ta = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0e-300, 0.0, 0.0, -1.0e-300] };
+    let tb = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0, 0.0, 0.0, 1.0] };
+    let t1, t2, t3, t4, t5, t6, tf = scientific::ordqz(ta, tb, "lhp");
+    assert(tf.kind == scientific::F_VALUE);
+    print("tiny pair fault kind ", tf.kind, "\n");
+
+    // A pair whose complex form overflows. Each entry point gives a
+    // fault, or every emitted value is finite.
+    let ea = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0e200, 1.0e200, -1.0e200, 1.0e200] };
+    let eb = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0e200, 0.0, 0.0, 1.0e200] };
+    let c1, c2, c3, c4, cf = scientific::qz_complex(ea, eb);
+    assert(cf.kind == scientific::F_NONE && qt_finite_all(c1.data) && qt_finite_all(c2.data) && qt_finite_all(c3.data) && qt_finite_all(c4.data) || cf.kind == scientific::F_VALUE);
+    let o1, o2, oal, obe, o5, o6, of = scientific::ordqz(ea, eb, "lhp");
+    assert(of.kind == scientific::F_NONE && qt_finite_all(oal.data) && qt_finite_all(obe.data) && qt_finite_all(o1.data) && qt_finite_all(o2.data) || of.kind == scientific::F_VALUE);
+    let k1, k2, kal, kbe, k5, k6, kf = scientific::ordqz_complex(ea, eb, "lhp");
+    assert(kf.kind == scientific::F_NONE && qt_finite_all(kal.data) && qt_finite_all(kbe.data) && qt_finite_all(k1.data) && qt_finite_all(k2.data) || kf.kind == scientific::F_VALUE);
+}
+
+// test_qz_time decomposes a pair of side 512, the largest side that the
+// package accepts. The work grows with the cube of the side, so the test
+// shows that the call finishes.
+fn test_qz_time() {
+    let pa, pb = qt_pair(512, 7, 0);
+    let aa, bb, q, z, f = scientific::qz(pa, pb);
+    assert(f.kind == scientific::F_NONE);
+    assert(qt_orth(q.data, 0, 512) < 1.0e-10);
+    assert(qt_shape(aa.data, bb.data, 0, 512) < 1.0e-10);
+}
+
+
 fn main() {
     test_schur_funm_ldl();
     test_eigvalsh_larger();
@@ -8465,6 +9043,11 @@ fn main() {
     test_integrate();
     test_interpolate();
     test_signal();
+    test_qz();
+    test_ordqz();
+    test_qz_complex();
+    test_qz_hostile();
+    test_qz_time();
     print("ok\n");
     return;
 }
