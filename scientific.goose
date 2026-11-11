@@ -68,6 +68,8 @@ import array_toms748;
 import array_root;
 import array_global;
 import array_banded;
+import array_balance;
+import array_expmf;
 import array_qrtools;
 import array_bspline;
 import array_curfit;

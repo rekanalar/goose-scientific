@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.133.0";
+import scientific from "rekanalar/goose-scientific@v0.134.0";
 ```
 
 ## API
@@ -84,6 +84,7 @@ import scientific from "rekanalar/goose-scientific@v0.133.0";
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Tridiagonal, banded and RQ forms | `eigvalsh_tridiagonal`, `eigh_tridiagonal`, `cholesky_banded`, `cho_solve_banded`, `solveh_banded`, `rq` |
 | DFT matrix and QR product | `dft`, `qr_multiply` |
+| Balance of a matrix and the exponential | `matrix_balance`, `matrix_balance_separate`, `expm_frechet`, `expm_cond` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
@@ -496,6 +497,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `rq` follows LAPACK. The mode `r` holds back the orthogonal matrix.
 - `qr` follows the signs of LAPACK. The diagonal of R is negative for a turn, and the last column of a square matrix keeps its sign. This changes the signs of the factors against earlier releases.
 - `dft` gives the complex matrix with the scales none, `sqrtn` and `n`. A size above 4096 gives a limit fault.
+- `matrix_balance` follows LAPACK dgebal. It gives the balanced matrix and the matrix of the change. The second form gives the scales and the permutation apart.
+- `expm_frechet` uses the block matrix of the matrix and the direction. A side above 128 gives a limit fault.
+- `expm_cond` builds the form of the derivative, which holds the square of the side of the matrix. A side above 8 gives a limit fault.
 - `qr_multiply` takes the modes `left` and `right`. It holds no pivoting and no conjugate option.
   The mode `economic` drops the zero rows and the zero columns of the
   wide matrix.
