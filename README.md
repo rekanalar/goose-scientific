@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.151.0";
+import scientific from "rekanalar/goose-scientific@v0.152.0";
 ```
 
 ## API
@@ -79,6 +79,7 @@ import scientific from "rekanalar/goose-scientific@v0.151.0";
 | Filters of N dimensions | `correlate1d`, `convolve1d`, `uniform_filter1d`, `gaussian_filter1d`, `correlate_nd`, `convolve_nd`, `uniform_filter`, `gaussian_filter` |
 | Rank and derivative filters of N dimensions | `rank_filter`, `median_filter`, `percentile_filter`, `minimum_filter`, `maximum_filter`, the forms `rank_filter_fp`, `median_filter_fp`, `percentile_filter_fp`, `minimum_filter_fp` and `maximum_filter_fp`, `minimum_filter1d`, `maximum_filter1d`, `sobel`, `prewitt`, `laplace`, `gaussian_laplace`, `gaussian_gradient_magnitude` |
 | Labels, morphology and distances of N dimensions | `generate_binary_structure`, `iterate_structure`, `label`, `label_st`, `binary_erosion`, `binary_dilation`, `binary_opening`, `binary_closing`, the forms with the suffix `_st`, `binary_fill_holes`, `binary_fill_holes_st`, `distance_transform_edt`, `distance_transform_edt_indices` |
+| Filters that take a block | `generic_filter`, `generic_filter_fp`, `generic_laplace`, `generic_gradient_magnitude` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_jac`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
@@ -537,7 +538,21 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   needs less time for a large window. Their limit is 1.0e9.
 - `sobel`, `prewitt`, `laplace`, `gaussian_laplace` and
   `gaussian_gradient_magnitude` equal SciPy. They take one mode for all
-  axes. `generic_filter` and `generic_laplace` are not in the package.
+  axes.
+- The calls `generic_filter`, `generic_filter_fp`, `generic_laplace` and
+  `generic_gradient_magnitude` take a trailing block where SciPy takes a
+  Python function. Write `generic_filter(a, [3, 3]) { w => spread(w) }`.
+  The window holds the values of the nonzero places in row-major order.
+  The block of the other two calls takes the array, the axis, the mode and
+  the fill value. It gives the derivative along that axis. A block captures
+  the locals of the caller, so the extra arguments of SciPy have no use.
+- Goose cannot pass a block on to another generic call. So each of the four
+  calls holds its own loop. `generic_filter1d` is not in the package,
+  because SciPy fills an output line there.
+- The time of a block is the time of the caller. The package checks only
+  the count of values times the count of places, against the limit 2.0e8.
+  A block that gives NaN or an infinity passes that value on. A block of
+  the derivative calls that gives an array of another size is a fault.
 - The morphology calls take a connectivity, or with the suffix `_st` a
   structure array and a mask. An empty array stands for no mask. A value
   counts as true when it is not zero. The mask keeps the old value where it
@@ -1769,6 +1784,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   slow case. The cost limit holds for a footprint, for a size and for a
   size that lies by its product. A footprint with no nonzero place and a
   rank outside the window are faults.
+- The calls with a block check the array, the footprint, the origin and
+  the cost before the first block runs. A block that does not stop is the
+  risk of the caller. The package cannot interrupt it.
 - The morphology calls check the structure, the mask and the origin before
   the first value moves. The cost of the rounds has a limit. So a hostile
   size or a large count of iterations cannot hold the process for hours.
