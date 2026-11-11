@@ -71,10 +71,13 @@ fn householder_qr(a: f64[:], m: i64, n: i64, q: f64[>..]&, r: f64[>..]&) -> Faul
             rr += 1;
         }
         norm_w = mathshim::root(norm_w);
-        if norm_w > 0.0 {
-            // The sign keeps the value away from a loss of digits.
+        // A column of length one stays as it is, like in LAPACK.
+        if norm_w > 0.0 && k < m - 1 {
+            // The sign keeps the value away from a loss of digits. The
+            // sign follows LAPACK, which puts the negative sign on the
+            // diagonal of the factor.
             var alpha: f64 = -norm_w;
-            if w[k * n + k] > 0.0 { alpha = norm_w; }
+            if w[k * n + k] < 0.0 { alpha = norm_w; }
             var v: f64[>..] = [];
             rr = k;
             while rr < m {
