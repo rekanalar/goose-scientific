@@ -353,19 +353,17 @@ fn khatri_rao(a, b) -> Arr, Fault {
     return mat2(copy(d), ra * rb, c), no_fault();
 }
 
-// bandwidth gives the count of the non-zero diagonals below and above
-// the main one. A matrix of zeros gives zero and zero.
-fn bandwidth(a) -> i64, i64, Fault {
-    if a.ndim != 2 { return 0, 0, fault(F_SHAPE, "bandwidth", "the operand is not a matrix"); }
-    let r = a.shape[0];
-    let c = a.shape[1];
+// bw_scan gives the largest distance below and above the main diagonal
+// of the values that are not zero. The matrix of r rows and c columns
+// starts at the place off of the buffer d.
+fn bw_scan(d: f64[:], off: i64, r: i64, c: i64) -> i64, i64 {
     var lo: i64 = 0;
     var hi: i64 = 0;
     var i: i64 = 0;
     while i < r {
         var j: i64 = 0;
         while j < c {
-            if a.data[i * c + j] != 0.0 {
+            if d[off + i * c + j] != 0.0 {
                 if i - j > lo { lo = i - j; }
                 if j - i > hi { hi = j - i; }
             }
@@ -373,7 +371,46 @@ fn bandwidth(a) -> i64, i64, Fault {
         }
         i += 1;
     }
+    return lo, hi;
+}
+
+// bandwidth gives the count of the non-zero diagonals below and above
+// the main one. A matrix of zeros gives zero and zero.
+fn bandwidth(a) -> i64, i64, Fault {
+    if a.ndim != 2 { return 0, 0, fault(F_SHAPE, "bandwidth", "the operand is not a matrix"); }
+    let f = check_stack(a.ndim, a.shape, a.data.len, 1, "bandwidth");
+    if f.kind != F_NONE { return 0, 0, f; }
+    let lo, hi = bw_scan(a.data, 0, a.shape[0], a.shape[1]);
     return lo, hi, no_fault();
+}
+
+// bandwidth_stack gives the count of the non-zero diagonals below and
+// above the main one for every matrix of a stack. The last two
+// dimensions of the array give the matrix. The dimensions before them
+// give the batch. The result holds two arrays of the batch shape. A
+// matrix without a batch gives the shape [1].
+fn bandwidth_stack(a) -> Arr, Arr, Fault {
+    let f = check_stack(a.ndim, a.shape, a.data.len, 1, "bandwidth_stack");
+    if f.kind != F_NONE { return empty_arr(), empty_arr(), f; }
+    if a.ndim < 2 {
+        return empty_arr(), empty_arr(), fault(F_SHAPE, "bandwidth_stack", "the operand holds fewer than two dimensions");
+    }
+    let r = a.shape[a.ndim - 2];
+    let c = a.shape[a.ndim - 1];
+    var batch = shape_batch(a.shape, 2);
+    let n = batch_count(batch);
+    var lo: f64[>..] = [];
+    var hi: f64[>..] = [];
+    var s: i64 = 0;
+    while s < n {
+        let l, h = bw_scan(a.data, s * r * c, r, c);
+        lo.push(l as f64);
+        hi.push(h as f64);
+        s += 1;
+    }
+    // A matrix without a batch gives the shape [1].
+    if batch.len == 0 { batch.push(1); }
+    return arr_of(copy(lo), batch), arr_of(copy(hi), batch), no_fault();
 }
 
 // issymmetric tells whether a square matrix equals its transpose. A

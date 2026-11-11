@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.138.0";
+import scientific from "rekanalar/goose-scientific@v0.139.0";
 ```
 
 ## API
@@ -73,7 +73,7 @@ import scientific from "rekanalar/goose-scientific@v0.138.0";
 | Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
 | Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `einsum3`, `einsum_set`, `ESet`, `eset_new`, `eset_add`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `general_cosine`, `general_hamming`, `general_gaussian`, `taylor`, `chebwin`, `kaiser_bessel_derived`, `dpss`, `dpss_ratios`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
-| Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `companion`, `fiedler_companion`, `hadamard`, `pascal`, `invpascal`, `invhilbert`, `leslie`, `fiedler`, `helmert`, `convolution_matrix`, `khatri_rao`, `bandwidth`, `issymmetric`, `ishermitian`, `solve_toeplitz`, `solve_circulant`, `matmul_toeplitz`, `diagsvd`, `orthogonal_procrustes`, `subspace_angles`, `pinvh`, `null_space`, `orth`, `expm` |
+| Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `companion`, `fiedler_companion`, `hadamard`, `pascal`, `invpascal`, `invhilbert`, `leslie`, `fiedler`, `helmert`, `convolution_matrix`, `khatri_rao`, `bandwidth`, `bandwidth_stack`, `issymmetric`, `ishermitian`, `solve_toeplitz`, `solve_circulant`, `matmul_toeplitz`, `diagsvd`, `orthogonal_procrustes`, `subspace_angles`, `pinvh`, `null_space`, `orth`, `expm` |
 | Cosine, sine and real transforms | `dct`, `idct`, `dst`, `idst`, `dct_axis`, `idct_axis`, `dst_axis`, `idst_axis`, `dctn`, `idctn`, `dstn`, `idstn`, `hfft`, `ihfft`, `hfft_axis`, `ihfft_axis`, `next_fast_len`, `rfft2`, `rfftn`, `irfft2`, `irfftn`, `hfft2`, `ihfft2`, `hfftn`, `ihfftn`, `hfftn_ex`, `ihfftn_ex`, `fht`, `ifht`, `fhtoffset` |
 | Distances, nearest points and hulls | `cdist`, `pdist`, `squareform`, `distance`, `euclidean`, `sqeuclidean`, `cityblock`, `chebyshev`, `minkowski`, `cosine_distance`, `correlation`, `hamming_distance`, `jaccard`, `canberra`, `braycurtis`, `seuclidean`, `mahalanobis`, `dice`, `russellrao`, `rogerstanimoto`, `sokalsneath`, `sokalmichener`, `yule`, `kdtree`, `kdtree_query`, `kdtree_query_ball_point`, `convex_hull`, `delaunay`, `delaunay_simplices`, `delaunay_find_simplex`, `griddata` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
@@ -513,7 +513,19 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
   The count must hold at least one. The count must not hold more rows or more columns than the factors hold. A matrix of one column and the reduced form give the rows that stay as one vector of unit length.
 - `rsf2csf` follows scipy.linalg.rsf2csf. It takes the real Schur form and the change of the basis, and gives both in complex form. The method turns each 2 by 2 block with the root of larger imaginary part. LAPACK orders a conjugate pair the same way.
-- `cdf2rdf` follows scipy.linalg.cdf2rdf. It takes the complex eigenvalues as a vector and the eigenvectors as a matrix. It gives the real block form and the real eigenvectors. Conjugate pairs must lie side by side. An unpaired complex value is a fault.
+
+  Both operands take a stack of matrices. The last two dimensions give the matrix. The dimensions before them give the batch.
+
+  The batch of the two operands broadcasts. The result takes the batch of the broadcast.
+- `cdf2rdf` follows scipy.linalg.cdf2rdf. It takes the complex eigenvalues as a vector and the eigenvectors as a matrix. It gives the real block form and the real eigenvectors. An unpaired complex value is a fault.
+
+  The operands take a stack. The eigenvector array holds one dimension more than the eigenvalue array.
+
+  The complex values of a slice pair in the order they appear. The first pairs with the second. The third pairs with the fourth. A real value between two complex values does not break a pair. SciPy states that the caller must not interleave the pairs. The package does not check it.
+
+  The version before `v0.139.0` paired a complex value with the value beside it. That version gave a wrong block for a real value between two complex values.
+
+  The block form takes the batch of the eigenvalues. The eigenvectors take the broadcast of both batches. SciPy gives the same shapes.
 - `solve_continuous_are(a, b, q, r)` and `solve_discrete_are(a, b, q, r)` follow scipy.linalg. A call with six operands solves the generalized equation of SciPy with `e` and `s`. Pass an empty array for an operand you leave out. The result is the stabilizing solution, and it is symmetric.
 - SciPy solves both equations with the generalized Schur form of a pencil. The package has no QZ, so it removes `e` and `s` by an exact change of the variables. Then it uses the matrix sign function for the continuous equation and the doubling of the discrete equation. The stabilizing solution is unique, so the values agree with SciPy to about 1e-12 on well conditioned data.
 - `solve_discrete_are` needs a nonsingular `r`. SciPy also solves the discrete equation with a singular `r` when `r + b^T x b` is nonsingular. The package gives a fault for such data. This is an open gap.
@@ -526,9 +538,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   The mode `economic` drops the zero rows and the zero columns of the
   wide matrix.
   `issymmetric` and `ishermitian` take `atol` and `rtol`, and the
-  matrix with NaN is never symmetric. `bandwidth` takes one matrix and
-  gives the lower and the upper width. SciPy accepts stacks of
-  matrices, and the package does not.
+  matrix with NaN is never symmetric.
+
+  `bandwidth` takes one matrix and gives the lower and the upper
+  width. `bandwidth_stack` takes a stack and gives two arrays of the
+  counts, one for each matrix of the stack. The counts hold `f64`
+  values. A matrix without a batch gives an array of one element.
+  SciPy gives an integer for a matrix.
 - `block_diag` takes two arrays. Call it again for more. `toeplitz`
   and `hankel` take an empty second row for the default of SciPy.
 - `null_space` and `orth` give a basis whose signs may differ from
@@ -1436,7 +1452,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   SciPy takes the same check in its default. A value that is not
   finite would spread through every factor.
 - `rsf2csf` and `cdf2rdf` check the length of the buffer of every operand against its shape before they read a value. A shape that lies is a fault. They check the side against the limit, so a bad side cannot grow the memory.
+- `rsf2csf` and `cdf2rdf` check the count of elements of every array and of every result against the limit. They run the check on the broadcast of the two batches before they build any index. Two valid batches can broadcast to far more slices than each holds. A bad pair of shapes cannot exhaust the memory.
 - `rsf2csf` and `cdf2rdf` fault on a value that is not finite. SciPy takes the same check in its default. A value that is not finite would spread through every result.
+- `bandwidth` and `bandwidth_stack` check the length of the buffer of their operand against its shape before they read a value. A shape that lies is a fault, so a bad shape cannot read outside the buffer. `bandwidth_stack` also checks the count of elements against the limit.
 - `solve_continuous_are` and `solve_discrete_are` check every buffer against its shape before they read a value. They check the side against the limit. A shape that lies is a fault, and so is a value that is not finite.
 - Both equations check the residual of the answer in the original equation. SciPy does not. A data set with no stabilizing solution gives a fault here, and a wrong matrix in SciPy.
 - `qr_delete` checks the count of the removed lines against the

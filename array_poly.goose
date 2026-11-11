@@ -71,6 +71,14 @@ fn mat2(d: f64[>..], rows: i64, cols: i64) -> Arr {
     return Arr { ndim: 2, shape: s, data: d };
 }
 
+// arr_of gives a real array of a shape from a buffer.
+fn arr_of(d: f64[>..], shape: i64[:]) -> Arr {
+    var s: i64[..8] = [];
+    var i: i64 = 0;
+    while i < shape.len { s.push(shape[i]); i += 1; }
+    return Arr { ndim: shape.len, shape: s, data: d };
+}
+
 // vec1 builds a row from a buffer of elements.
 fn vec1(d: f64[>..]) -> Arr {
     var s: i64[..8] = [];

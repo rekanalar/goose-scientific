@@ -175,11 +175,28 @@ fn check_shape(shape: i64[:]) -> Fault {
         if shape[i] < 1 {
             return fault(F_VALUE, "shape", "a dimension holds a length below one");
         }
-        n *= shape[i];
-        if n > MAX_ELEMENTS {
+        // The count of elements must not overflow. The division holds
+        // the limit without a large product.
+        if n > MAX_ELEMENTS / shape[i] {
             return fault(F_LIMIT, "shape", "the array holds more elements than the limit");
         }
+        n *= shape[i];
         i += 1;
+    }
+    return no_fault();
+}
+
+// check_stack holds the rules of the shape of an operand. The buffer
+// holds width values for each element. The count of dimensions must
+// agree with the shape.
+fn check_stack(ndim: i64, shape: i64[:], len: i64, width: i64, tag: const u8[:]) -> Fault {
+    if ndim != shape.len {
+        return fault(F_SHAPE, tag, "an operand holds a count of dimensions that does not match its shape");
+    }
+    let f = check_shape(shape);
+    if f.kind != F_NONE { return fault(f.kind, tag, f.detail); }
+    if len != numel(shape) * width {
+        return fault(F_SHAPE, tag, "an operand holds a buffer that does not match its shape");
     }
     return no_fault();
 }

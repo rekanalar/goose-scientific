@@ -104,6 +104,26 @@ fn batch_strides(shape: i64[:], ax: i64, out: i64[>..]&) {
     return;
 }
 
+// shape_batch gives the batch of a shape. The batch holds the
+// dimensions before the last mdims dimensions of the shape.
+fn shape_batch(shape: i64[:], mdims: i64) -> i64[>..] {
+    var out: i64[>..] = [];
+    var i: i64 = 0;
+    while i < shape.len - mdims { out.push(shape[i]); i += 1; }
+    return out;
+}
+
+// shape_matrix gives the shape of a matrix with a batch. The batch
+// holds the dimensions before the two dimensions of the matrix.
+fn shape_matrix(batch: i64[:], rows: i64, cols: i64) -> i64[>..] {
+    var out: i64[>..] = [];
+    var i: i64 = 0;
+    while i < batch.len { out.push(batch[i]); i += 1; }
+    out.push(rows);
+    out.push(cols);
+    return out;
+}
+
 // at_or_one gives the length at a position, or 1 when the shape has no
 // position there. A position before the start is a caller error and
 // gives 1.
