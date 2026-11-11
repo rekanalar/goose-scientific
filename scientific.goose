@@ -77,6 +77,7 @@ import array_schur_cplx;
 import array_cossin;
 import array_qz;
 import array_qzc;
+import array_sketch;
 import array_bspline;
 import array_curfit;
 import array_delaunay;

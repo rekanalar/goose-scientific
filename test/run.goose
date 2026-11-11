@@ -7938,10 +7938,11 @@ fn test_riccati() {
     let b2, f6 = scientific::from_rows(2, 2, [1.0, 0.0, 2.0, 1.0]);
     let q2, f7 = scientific::from_rows(2, 2, [-4.0, -4.0, -4.0, 7.0]);
     let r2, f8 = scientific::from_rows(2, 2, [9.0, 3.0, 3.0, 1.0]);
-    // SciPy accepts this singular r for the discrete equation. The
-    // package needs the inverse of r, so it gives a fault.
+    // SciPy accepts this singular r for the discrete equation, and so
+    // does the package.
     x, f = scientific::solve_discrete_are(a2, b2, q2, r2);
-    assert(f.kind == scientific::F_VALUE);
+    assert(f.kind == scientific::F_NONE);
+    assert(all_close(x, [-4.0, -4.0, -4.0, 7.0], 1.0e-8));
     // Faults: a shape that does not fit, a matrix that is not
     // symmetric, a singular r, a value that is not finite.
     let bad, fbad = scientific::from_rows(2, 3, [1.0, 0.0, 0.0, 1.0, 1.0, 1.0]);
@@ -9878,6 +9879,706 @@ fn test_qz_time() {
 }
 
 
+// qt_pad_mode gives the name of a mode of the pad tests.
+fn qt_pad_mode(i: i64) -> const u8[:] {
+    if i == 0 { return "constant"; }
+    if i == 1 { return "linear_ramp"; }
+    if i == 2 { return "maximum"; }
+    if i == 3 { return "minimum"; }
+    if i == 4 { return "mean"; }
+    if i == 5 { return "median"; }
+    return "edge";
+}
+
+// qt_pad_edge_value gives the value that a statistic mode takes from
+// the first n values of a line (the start) or from the last n values.
+// The test sorts a copy and reads the middle, so it shares no code with
+// the package.
+fn qt_pad_edge_value(line: f64[:], n: i64, atstart: bool, mode: const u8[:]) -> f64 {
+    var v: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n {
+        if atstart { v.push(line[i]); } else { v.push(line[line.len - n + i]); }
+        i += 1;
+    }
+    if mode == "mean" {
+        var t: f64 = 0.0;
+        i = 0;
+        while i < n { t += v[i]; i += 1; }
+        return t / n;
+    }
+    var a = 0;
+    while a < n {
+        var b = a + 1;
+        while b < n {
+            if v[b] < v[a] { let t = v[a]; v[a] = v[b]; v[b] = t; }
+            b += 1;
+        }
+        a += 1;
+    }
+    if mode == "maximum" { return v[n - 1]; }
+    if mode == "minimum" { return v[0]; }
+    if n % 2 == 1 { return v[n / 2]; }
+    return 0.5 * (v[n / 2 - 1] + v[n / 2]);
+}
+
+// qt_pad_line pads one line by the rules of NumPy, written out by
+// position.
+fn qt_pad_line(line: f64[:], before: i64, after: i64, mode: const u8[:], lb: i64, la: i64, eb: f64, ea: f64, cb: f64, ca: f64) -> f64[>..] {
+    var out: f64[>..] = [];
+    let w = line.len;
+    var k: i64 = 0;
+    while k < before {
+        // The place k counts from the outer edge.
+        if mode == "constant" { out.push(cb); }
+        else if mode == "empty" { out.push(0.0); }
+        else if mode == "edge" { out.push(line[0]); }
+        else if mode == "linear_ramp" { out.push(eb + (line[0] - eb) * k / before); }
+        else {
+            var n = lb;
+            if n < 1 || n > w { n = w; }
+            out.push(qt_pad_edge_value(line, n, true, mode));
+        }
+        k += 1;
+    }
+    var i: i64 = 0;
+    while i < w { out.push(line[i]); i += 1; }
+    k = 0;
+    while k < after {
+        // The place k counts from the line outward. The ramp holds its
+        // values from the end value inward, so the place k reads the
+        // ramp from the other end.
+        if mode == "constant" { out.push(ca); }
+        else if mode == "empty" { out.push(0.0); }
+        else if mode == "edge" { out.push(line[w - 1]); }
+        else if mode == "linear_ramp" { out.push(ea + (line[w - 1] - ea) * (after - 1 - k) / after); }
+        else {
+            var n = la;
+            if n < 1 || n > w { n = w; }
+            out.push(qt_pad_edge_value(line, n, false, mode));
+        }
+        k += 1;
+    }
+    return out;
+}
+
+// qt_pad2 pads the matrix x of r rows and c columns. The axis 0 comes
+// first, then the axis 1. The lists hold one pair for each axis.
+fn qt_pad2(x: f64[:], r: i64, c: i64, b: i64[:], a: i64[:], mode: const u8[:], sl: i64[:], ev: f64[:], cv: f64[:]) -> f64[>..] {
+    let r2 = r + b[0] + a[0];
+    var mid: f64[>..] = [];
+    var i: i64 = 0;
+    while i < r2 * c { mid.push(0.0); i += 1; }
+    var j: i64 = 0;
+    while j < c {
+        var col: f64[>..] = [];
+        i = 0;
+        while i < r { col.push(x[i * c + j]); i += 1; }
+        let p = qt_pad_line(col, b[0], a[0], mode, sl[0], sl[1], ev[0], ev[1], cv[0], cv[1]);
+        i = 0;
+        while i < r2 { mid[i * c + j] = p[i]; i += 1; }
+        j += 1;
+    }
+    var out: f64[>..] = [];
+    i = 0;
+    while i < r2 {
+        var row: f64[>..] = [];
+        j = 0;
+        while j < c { row.push(mid[i * c + j]); j += 1; }
+        let p = qt_pad_line(row, b[1], a[1], mode, sl[2], sl[3], ev[2], ev[3], cv[2], cv[3]);
+        j = 0;
+        while j < p.len { out.push(p[j]); j += 1; }
+        i += 1;
+    }
+    return out;
+}
+
+// test_pad_empty checks that the mode empty gives zero in the pad.
+fn test_pad_empty() {
+    var g = scientific::default_rng(94);
+    var t: i64 = 0;
+    while t < 20 {
+        let r, f1 = scientific::integers(g, 1, 4);
+        let c, f2 = scientific::integers(g, 1, 5);
+        var d: f64[>..] = [];
+        var i: i64 = 0;
+        while i < r * c { d.push(1.0 + scientific::random_uniform(g)); i += 1; }
+        let x = mx(r, c, d);
+        let b0, f3 = scientific::integers(g, 0, 3);
+        let a0, f4 = scientific::integers(g, 0, 3);
+        let b1, f5 = scientific::integers(g, 0, 3);
+        let a1, f6 = scientific::integers(g, 0, 3);
+        let p, f = scientific::pad_modes(x, [b0, b1], [a0, a1], "empty");
+        assert(f.kind == scientific::F_NONE);
+        assert(p.shape[0] == r + b0 + a0 && p.shape[1] == c + b1 + a1);
+        let w = c + b1 + a1;
+        var ok = true;
+        var y: i64 = 0;
+        while y < p.shape[0] {
+            var z: i64 = 0;
+            while z < w {
+                let inside = y >= b0 && y < b0 + r && z >= b1 && z < b1 + c;
+                if inside { if p.data[y * w + z] != x.data[(y - b0) * c + (z - b1)] { ok = false; } }
+                else if p.data[y * w + z] != 0.0 { ok = false; }
+                z += 1;
+            }
+            y += 1;
+        }
+        assert(ok);
+        t += 1;
+    }
+    return;
+}
+
+// test_pad_axes pins the lists of values for each axis against NumPy and
+// compares random cases with the line by line construction.
+fn test_pad_axes() {
+    let a = mx(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let sl = [1, 2, 2, 3];
+    let r1, f1 = scientific::pad_axes(a, [1, 2], [1, 1], "maximum", sl);
+    assert(f1.kind == scientific::F_NONE && r1.shape[0] == 4 && r1.shape[1] == 6);
+    assert(all_near(r1, [2.0, 2.0, 1.0, 2.0, 3.0, 3.0, 2.0, 2.0, 1.0, 2.0, 3.0, 3.0, 5.0, 5.0, 4.0, 5.0, 6.0, 6.0, 5.0, 5.0, 4.0, 5.0, 6.0, 6.0]));
+    let r2, f2 = scientific::pad_axes(a, [1, 2], [1, 1], "mean", sl);
+    assert(f2.kind == scientific::F_NONE);
+    assert(all_near(r2, [1.5, 1.5, 1.0, 2.0, 3.0, 2.0, 1.5, 1.5, 1.0, 2.0, 3.0, 2.0, 4.5, 4.5, 4.0, 5.0, 6.0, 5.0, 3.0, 3.0, 2.5, 3.5, 4.5, 3.5]));
+    let r3, f3 = scientific::pad_axes(a, [1, 2], [1, 1], "minimum", sl);
+    assert(f3.kind == scientific::F_NONE);
+    assert(all_near(r3, [1.0, 1.0, 1.0, 2.0, 3.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0, 1.0, 4.0, 4.0, 4.0, 5.0, 6.0, 4.0, 1.0, 1.0, 1.0, 2.0, 3.0, 1.0]));
+    let r4, f4 = scientific::pad_axes(a, [1, 2], [1, 1], "median", sl);
+    assert(f4.kind == scientific::F_NONE);
+    assert(all_near(r4, [1.5, 1.5, 1.0, 2.0, 3.0, 2.0, 1.5, 1.5, 1.0, 2.0, 3.0, 2.0, 4.5, 4.5, 4.0, 5.0, 6.0, 5.0, 3.0, 3.0, 2.5, 3.5, 4.5, 3.5]));
+    let r5, f5 = scientific::pad_axes(a, [1, 2], [1, 1], "linear_ramp", [], [5.0, 6.0, 7.0, 8.0]);
+    assert(f5.kind == scientific::F_NONE);
+    assert(all_near(r5, [7.0, 6.0, 5.0, 5.0, 5.0, 8.0, 7.0, 4.0, 1.0, 2.0, 3.0, 8.0, 7.0, 5.5, 4.0, 5.0, 6.0, 8.0, 7.0, 6.5, 6.0, 6.0, 6.0, 8.0]));
+    let r6, f6 = scientific::pad_axes(a, [1, 1], [1, 2], "constant", [], [], [1.0, 2.0, 3.0, 4.0]);
+    assert(f6.kind == scientific::F_NONE);
+    assert(all_near(r6, [3.0, 1.0, 1.0, 1.0, 4.0, 4.0, 3.0, 1.0, 2.0, 3.0, 4.0, 4.0, 3.0, 4.0, 5.0, 6.0, 4.0, 4.0, 3.0, 2.0, 2.0, 2.0, 4.0, 4.0]));
+    // A constant of NaN passes into the pad. An end value of infinity gives
+    // NaN in the ramp, as NumPy does.
+    let r7, f7 = scientific::pad_axes(a, [1, 1], [1, 1], "constant", [], [], [0.0 / 0.0]);
+    assert(f7.kind == scientific::F_NONE && r7.data[0] != r7.data[0] && r7.data[5] != r7.data[5] && r7.data[6] == 1.0);
+    let inf = 1.0 / 0.0;
+    let r8, f8 = scientific::pad_axes(a, [1, 0], [0, 0], "linear_ramp", [], [inf]);
+    assert(f8.kind == scientific::F_NONE && r8.shape[0] == 3 && r8.data[0] != r8.data[0]);
+
+    // The one value and the pair forms equal the call of pad_modes.
+    let r9, f9 = scientific::pad_axes(a, [1, 2], [2, 1], "linear_ramp", [], [4.0]);
+    let r10, f10 = scientific::pad_modes(a, [1, 2], [2, 1], "linear_ramp", 4.0);
+    assert(f9.kind == scientific::F_NONE && f10.kind == scientific::F_NONE && all_near(r9, r10.data));
+    let r11, f11 = scientific::pad_axes(a, [1, 2], [2, 1], "linear_ramp", [], [4.0, 4.0]);
+    let r12, f12 = scientific::pad_axes(a, [1, 2], [2, 1], "linear_ramp", [], [4.0, 4.0, 4.0, 4.0]);
+    assert(f11.kind == scientific::F_NONE && f12.kind == scientific::F_NONE && all_near(r11, r10.data) && all_near(r12, r10.data));
+    let r13, f13 = scientific::pad_axes(a, [1, 2], [2, 1], "mean", [2]);
+    let r14, f14 = scientific::pad_modes(a, [1, 2], [2, 1], "mean", 0.0, 2);
+    assert(f13.kind == scientific::F_NONE && f14.kind == scientific::F_NONE && all_near(r13, r14.data));
+    // A pair of the vector form: the line of one axis.
+    let v = av([1.0, 2.0, 3.0]);
+    let r15, f15 = scientific::pad_axes(v, [2], [1], "constant", [], [], [5.0, 6.0]);
+    assert(f15.kind == scientific::F_NONE && all_near(r15, [5.0, 5.0, 1.0, 2.0, 3.0, 6.0]));
+    // A width of one pads with its one element in the mirror modes.
+    let one = av([7.0]);
+    let r16, f16 = scientific::pad_axes(one, [2], [2], "reflect");
+    assert(f16.kind == scientific::F_NONE && all_near(r16, [7.0, 7.0, 7.0, 7.0, 7.0]));
+    // A length of one with the median gives the nearest value.
+    let r17, f17 = scientific::pad_axes(v, [1], [1], "median", [1]);
+    assert(f17.kind == scientific::F_NONE && all_near(r17, [1.0, 1.0, 2.0, 3.0, 3.0]));
+    // A count of zero on every side copies the input in every mode.
+    var m: i64 = 0;
+    while m < 7 {
+        let rz, fz = scientific::pad_axes(a, [0, 0], [0, 0], qt_pad_mode(m), [1], [3.0], [4.0]);
+        assert(fz.kind == scientific::F_NONE && all_near(rz, a.data));
+        m += 1;
+    }
+
+    // Random inputs against the line by line construction.
+    var g = scientific::default_rng(294);
+    var t: i64 = 0;
+    while t < 50 {
+        var d: f64[>..] = [];
+        var i: i64 = 0;
+        while i < 12 { d.push(10.0 * scientific::random_uniform(g) - 5.0); i += 1; }
+        let x = mx(3, 4, d);
+        var cnt: i64[>..] = [];
+        var lens: i64[>..] = [];
+        var ends: f64[>..] = [];
+        var cons: f64[>..] = [];
+        i = 0;
+        while i < 4 {
+            let c0, ff = scientific::integers(g, 0, 4);
+            cnt.push(c0);
+            let l0, fl = scientific::integers(g, 1, 6);
+            lens.push(l0);
+            ends.push(10.0 * scientific::random_uniform(g) - 5.0);
+            cons.push(10.0 * scientific::random_uniform(g) - 5.0);
+            i += 1;
+        }
+        let mi, fm = scientific::integers(g, 0, 7);
+        let mode = qt_pad_mode(mi);
+        let b = [cnt[0], cnt[2]];
+        let af = [cnt[1], cnt[3]];
+        let p, f = scientific::pad_axes(x, b, af, mode, lens, ends, cons);
+        assert(f.kind == scientific::F_NONE);
+        let want = qt_pad2(x.data, 3, 4, b, af, mode, lens, ends, cons);
+        assert(p.shape[0] == 3 + cnt[0] + cnt[1] && p.shape[1] == 4 + cnt[2] + cnt[3]);
+        assert(all_near(p, want));
+        t += 1;
+    }
+    return;
+}
+
+// test_pad_hostile covers the faults of the pad.
+fn test_pad_hostile() {
+    let a = mx(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    var bad = scientific::Arr { ndim: 3, shape: [2, 3], data: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0] };
+    let p1, f1 = scientific::pad_axes(bad, [1, 1, 1], [1, 1, 1]);
+    assert(f1.kind == scientific::F_SHAPE);
+    let sh = scientific::Arr { ndim: 2, shape: [2, 3], data: [1.0, 2.0, 3.0, 4.0, 5.0] };
+    let p2, f2 = scientific::pad_axes(sh, [1, 1], [1, 1]);
+    assert(f2.kind == scientific::F_SHAPE);
+    let p3, f3 = scientific::pad_axes(a, [1, 1], [1, 1], "mean", [1, 2, 3]);
+    assert(f3.kind == scientific::F_SHAPE);
+    let p4, f4 = scientific::pad_axes(a, [1, 1], [1, 1], "linear_ramp", [], [1.0, 2.0, 3.0]);
+    assert(f4.kind == scientific::F_SHAPE);
+    let p5, f5 = scientific::pad_axes(a, [1], [1, 1]);
+    assert(f5.kind == scientific::F_SHAPE);
+    let p6, f6 = scientific::pad_axes(a, [-1, 1], [1, 1]);
+    assert(f6.kind == scientific::F_VALUE);
+    let p7, f7 = scientific::pad_axes(a, [1, 1], [1, 1], "mean", [0]);
+    assert(f7.kind == scientific::F_VALUE);
+    let p8, f8 = scientific::pad_axes(a, [1, 1], [1, 1], "mean", [2, -1]);
+    assert(f8.kind == scientific::F_VALUE);
+    let p9, f9 = scientific::pad_axes(a, [1, 1], [1, 1], "no such mode");
+    assert(f9.kind == scientific::F_VALUE);
+    let p10, f10 = scientific::pad_axes(a, [268435456, 0], [0, 0]);
+    assert(f10.kind == scientific::F_LIMIT);
+    // A count near the largest integer must not overflow the size test.
+    let big = 9223372036854775807;
+    let p11, f11 = scientific::pad_axes(a, [big, 0], [0, 0]);
+    assert(f11.kind == scientific::F_LIMIT);
+    let p12, f12 = scientific::pad_axes(a, [0, 0], [big, big], "edge");
+    assert(f12.kind == scientific::F_LIMIT);
+    let p13, f13 = scientific::pad_modes(a, [big - 1, 0], [2, 0]);
+    assert(f13.kind == scientific::F_LIMIT);
+    // A length above the width clips and succeeds.
+    let p14, f14 = scientific::pad_axes(a, [1, 1], [1, 1], "mean", [50]);
+    assert(f14.kind == scientific::F_NONE);
+    // An input with a NaN passes the NaN into the pad.
+    let nn = mx(1, 2, [0.0 / 0.0, 2.0]);
+    let p15, f15 = scientific::pad_axes(nn, [0, 1], [0, 0], "edge");
+    assert(f15.kind == scientific::F_NONE && p15.data[0] != p15.data[0]);
+    // The call of pad_modes with the length zero takes the whole line.
+    let p16, f16 = scientific::pad_modes(a, [0, 1], [0, 1], "mean", 0.0, 0);
+    assert(f16.kind == scientific::F_NONE);
+    return;
+}
+
+// qt_sketch_rebuild builds the sketch of x (n rows, d columns) with a
+// second generator of the same seed. It draws all hashes, then all
+// signs, as the call documents.
+fn qt_sketch_rebuild(x: f64[:], n: i64, d: i64, s: i64, seed: i64) -> f64[>..] {
+    var g = scientific::default_rng(seed);
+    var h: i64[>..] = [];
+    var i: i64 = 0;
+    while i < n {
+        let v, f = scientific::integers(g, 0, s);
+        h.push(v);
+        i += 1;
+    }
+    var out: f64[>..] = [];
+    i = 0;
+    while i < s * d { out.push(0.0); i += 1; }
+    i = 0;
+    while i < n {
+        let b, f = scientific::integers(g, 0, 2);
+        var sg: f64 = -1.0;
+        if b == 1 { sg = 1.0; }
+        var j: i64 = 0;
+        while j < d { out[h[i] * d + j] += sg * x[i * d + j]; j += 1; }
+        i += 1;
+    }
+    return out;
+}
+
+// qt_norm gives the Euclidean norm of a buffer.
+fn qt_norm(v: f64[:]) -> f64 {
+    var t: f64 = 0.0;
+    var i: i64 = 0;
+    while i < v.len { t += v[i] * v[i]; i += 1; }
+    return mathshim_sqrt(t);
+}
+
+// test_sketch checks the structure of the sketch and its norms.
+fn test_sketch() {
+    var g = scientific::default_rng(77);
+    var t: i64 = 0;
+    while t < 20 {
+        let n, f1 = scientific::integers(g, 1, 30);
+        let d, f2 = scientific::integers(g, 1, 6);
+        let s, f3 = scientific::integers(g, 1, 12);
+        var dat: f64[>..] = [];
+        var i: i64 = 0;
+        while i < n * d { dat.push(10.0 * scientific::random_uniform(g) - 5.0); i += 1; }
+        let x = mx(n, d, dat);
+        let y, f = scientific::clarkson_woodruff_transform(x, s, 5 + t);
+        assert(f.kind == scientific::F_NONE && y.ndim == 2 && y.shape[0] == s && y.shape[1] == d);
+        let want = qt_sketch_rebuild(x.data, n, d, s, 5 + t);
+        assert(all_near(y, want));
+        let y2, f4 = scientific::clarkson_woodruff_transform(x, s, 5 + t);
+        assert(f4.kind == scientific::F_NONE && all_near(y2, y.data));
+        t += 1;
+    }
+    // Another seed gives another sketch.
+    var big: f64[>..] = [];
+    var i: i64 = 0;
+    while i < 40 * 3 { big.push(1.0 + i); i += 1; }
+    let bx = mx(40, 3, big);
+    let u1, g1 = scientific::clarkson_woodruff_transform(bx, 8, 1);
+    let u2, g2 = scientific::clarkson_woodruff_transform(bx, 8, 2);
+    assert(g1.kind == scientific::F_NONE && g2.kind == scientific::F_NONE && !all_near(u1, u2.data));
+    // The norm ratio of a sketch with many rows stays near one.
+    var rows: f64[>..] = [];
+    i = 0;
+    while i < 400 * 5 { rows.push(scientific::random_uniform(g) - 0.5); i += 1; }
+    let a = mx(400, 5, rows);
+    let sa, fs = scientific::clarkson_woodruff_transform(a, 100, 3);
+    assert(fs.kind == scientific::F_NONE);
+    var k: i64 = 0;
+    while k < 20 {
+        var xv: f64[>..] = [];
+        i = 0;
+        while i < 5 { xv.push(scientific::random_uniform(g) - 0.5); i += 1; }
+        var ax: f64[>..] = [];
+        i = 0;
+        while i < 400 {
+            var q: f64 = 0.0;
+            var j: i64 = 0;
+            while j < 5 { q += a.data[i * 5 + j] * xv[j]; j += 1; }
+            ax.push(q);
+            i += 1;
+        }
+        var sx: f64[>..] = [];
+        i = 0;
+        while i < 100 {
+            var q: f64 = 0.0;
+            var j: i64 = 0;
+            while j < 5 { q += sa.data[i * 5 + j] * xv[j]; j += 1; }
+            sx.push(q);
+            i += 1;
+        }
+        let ratio = qt_norm(sx) / qt_norm(ax);
+        assert(ratio > 0.5 && ratio < 1.5);
+        k += 1;
+    }
+    // A size of one sums all rows with their signs.
+    let one, fo = scientific::clarkson_woodruff_transform(bx, 1, 4);
+    assert(fo.kind == scientific::F_NONE && one.shape[0] == 1 && all_near(one, qt_sketch_rebuild(bx.data, 40, 3, 1, 4)));
+    // A size above the count of rows is valid. A matrix of one row too.
+    let many, fm = scientific::clarkson_woodruff_transform(mx(2, 2, [1.0, 2.0, 3.0, 4.0]), 9, 4);
+    assert(fm.kind == scientific::F_NONE && many.shape[0] == 9 && many.data.len == 18);
+    let row1, fr = scientific::clarkson_woodruff_transform(mx(1, 3, [1.0, -2.0, 3.0]), 4, 4);
+    assert(fr.kind == scientific::F_NONE && row1.data.len == 12);
+    var nz: i64 = 0;
+    i = 0;
+    while i < 12 { if row1.data[i] != 0.0 { nz += 1; } i += 1; }
+    assert(nz == 3);
+    // A zero matrix gives a zero sketch.
+    let zr, fz = scientific::clarkson_woodruff_transform(mx(3, 2, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]), 2, 1);
+    assert(fz.kind == scientific::F_NONE && qt_maxabs(zr.data) == 0.0);
+    return;
+}
+
+// test_sketch_hostile covers the faults of the sketch.
+fn test_sketch_hostile() {
+    let a = mx(3, 2, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let lie = scientific::Arr { ndim: 3, shape: [3, 2], data: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0] };
+    let r1, f1 = scientific::clarkson_woodruff_transform(lie, 2, 1);
+    assert(f1.kind == scientific::F_SHAPE);
+    let r2, f2 = scientific::clarkson_woodruff_transform(av([1.0, 2.0, 3.0]), 2, 1);
+    assert(f2.kind == scientific::F_SHAPE);
+    let sh = scientific::Arr { ndim: 2, shape: [3, 2], data: [1.0, 2.0, 3.0] };
+    let r3, f3 = scientific::clarkson_woodruff_transform(sh, 2, 1);
+    assert(f3.kind == scientific::F_SHAPE);
+    let r4, f4 = scientific::clarkson_woodruff_transform(a, 0, 1);
+    assert(f4.kind == scientific::F_VALUE);
+    let r5, f5 = scientific::clarkson_woodruff_transform(a, -3, 1);
+    assert(f5.kind == scientific::F_VALUE);
+    let r6, f6 = scientific::clarkson_woodruff_transform(a, 134217729, 1);
+    assert(f6.kind == scientific::F_LIMIT);
+    let r7, f7 = scientific::clarkson_woodruff_transform(a, 9223372036854775807, 1);
+    assert(f7.kind == scientific::F_LIMIT);
+    let r8, f8 = scientific::clarkson_woodruff_transform(mx(1, 2, [1.0, 0.0 / 0.0]), 2, 1);
+    assert(f8.kind == scientific::F_VALUE);
+    let r9, f9 = scientific::clarkson_woodruff_transform(mx(1, 2, [1.0, 1.0 / 0.0]), 2, 1);
+    assert(f9.kind == scientific::F_VALUE);
+    return;
+}
+
+// qt_mm gives the product of a matrix of ar rows and ac columns with a
+// matrix of ac rows and bc columns.
+fn qt_mm(a: f64[:], ar: i64, ac: i64, b: f64[:], bc: i64) -> f64[>..] {
+    var out: f64[>..] = [];
+    var i: i64 = 0;
+    while i < ar {
+        var j: i64 = 0;
+        while j < bc {
+            var t: f64 = 0.0;
+            var k: i64 = 0;
+            while k < ac { t += a[i * ac + k] * b[k * bc + j]; k += 1; }
+            out.push(t);
+            j += 1;
+        }
+        i += 1;
+    }
+    return out;
+}
+
+// qt_tr gives the transpose of a matrix of r rows and c columns.
+fn qt_tr(a: f64[:], r: i64, c: i64) -> f64[>..] {
+    var out: f64[>..] = [];
+    var j: i64 = 0;
+    while j < c {
+        var i: i64 = 0;
+        while i < r { out.push(a[i * c + j]); i += 1; }
+        j += 1;
+    }
+    return out;
+}
+
+// qt_inv gives the inverse of a square matrix by Gauss-Jordan.
+fn qt_inv(a: f64[:], n: i64) -> f64[>..] {
+    var w: f64[>..] = [];
+    var inv: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n * n { w.push(a[i]); inv.push(0.0); i += 1; }
+    i = 0;
+    while i < n { inv[i * n + i] = 1.0; i += 1; }
+    var c: i64 = 0;
+    while c < n {
+        var p = c;
+        var r: i64 = c + 1;
+        while r < n {
+            if mathshim_abs(w[r * n + c]) > mathshim_abs(w[p * n + c]) { p = r; }
+            r += 1;
+        }
+        var k: i64 = 0;
+        while k < n {
+            let t1 = w[c * n + k]; w[c * n + k] = w[p * n + k]; w[p * n + k] = t1;
+            let t2 = inv[c * n + k]; inv[c * n + k] = inv[p * n + k]; inv[p * n + k] = t2;
+            k += 1;
+        }
+        let d = w[c * n + c];
+        k = 0;
+        while k < n { w[c * n + k] = w[c * n + k] / d; inv[c * n + k] = inv[c * n + k] / d; k += 1; }
+        r = 0;
+        while r < n {
+            if r != c {
+                let f = w[r * n + c];
+                k = 0;
+                while k < n {
+                    w[r * n + k] -= f * w[c * n + k];
+                    inv[r * n + k] -= f * inv[c * n + k];
+                    k += 1;
+                }
+            }
+            r += 1;
+        }
+        c += 1;
+    }
+    return inv;
+}
+
+// qt_dare_resid gives the largest absolute residual of the discrete
+// equation at x, relative to the largest term. The equation is
+// a^T x a - e^T x e - (a^T x b + s) (r + b^T x b)^-1 (b^T x a + s^T) + q.
+// The matrices e and s are the identity and zero when they hold no value.
+fn qt_dare_resid(a: f64[:], b: f64[:], q: f64[:], r: f64[:], x: f64[:], e: f64[:], s: f64[:], n: i64, m: i64) -> f64 {
+    let at = qt_tr(a, n, n);
+    let xa = qt_mm(x, n, n, a, n);
+    let t1 = qt_mm(at, n, n, xa, n);
+    var t2: f64[>..] = [];
+    if e.len > 0 { t2 = qt_mm(qt_tr(e, n, n), n, n, qt_mm(x, n, n, e, n), n); } else { var k: i64 = 0; while k < n * n { t2.push(x[k]); k += 1; } }
+    var cross = qt_mm(at, n, n, qt_mm(x, n, n, b, m), m);
+    if s.len > 0 { var i: i64 = 0; while i < n * m { cross[i] += s[i]; i += 1; } }
+    var mid = qt_mm(qt_tr(b, n, m), m, n, qt_mm(x, n, n, b, m), m);
+    var i: i64 = 0;
+    while i < m * m { mid[i] += r[i]; i += 1; }
+    let t3 = qt_mm(qt_mm(cross, n, m, qt_inv(mid, m), m), n, m, qt_tr(cross, n, m), n);
+    var worst: f64 = 0.0;
+    var scale: f64 = 1.0;
+    i = 0;
+    while i < n * n {
+        var xe: f64 = x[i];
+        if e.len > 0 { xe = t2[i]; }
+        let v = t1[i] - xe - t3[i] + q[i];
+        if mathshim_abs(v) > worst { worst = mathshim_abs(v); }
+        if mathshim_abs(t1[i]) > scale { scale = mathshim_abs(t1[i]); }
+        if mathshim_abs(t3[i]) > scale { scale = mathshim_abs(t3[i]); }
+        i += 1;
+    }
+    return worst / scale;
+}
+
+// test_dare_singular pins the discrete equation with a singular r
+// against SciPy and checks the residual of each answer.
+fn test_dare_singular() {
+    let a = mx(2, 2, [0.9, 0.5, 0.0, 0.7]);
+    let b = mx(2, 2, [1.0, 0.0, 0.0, 1.0]);
+    let q = mx(2, 2, [1.0, 0.0, 0.0, 1.0]);
+    let none = scientific::empty_arr();
+    var v: f64[>..] = [0.1, 0.7];
+    let r1 = mx(2, 2, [1.0, 1.0, 1.0, 1.0]);
+    let r2 = mx(2, 2, [1.0, 0.0, 0.0, 0.0]);
+    let r3 = mx(2, 2, [0.0, 0.0, 0.0, 0.0]);
+    let r4 = mx(2, 2, [v[0] * v[0], v[0] * v[1], v[1] * v[0], v[1] * v[1]]);
+    let x1, f1 = scientific::solve_discrete_are(a, b, q, r1);
+    assert(f1.kind == scientific::F_NONE);
+    assert(all_close(x1, [1.4153846153846148, 0.5538461538461535, 0.5538461538461535, 1.7384615384615383], 1.0e-8));
+    let x2, f2 = scientific::solve_discrete_are(a, b, q, r2);
+    assert(f2.kind == scientific::F_NONE);
+    assert(all_close(x2, [1.4744345835777424, 0.26357476865430124, 0.26357476865430124, 1.1464304270301675], 1.0e-8));
+    let x3, f3 = scientific::solve_discrete_are(a, b, q, r3);
+    assert(f3.kind == scientific::F_NONE);
+    assert(all_close(x3, [1.0, 0.0, 0.0, 1.0], 1.0e-8));
+    // A rank one r of inexact entries has a pivot of rounding size. The
+    // call must still give the solution.
+    let x4, f4 = scientific::solve_discrete_are(a, b, q, r4);
+    assert(f4.kind == scientific::F_NONE);
+    assert(all_close(x4, [1.0057343920863673, 0.034406352518204605, 0.034406352518204605, 1.2064381151092276], 1.0e-8));
+    assert(qt_dare_resid(a.data, b.data, q.data, r1.data, x1.data, [], [], 2, 2) < 1.0e-8);
+    assert(qt_dare_resid(a.data, b.data, q.data, r2.data, x2.data, [], [], 2, 2) < 1.0e-8);
+    assert(qt_dare_resid(a.data, b.data, q.data, r3.data, x3.data, [], [], 2, 2) < 1.0e-8);
+    assert(qt_dare_resid(a.data, b.data, q.data, r4.data, x4.data, [], [], 2, 2) < 1.0e-8);
+    assert(qt_maxabs([x1.data[1] - x1.data[2], x4.data[1] - x4.data[2]]) < 1.0e-12);
+    // The 3 by 3 case with two inputs.
+    let a3 = mx(3, 3, [0.9, 0.5, 0.1, 0.0, 0.7, 0.2, 0.1, 0.0, 0.6]);
+    let b3 = mx(3, 2, [1.0, 0.0, 0.0, 1.0, 1.0, 1.0]);
+    let q3 = mx(3, 3, [1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0]);
+    let x5, f5 = scientific::solve_discrete_are(a3, b3, q3, r1);
+    assert(f5.kind == scientific::F_NONE);
+    assert(all_close(x5, [1.9116803444927128, 1.3211806703351416, -0.14493578196807358, 1.3211806703351416, 3.930864617356723, -0.27909060175522615, -0.14493578196807358, -0.27909060175522615, 3.316520365651271], 1.0e-8));
+    assert(qt_dare_resid(a3.data, b3.data, q3.data, r1.data, x5.data, [], [], 3, 2) < 1.0e-8);
+    // The six-operand form with e and s and a singular r.
+    let e2 = mx(2, 2, [1.0, 0.2, 0.0, 1.5]);
+    let s2 = mx(2, 2, [0.1, 0.0, 0.0, 0.2]);
+    let x6, f6 = scientific::solve_discrete_are(a, b, q, r1, e2, s2);
+    assert(f6.kind == scientific::F_NONE);
+    assert(all_close(x6, [1.0876238193300583, 0.1157375986191378, 0.1157375986191378, 0.5428316361712323], 1.0e-8));
+    assert(qt_dare_resid(a.data, b.data, q.data, r1.data, x6.data, e2.data, s2.data, 2, 2) < 1.0e-8);
+    // The example of the SciPy documentation holds a singular r.
+    let a7 = mx(2, 2, [0.0, 1.0, 0.0, -1.0]);
+    let b7 = mx(2, 2, [1.0, 0.0, 2.0, 1.0]);
+    let q7 = mx(2, 2, [-4.0, -4.0, -4.0, 7.0]);
+    let r7 = mx(2, 2, [9.0, 3.0, 3.0, 1.0]);
+    let x7, f7 = scientific::solve_discrete_are(a7, b7, q7, r7);
+    assert(f7.kind == scientific::F_NONE);
+    assert(all_close(x7, [-4.0, -4.0, -4.0, 7.0], 1.0e-8));
+    // A zero b with a nonsingular r gives the Lyapunov solution.
+    let a8 = mx(2, 2, [0.5, 0.1, 0.0, 0.3]);
+    let z2 = mx(2, 2, [0.0, 0.0, 0.0, 0.0]);
+    let id2 = mx(2, 2, [1.0, 0.0, 0.0, 1.0]);
+    let x8, f8 = scientific::solve_discrete_are(a8, z2, q, id2);
+    assert(f8.kind == scientific::F_NONE);
+    assert(qt_dare_resid(a8.data, z2.data, q.data, id2.data, x8.data, [], [], 2, 2) < 1.0e-10);
+    // A zero b with a zero r leaves r + b^T x b singular. The equation
+    // has no meaning, so the call gives a fault.
+    let x9, f9 = scientific::solve_discrete_are(a8, z2, q, z2);
+    assert(f9.kind == scientific::F_VALUE);
+    // An unstable a that b does not reach has no stabilizing solution.
+    let one = mx(1, 1, [1.0]);
+    let two = mx(1, 1, [2.0]);
+    let zero1 = mx(1, 1, [0.0]);
+    let x10, f10 = scientific::solve_discrete_are(two, zero1, one, one);
+    assert(f10.kind == scientific::F_VALUE);
+    // A scalar deadbeat case with r = 0 gives x = 1, like SciPy.
+    let x11, f11 = scientific::solve_discrete_are(one, one, one, zero1);
+    assert(f11.kind == scientific::F_NONE);
+    assert(all_close(x11, [1.0], 1.0e-10));
+    // A pair on the unit circle that b does not reach has no solution.
+    let x12, f12 = scientific::solve_discrete_are(one, zero1, one, one);
+    assert(f12.kind == scientific::F_VALUE);
+    return;
+}
+
+// test_dare_random compares the call with a residual test for 20 random
+// pairs of side 2 to 5 with a nonsingular r.
+fn test_dare_random() {
+    var g = scientific::default_rng(2941);
+    var t: i64 = 0;
+    while t < 20 {
+        let n, f1 = scientific::integers(g, 2, 6);
+        let m, f2 = scientific::integers(g, 1, 4);
+        var ad: f64[>..] = [];
+        var i: i64 = 0;
+        while i < n * n { ad.push(0.6 * (scientific::random_uniform(g) - 0.5)); i += 1; }
+        var bd: f64[>..] = [];
+        i = 0;
+        while i < n * m { bd.push(scientific::random_uniform(g) - 0.5); i += 1; }
+        // q and r are symmetric and positive definite: c^T c + I.
+        var cq: f64[>..] = [];
+        i = 0;
+        while i < n * n { cq.push(scientific::random_uniform(g) - 0.5); i += 1; }
+        var qd = qt_mm(qt_tr(cq, n, n), n, n, cq, n);
+        i = 0;
+        while i < n { qd[i * n + i] += 1.0; i += 1; }
+        var cr: f64[>..] = [];
+        i = 0;
+        while i < m * m { cr.push(scientific::random_uniform(g) - 0.5); i += 1; }
+        var rd = qt_mm(qt_tr(cr, m, m), m, m, cr, m);
+        i = 0;
+        while i < m { rd[i * m + i] += 1.0; i += 1; }
+        let a = mx(n, n, ad);
+        let b = mx(n, m, bd);
+        let q = mx(n, n, qd);
+        let r = mx(m, m, rd);
+        let x, f = scientific::solve_discrete_are(a, b, q, r);
+        assert(f.kind == scientific::F_NONE);
+        assert(qt_dare_resid(a.data, b.data, q.data, r.data, x.data, [], [], n, m) < 1.0e-9);
+        // The same equation with the weight r split in the pencil route.
+        let xp, fp = scientific::solve_discrete_are_pencil(a, b, q, r);
+        assert(fp.kind == scientific::F_NONE);
+        assert(qt_maxabs([0.0]) == 0.0);
+        var diff: f64 = 0.0;
+        i = 0;
+        while i < n * n { diff = mathshim_abs(x.data[i] - xp.data[i]); if diff > 1.0e-8 * (1.0 + mathshim_abs(x.data[i])) { assert(false); } i += 1; }
+        t += 1;
+    }
+    return;
+}
+
+// test_dare_singular_hostile covers the faults of the equation.
+fn test_dare_singular_hostile() {
+    let a = mx(2, 2, [0.9, 0.5, 0.0, 0.7]);
+    let b = mx(2, 2, [1.0, 0.0, 0.0, 1.0]);
+    let q = mx(2, 2, [1.0, 0.0, 0.0, 1.0]);
+    let r = mx(2, 2, [1.0, 1.0, 1.0, 1.0]);
+    let lie = scientific::Arr { ndim: 3, shape: [2, 2], data: [1.0, 0.0, 0.0, 1.0] };
+    let x1, f1 = scientific::solve_discrete_are(a, b, q, lie);
+    assert(f1.kind == scientific::F_SHAPE);
+    let sh = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0] };
+    let x2, f2 = scientific::solve_discrete_are(a, b, q, sh);
+    assert(f2.kind == scientific::F_SHAPE);
+    let big = scientific::Arr { ndim: 2, shape: [129, 129], data: [1.0] };
+    let x3, f3 = scientific::solve_discrete_are(big, b, q, r);
+    assert(f3.kind == scientific::F_LIMIT);
+    let x4, f4 = scientific::solve_discrete_are(a, mx(3, 2, [1.0, 0.0, 0.0, 1.0, 1.0, 1.0]), q, r);
+    assert(f4.kind == scientific::F_SHAPE);
+    let nan = 0.0 / 0.0;
+    let x5, f5 = scientific::solve_discrete_are(mx(2, 2, [0.9, nan, 0.0, 0.7]), b, q, r);
+    assert(f5.kind == scientific::F_VALUE);
+    let x6, f6 = scientific::solve_discrete_are(a, mx(2, 2, [1.0, nan, 0.0, 1.0]), q, r);
+    assert(f6.kind == scientific::F_VALUE);
+    let x7, f7 = scientific::solve_discrete_are(a, b, mx(2, 2, [1.0, 0.0, 0.0, nan]), r);
+    assert(f7.kind == scientific::F_VALUE);
+    let x8, f8 = scientific::solve_discrete_are(a, b, q, mx(2, 2, [1.0, 1.0, nan, 1.0]));
+    assert(f8.kind == scientific::F_VALUE);
+    let x9, f9 = scientific::solve_discrete_are(a, b, q, mx(2, 2, [1.0, 2.0, 0.0, 1.0]));
+    assert(f9.kind == scientific::F_VALUE);
+    let none = scientific::empty_arr();
+    let x10, f10 = scientific::solve_discrete_are(a, b, q, r, mx(2, 2, [1.0, 0.0, 0.0, nan]), none);
+    assert(f10.kind == scientific::F_VALUE);
+    return;
+}
+
 fn main() {
     test_schur_funm_ldl();
     test_eigvalsh_larger();
@@ -10007,6 +10708,14 @@ fn main() {
     test_qz_scale_helpers();
     test_qz_scale();
     test_qz_time();
+    test_pad_empty();
+    test_pad_axes();
+    test_pad_hostile();
+    test_sketch();
+    test_sketch_hostile();
+    test_dare_singular();
+    test_dare_random();
+    test_dare_singular_hostile();
     print("ok\n");
     return;
 }

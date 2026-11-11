@@ -153,7 +153,7 @@ fn resize(a, shape: i64[:]) -> Arr, Fault {
 // along one axis. The value -1 means the constant value.
 fn pad_source(k: i64, n: i64, mode: const u8[:]) -> i64 {
     if k >= 0 && k < n { return k; }
-    if mode == "constant" || pad_is_stat(mode) { return -1; }
+    if mode == "constant" || mode == "empty" || pad_is_stat(mode) { return -1; }
     if mode == "edge" {
         if k < 0 { return 0; }
         return n - 1;
@@ -180,8 +180,9 @@ fn pad_is_stat(mode: const u8[:]) -> bool {
 // pad_stat gives the value of one pad place of the statistic modes. The
 // position p lies outside the line: below zero before the line, and at
 // the width or above after it. The statistic takes the len values
-// nearest to that end of the line. The value is the end value of the
-// ramp for linear_ramp.
+// nearest to that end of the line. A len above the width clips to the
+// width, and a len of zero takes the whole line. The value is the end
+// value of the ramp for linear_ramp.
 fn pad_stat(a, base: i64, width: i64, inner: i64, p: i64, before: i64, after: i64, mode: const u8[:], end: f64, len: i64) -> f64 {
     let low = p < 0;
     var edge: f64 = 0.0;
@@ -192,7 +193,7 @@ fn pad_stat(a, base: i64, width: i64, inner: i64, p: i64, before: i64, after: i6
         return end + (edge - end) * (after - 1 - q) / after;
     }
     var cnt = width;
-    if len > 0 { cnt = len; }
+    if len > 0 && len < width { cnt = len; }
     var vals: f64[>..] = [];
     var i: i64 = 0;
     while i < cnt {
@@ -229,13 +230,20 @@ fn pad_stat(a, base: i64, width: i64, inner: i64, p: i64, before: i64, after: i6
     return (vals[cnt / 2 - 1] + vals[cnt / 2]) / 2.0;
 }
 
-// pad_one grows one axis by the counts before and after.
-fn pad_one(a, axis: i64, before: i64, after: i64, mode: const u8[:], value: f64, len: i64) -> Arr, Fault {
+// pad_one grows one axis by the counts before and after. Each side holds
+// its own statistic length, end value and constant. The mode empty
+// fills the pad with zero, so no value of the result is undefined.
+fn pad_one(a, axis: i64, before: i64, after: i64, mode: const u8[:], len_b: i64, len_a: i64, end_b: f64, end_a: f64, const_b: f64, const_a: f64) -> Arr, Fault {
     let width = a.shape[axis];
     let inner = product_after_of(a.shape, axis);
     let outer = product_before_of(a.shape, axis);
+    // The tests below never form a product that can overflow. Each
+    // count meets the limit first, and the product is a quotient.
+    if before > MAX_ELEMENTS || after > MAX_ELEMENTS {
+        return empty_arr(), fault(F_LIMIT, "pad", "the result holds more elements than the limit");
+    }
     let new_width = width + before + after;
-    if new_width * inner * outer > MAX_ELEMENTS {
+    if new_width > MAX_ELEMENTS / (inner * outer) {
         return empty_arr(), fault(F_LIMIT, "pad", "the result holds more elements than the limit");
     }
     var d: f64[>..] = [];
@@ -243,13 +251,21 @@ fn pad_one(a, axis: i64, before: i64, after: i64, mode: const u8[:], value: f64,
     while o < outer {
         var k: i64 = 0;
         while k < new_width {
-            let src = pad_source(k - before, width, mode);
+            let p = k - before;
+            let src = pad_source(p, width, mode);
+            let low = p < 0;
             var j: i64 = 0;
             while j < inner {
                 if src < 0 && pad_is_stat(mode) {
-                    d.push(pad_stat(a, o * width * inner + j, width, inner, k - before, before, after, mode, value, len));
+                    var e = end_a;
+                    var n = len_a;
+                    if low { e = end_b; n = len_b; }
+                    d.push(pad_stat(a, o * width * inner + j, width, inner, p, before, after, mode, e, n));
                 }
-                else if src < 0 { d.push(value); }
+                else if src < 0 && mode == "empty" { d.push(0.0); }
+                else if src < 0 {
+                    if low { d.push(const_b); } else { d.push(const_a); }
+                }
                 else { d.push(a.data[o * width * inner + src * inner + j]); }
                 j += 1;
             }
@@ -264,44 +280,102 @@ fn pad_one(a, axis: i64, before: i64, after: i64, mode: const u8[:], value: f64,
     return Arr { ndim: a.ndim, shape: s, data: d }, no_fault();
 }
 
-// pad_modes grows every axis (the name pad is a keyword of Goose). The lists before and after hold one count per
-// axis. The mode is "constant", "edge", "reflect", "symmetric" or
-// "wrap", or one of "linear_ramp", "maximum", "minimum", "mean" and
-// "median". The value fills a constant pad and is the end value of a
-// ramp. The statistic modes take the stat_length values nearest the
-// edge, or the whole line when it is zero. The value fills a constant pad. A count below zero is a
-// fault.
-fn pad_modes(a, before: i64[:], after: i64[:], mode: const u8[:] = "constant", value: f64 = 0.0, stat_length: i64 = 0) -> Arr, Fault {
+// pad_expand_i turns a list of whole numbers into one pair for each
+// axis. The list holds no value (the pair is fill), one value for every
+// side, one pair for every axis, or one pair for each axis. Any other
+// count gives false.
+fn pad_expand_i(v: i64[:], ndim: i64, fill: i64, out: i64[>..]&) -> bool {
+    out.clear();
+    var i: i64 = 0;
+    while i < 2 * ndim {
+        if v.len == 0 { out.push(fill); }
+        else if v.len == 1 { out.push(v[0]); }
+        else if v.len == 2 { out.push(v[i % 2]); }
+        else if v.len == 2 * ndim { out.push(v[i]); }
+        else { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+// pad_expand_f does the same for a list of real numbers.
+fn pad_expand_f(v: f64[:], ndim: i64, out: f64[>..]&) -> bool {
+    out.clear();
+    var i: i64 = 0;
+    while i < 2 * ndim {
+        if v.len == 0 { out.push(0.0); }
+        else if v.len == 1 { out.push(v[0]); }
+        else if v.len == 2 { out.push(v[i % 2]); }
+        else if v.len == 2 * ndim { out.push(v[i]); }
+        else { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+// pad_axes grows every axis (the name pad is a keyword of Goose). The
+// lists before and after hold one count per axis. The mode is
+// "constant", "edge", "reflect", "symmetric", "wrap", "linear_ramp",
+// "maximum", "minimum", "mean", "median" or "empty". The lists
+// stat_length, end_values and constant_values hold no value, one
+// value, one pair (before, after) or one pair for each axis. The pair
+// of each axis comes in turn: (before0, after0, before1, after1, ...).
+// The statistic modes take the stat_length values nearest the edge. An
+// empty stat_length takes the whole line, and a length above the width
+// clips to it. The end values end the ramps of linear_ramp. The
+// constants fill the pad of constant. The mode empty fills the pad
+// with zero, where NumPy leaves it undefined. A value that is not
+// finite passes into the pad. A count below zero or a statistic length
+// below one is a fault.
+fn pad_axes(a, before: i64[:], after: i64[:], mode: const u8[:] = "constant", stat_length: i64[:] = [], end_values: f64[:] = [], constant_values: f64[:] = []) -> Arr, Fault {
+    let fs = check_stack(a.ndim, a.shape, a.data.len, 1, "pad");
+    if fs.kind != F_NONE { return empty_arr(), fs; }
     if before.len != a.ndim || after.len != a.ndim {
         return empty_arr(), fault(F_SHAPE, "pad", "the counts do not hold one value per axis");
     }
-    if mode != "constant" && mode != "edge" && mode != "reflect" && mode != "symmetric" && mode != "wrap" && !pad_is_stat(mode) {
+    var sl: i64[>..] = [];
+    var ev: f64[>..] = [];
+    var cv: f64[>..] = [];
+    if !pad_expand_i(stat_length, a.ndim, 0, sl) || !pad_expand_f(end_values, a.ndim, ev) || !pad_expand_f(constant_values, a.ndim, cv) {
+        return empty_arr(), fault(F_SHAPE, "pad", "a list holds a count of values that is not zero, one, two or two for each axis");
+    }
+    if mode != "constant" && mode != "edge" && mode != "reflect" && mode != "symmetric" && mode != "wrap" && mode != "empty" && !pad_is_stat(mode) {
         return empty_arr(), fault(F_VALUE, "pad", "the mode holds an unknown name");
     }
-    if stat_length < 0 {
-        return empty_arr(), fault(F_VALUE, "pad", "the statistic length holds a value below zero");
-    }
-    if stat_length > 0 {
-        var ax = 0;
-        while ax < a.ndim {
-            if stat_length > a.shape[ax] {
-                return empty_arr(), fault(F_VALUE, "pad", "the statistic length is above the width of an axis");
-            }
-            ax += 1;
-        }
-    }
-    var cur = clone_of(a);
     var ax: i64 = 0;
     while ax < a.ndim {
         if before[ax] < 0 || after[ax] < 0 {
             return empty_arr(), fault(F_VALUE, "pad", "a count of growth holds a value below zero");
         }
-        let r, f = pad_one(cur, ax, before[ax], after[ax], mode, value, stat_length);
+        ax += 1;
+    }
+    if stat_length.len > 0 {
+        var i: i64 = 0;
+        while i < sl.len {
+            if sl[i] < 1 {
+                return empty_arr(), fault(F_VALUE, "pad", "the statistic length holds a value below one");
+            }
+            i += 1;
+        }
+    }
+    var cur = clone_of(a);
+    ax = 0;
+    while ax < a.ndim {
+        let r, f = pad_one(cur, ax, before[ax], after[ax], mode, sl[2 * ax], sl[2 * ax + 1], ev[2 * ax], ev[2 * ax + 1], cv[2 * ax], cv[2 * ax + 1]);
         if f.kind != F_NONE { return empty_arr(), f; }
         cur = copy(r);
         ax += 1;
     }
     return cur, no_fault();
+}
+
+// pad_modes is pad_axes with one value for every axis and side. The
+// value fills a constant pad and ends a ramp. The stat_length of zero
+// takes the whole line, and a length above the width clips to it. A
+// count below zero, or a stat_length below zero, is a fault.
+fn pad_modes(a, before: i64[:], after: i64[:], mode: const u8[:] = "constant", value: f64 = 0.0, stat_length: i64 = 0) -> Arr, Fault {
+    if stat_length == 0 { return pad_axes(a, before, after, mode, [], [value], [value]); }
+    return pad_axes(a, before, after, mode, [stat_length], [value], [value]);
 }
 
 fn clone_of(a) -> Arr {

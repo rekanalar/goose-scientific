@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.142.0";
+import scientific from "rekanalar/goose-scientific@v0.143.0";
 ```
 
 ## API
@@ -70,7 +70,7 @@ import scientific from "rekanalar/goose-scientific@v0.142.0";
 | Filters | `butter`, `lfilter`, `lfilter_axis`, `lfilter_state`, `lfilter_zi`, `filtfilt`, `sosfilt`, `hilbert` |
 | Covariance and NaN statistics | `cov`, `cov_weights`, `cov_with`, `corrcoef`, `corrcoef_with`, `nanmedian`, `nanpercentile`, `nanquantile`, `nanargmax`, `nanargmin`, `nancumsum`, `nancumprod`, `cumulative_sum`, `cumulative_prod`, `ediff1d`, `histogram_bin_edges` |
 | The rest of the elementwise math | `fmax`, `fmin`, `heaviside`, `logaddexp`, `logaddexp2`, `ldexp`, `frexp`, `modf`, `sinc`, `i0`, `gcd`, `lcm`, `bitwise_and`, `bitwise_or`, `bitwise_xor`, `invert`, `left_shift`, `right_shift`, `bitwise_count`, `unwrap`, and the names `float_power`, `pow`, `remainder`, `radians`, `degrees`, `acos`, `asin`, `atan`, `atan2`, `acosh`, `asinh`, `atanh`, `bitwise_not`, `bitwise_invert`, `bitwise_left_shift`, `bitwise_right_shift`, `concat`, `amax`, `amin`, `ndim` |
-| Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
+| Assembly of shapes | `swapaxes`, `permute_dims`, `atleast_1d`, `atleast_2d`, `atleast_3d`, `append`, `append_axis`, `delete`, `delete_axis`, `resize`, `pad_modes`, `pad_axes`, `diagonal`, `fill_diagonal`, `tri`, `tril_indices`, `triu_indices`, `diag_indices`, `indices`, `ix_`, `unravel_index`, `ravel_multi_index`, `unstack`, `unstack_part`, `block_grid` |
 | Selection and order | `lexsort`, `argpartition`, `compress`, `compress_axis`, `extract`, `choose`, `piecewise`, `setxor1d`, `unique_all`, `unique_counts`, `unique_inverse`, `unique_values` |
 | Products, windows and old polynomial functions | `vdot`, `vecdot`, `matvec`, `vecmat`, `vander`, `tensordot`, `tensordot_n`, `einsum`, `einsum1`, `einsum3`, `einsum_set`, `ESet`, `eset_new`, `eset_add`, `hanning`, `hamming`, `blackman`, `bartlett`, `kaiser`, `general_cosine`, `general_hamming`, `general_gaussian`, `taylor`, `chebwin`, `kaiser_bessel_derived`, `dpss`, `dpss_ratios`, `get_window`, `poly`, `poly_cplx`, `polyadd`, `polysub`, `polymul`, `polydiv`, `polyder`, `polyint` |
 | Factors, special matrices and the exponential | `lu_factor`, `lu`, `lu_solve`, `solve_triangular`, `solve_banded`, `block_diag`, `toeplitz`, `hankel`, `circulant`, `companion`, `fiedler_companion`, `hadamard`, `pascal`, `invpascal`, `invhilbert`, `leslie`, `fiedler`, `helmert`, `convolution_matrix`, `khatri_rao`, `bandwidth`, `bandwidth_stack`, `issymmetric`, `ishermitian`, `solve_toeplitz`, `solve_circulant`, `matmul_toeplitz`, `diagsvd`, `orthogonal_procrustes`, `subspace_angles`, `pinvh`, `null_space`, `orth`, `expm` |
@@ -89,7 +89,7 @@ import scientific from "rekanalar/goose-scientific@v0.142.0";
 | Complex Schur form and real block form | `rsf2csf`, `cdf2rdf` |
 | Cosine-sine decomposition | `cossin`, `cossin_separate`, `cossin_blocks` |
 | Generalized Schur form of a pair | `qz`, `ordqz`, `qz_complex`, `ordqz_complex`, `qz_c`, `ordqz_c`, `ordqz_by`, `ordqz_complex_by`, `ordqz_c_by` |
-| Algebraic Riccati equations | `solve_continuous_are`, `solve_discrete_are` |
+| Algebraic Riccati equations | `solve_continuous_are`, `solve_discrete_are`, `solve_discrete_are_pencil` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
@@ -529,10 +529,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
   The block form takes the batch of the eigenvalues. The eigenvectors take the broadcast of both batches. SciPy gives the same shapes.
 - `solve_continuous_are(a, b, q, r)` and `solve_discrete_are(a, b, q, r)` follow scipy.linalg. A call with six operands solves the generalized equation of SciPy with `e` and `s`. Pass an empty array for an operand you leave out. The result is the stabilizing solution, and it is symmetric.
-- SciPy solves both equations with the generalized Schur form of a pencil. The package has no QZ, so it removes `e` and `s` by an exact change of the variables. Then it uses the matrix sign function for the continuous equation and the doubling of the discrete equation. The stabilizing solution is unique, so the values agree with SciPy to about 1e-12 on well conditioned data.
-- `solve_discrete_are` needs a nonsingular `r`. SciPy also solves the discrete equation with a singular `r` when `r + b^T x b` is nonsingular. The package gives a fault for such data. This is an open gap.
+- The package solves the continuous equation with the matrix sign function after an exact removal of `e` and `s`. It solves the discrete equation with the doubling. When `r` is singular, the call solves the extended symplectic pencil of SciPy. The same happens when the doubling fails its residual test.
+- The pencil has side `2n + m`. The call orders it with `ordqz` and the rule `iuc`. That route needs no inverse of `r`.
+- `solve_discrete_are_pencil` runs the pencil alone. The stabilizing solution is unique, so the values agree with SciPy to about 1e-12 on well conditioned data.
+- `solve_discrete_are` accepts a singular `r` when `r + b^T x b` is nonsingular, like SciPy. A zero `b` with a singular `r` is a fault, because the equation has no meaning. SciPy returns zeros for one such input.
 - A matrix `e` needs to be nonsingular, like in SciPy. The matrices `q` and `r` need to be symmetric, like in SciPy.
-- The side of every matrix stays at 128 or below. The argument `balanced` of SciPy does not exist, because the package has no pencil to balance.
+- The side of every matrix stays at 128 or below. The argument `balanced` of SciPy does not exist. The package does not balance the pencil.
 - On data with no stabilizing solution, SciPy sometimes returns a matrix that does not solve the equation. The package checks the residual of the answer in the original equation and gives a fault instead.
 
   Stacks of matrices are not supported. A side above 512 gives a limit fault.
@@ -612,8 +614,27 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `symmetric`, `wrap`, `linear_ramp`, `maximum`, `minimum`, `mean` and
   `median`.
   `value` is the end value of `linear_ramp`. `stat_length` is one count
-  for every axis; NumPy also takes one pair per axis. A count above the
-  width of an axis is a fault.
+  for every axis.
+
+  `pad_axes` takes the full form of NumPy: `stat_length`,
+  `end_values` and `constant_values` are lists of 0, 1, 2 or `2 * ndim`
+  values. One value holds for both sides of every axis. Two values are
+  the before and after sides of every axis. `2 * ndim` values hold one
+  before and after pair per axis, in the order `b0, a0, b1, a1, ...`.
+  A count above the width of an axis clips to the width, as NumPy does.
+
+  In `pad_axes` a `stat_length` below 1 is a fault. In `pad_modes` a
+  `stat_length` of 0 means the whole axis. The mode `empty` fills the
+  pad with zero. NumPy leaves that pad undefined, so no value of NumPy
+  is pinned. The package never returns memory that it did not set.
+- `clarkson_woodruff_transform(a, sketch_size, seed)` is the CountSketch
+  of scipy.linalg. Each row of `a` goes to one row of the result with a
+  sign of plus or minus one. The package draws all rows first, then all
+  signs, from `default_rng(seed)`. The stream differs from the stream
+  of NumPy, so the values differ from SciPy. The structure, the
+  norms in expectation and the faults agree. A `sketch_size` below 1, a
+  value that is not finite or a result above the element limit is a
+  fault.
 - `append` and `delete` flatten the array, as NumPy does with no axis.
   `append_axis` and `delete_axis` take an axis. A `delete` result with no
   element is a fault, because the package holds no empty array.
@@ -1510,6 +1531,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `rsf2csf` and `cdf2rdf` fault on a value that is not finite. SciPy takes the same check in its default. A value that is not finite would spread through every result.
 - `bandwidth` and `bandwidth_stack` check the length of the buffer of their operand against its shape before they read a value. A shape that lies is a fault, so a bad shape cannot read outside the buffer. `bandwidth_stack` also checks the count of elements against the limit.
 - `solve_continuous_are` and `solve_discrete_are` check every buffer against its shape before they read a value. They check the side against the limit. A shape that lies is a fault, and so is a value that is not finite.
+- `pad_axes` checks the buffer of the array against its shape. It checks every count against the element limit before it forms a product. It checks every list length. A negative count and an unknown mode are faults. The mode `empty` fills zero, so no call returns uninitialized memory.
+- `clarkson_woodruff_transform` checks the buffer against the shape. It checks the size of the sketch against the element limit. It checks every value for finiteness. All checks run before it draws a number.
 - Both equations check the residual of the answer in the original equation. SciPy does not. A data set with no stabilizing solution gives a fault here, and a wrong matrix in SciPy.
 - `qr_delete` checks the count of the removed lines against the
   size of the factors before it removes anything.
