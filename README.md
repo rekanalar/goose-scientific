@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.137.0";
+import scientific from "rekanalar/goose-scientific@v0.138.0";
 ```
 
 ## API
@@ -87,6 +87,7 @@ import scientific from "rekanalar/goose-scientific@v0.137.0";
 | Balance of a matrix and the exponential | `matrix_balance`, `matrix_balance_separate`, `expm_frechet`, `expm_cond` |
 | Update of the QR decomposition | `qr_update`, `qr_insert`, `qr_delete` |
 | Complex Schur form and real block form | `rsf2csf`, `cdf2rdf` |
+| Algebraic Riccati equations | `solve_continuous_are`, `solve_discrete_are` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
@@ -513,6 +514,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   The count must hold at least one. The count must not hold more rows or more columns than the factors hold. A matrix of one column and the reduced form give the rows that stay as one vector of unit length.
 - `rsf2csf` follows scipy.linalg.rsf2csf. It takes the real Schur form and the change of the basis, and gives both in complex form. The method turns each 2 by 2 block with the root of larger imaginary part. LAPACK orders a conjugate pair the same way.
 - `cdf2rdf` follows scipy.linalg.cdf2rdf. It takes the complex eigenvalues as a vector and the eigenvectors as a matrix. It gives the real block form and the real eigenvectors. Conjugate pairs must lie side by side. An unpaired complex value is a fault.
+- `solve_continuous_are(a, b, q, r)` and `solve_discrete_are(a, b, q, r)` follow scipy.linalg. A call with six operands solves the generalized equation of SciPy with `e` and `s`. Pass an empty array for an operand you leave out. The result is the stabilizing solution, and it is symmetric.
+- SciPy solves both equations with the generalized Schur form of a pencil. The package has no QZ, so it removes `e` and `s` by an exact change of the variables. Then it uses the matrix sign function for the continuous equation and the doubling of the discrete equation. The stabilizing solution is unique, so the values agree with SciPy to about 1e-12 on well conditioned data.
+- `solve_discrete_are` needs a nonsingular `r`. SciPy also solves the discrete equation with a singular `r` when `r + b^T x b` is nonsingular. The package gives a fault for such data. This is an open gap.
+- A matrix `e` needs to be nonsingular, like in SciPy. The matrices `q` and `r` need to be symmetric, like in SciPy.
+- The side of every matrix stays at 128 or below. The argument `balanced` of SciPy does not exist, because the package has no pencil to balance.
+- On data with no stabilizing solution, SciPy sometimes returns a matrix that does not solve the equation. The package checks the residual of the answer in the original equation and gives a fault instead.
 
   Stacks of matrices are not supported. A side above 512 gives a limit fault.
 - `qr_multiply` takes the modes `left` and `right`. It holds no pivoting and no conjugate option.
@@ -1430,6 +1437,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   finite would spread through every factor.
 - `rsf2csf` and `cdf2rdf` check the length of the buffer of every operand against its shape before they read a value. A shape that lies is a fault. They check the side against the limit, so a bad side cannot grow the memory.
 - `rsf2csf` and `cdf2rdf` fault on a value that is not finite. SciPy takes the same check in its default. A value that is not finite would spread through every result.
+- `solve_continuous_are` and `solve_discrete_are` check every buffer against its shape before they read a value. They check the side against the limit. A shape that lies is a fault, and so is a value that is not finite.
+- Both equations check the residual of the answer in the original equation. SciPy does not. A data set with no stabilizing solution gives a fault here, and a wrong matrix in SciPy.
 - `qr_delete` checks the count of the removed lines against the
   size of the factors before it removes anything.
   A count above the size is a fault, so a bad count cannot read
