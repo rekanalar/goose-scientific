@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.152.0";
+import scientific from "rekanalar/goose-scientific@v0.153.0";
 ```
 
 ## API
@@ -80,6 +80,7 @@ import scientific from "rekanalar/goose-scientific@v0.152.0";
 | Rank and derivative filters of N dimensions | `rank_filter`, `median_filter`, `percentile_filter`, `minimum_filter`, `maximum_filter`, the forms `rank_filter_fp`, `median_filter_fp`, `percentile_filter_fp`, `minimum_filter_fp` and `maximum_filter_fp`, `minimum_filter1d`, `maximum_filter1d`, `sobel`, `prewitt`, `laplace`, `gaussian_laplace`, `gaussian_gradient_magnitude` |
 | Labels, morphology and distances of N dimensions | `generate_binary_structure`, `iterate_structure`, `label`, `label_st`, `binary_erosion`, `binary_dilation`, `binary_opening`, `binary_closing`, the forms with the suffix `_st`, `binary_fill_holes`, `binary_fill_holes_st`, `distance_transform_edt`, `distance_transform_edt_indices` |
 | Filters that take a block | `generic_filter`, `generic_filter_fp`, `generic_laplace`, `generic_gradient_magnitude` |
+| Spline filters and interpolating transforms of N dimensions | `spline_filter1d`, `spline_filter`, `map_coordinates`, `affine_transform`, `shift`, `zoom`, `rotate` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_jac`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
@@ -546,6 +547,29 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   The block of the other two calls takes the array, the axis, the mode and
   the fill value. It gives the derivative along that axis. A block captures
   the locals of the caller, so the extra arguments of SciPy have no use.
+- The spline filters and transforms equal SciPy 1.18. They take the orders
+  0 to 5. They take the modes `mirror`, `reflect` (also `grid-mirror`),
+  `wrap`, `grid-wrap`, `nearest`, `constant` and `grid-constant`. The
+  pinned cases agree to `1.0e-10`. The spline filter is recursive, so its rounding
+  differs from SciPy in the last digits.
+- For a spline of order 2 or more, the mode `wrap` of SciPy folds like
+  `mirror`. For the orders 0 and 1 it uses the period `n - 1`. The mode
+  `grid-wrap` uses the period `n`. The package follows SciPy in both.
+  The modes `nearest` and `grid-constant` pad the array with 12 values
+  before the filter, as SciPy does. So a spline there is not exact beyond
+  that range.
+- `spline_filter` takes the orders 2 to 5. `spline_filter1d` also takes
+  0 and 1 and returns the array. `zoom` with a factor of one on every axis
+  and `prefilter` true returns a copy. `rotate` takes the plane as two axes.
+  It rotates every plane of an array of three or more dimensions.
+- The calls take real arrays and give `f64`. They give no `output` argument
+  and no complex arrays. `geometric_transform` takes a function of the
+  caller and is not in the package. `map_coordinates` and the transforms
+  take `prefilter` and `cval`.
+- The cost of a transform is the count of output values. It is
+  multiplied by `(order + 1)` once for each axis. A cost above 1.0e9 is
+  a fault of kind `F_LIMIT`. A 512 by 512 `rotate` and a `zoom` of order 3
+  took 1.4 seconds together.
 - Goose cannot pass a block on to another generic call. So each of the four
   calls holds its own loop. `generic_filter1d` is not in the package,
   because SciPy fills an output line there.
@@ -1784,6 +1808,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   slow case. The cost limit holds for a footprint, for a size and for a
   size that lies by its product. A footprint with no nonzero place and a
   rank outside the window are faults.
+- The transforms check the order, the mode, the shape and the cost before
+  any value moves. A coordinate that is not finite, or that lies beyond
+  4.0e15, is a fault, so no index wraps. A zoom that gives an axis with
+  no place, or a zoom above 1.0e15, is a fault. An angle of `rotate` beyond
+  1.0e14 degrees or not finite is a fault. SciPy computes values from such
+  inputs that carry no meaning. The padded array of the modes `nearest` and
+  `grid-constant` is checked against `MAX_ELEMENTS` first.
 - The calls with a block check the array, the footprint, the origin and
   the cost before the first block runs. A block that does not stop is the
   risk of the caller. The package cannot interrupt it.
