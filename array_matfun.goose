@@ -254,6 +254,12 @@ fn solve_sylvester(a, b, q) -> Arr, Fault {
     return mat2(copy_slice(x.data), n, m), no_fault();
 }
 
+// solve_lyapunov calls solve_continuous_lyapunov. The name of SciPy
+// holds both the continuous and the discrete equation.
+fn solve_lyapunov(a, q) -> Arr, Fault {
+    return solve_continuous_lyapunov(a, q);
+}
+
 // solve_continuous_lyapunov solves a x + x a' = q for x.
 fn solve_continuous_lyapunov(a, q) -> Arr, Fault {
     let c = mf_square(a, "solve_continuous_lyapunov");

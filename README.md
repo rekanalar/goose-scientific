@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.131.0";
+import scientific from "rekanalar/goose-scientific@v0.132.0";
 ```
 
 ## API
@@ -81,7 +81,8 @@ import scientific from "rekanalar/goose-scientific@v0.131.0";
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `bessel`, `residue`, `residue_complex`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `welch_ex`, `stft`, `istft`, `resample` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
-| Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
+| Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
+| Tridiagonal, banded and RQ forms | `eigvalsh_tridiagonal`, `eigh_tridiagonal`, `cholesky_banded`, `cho_solve_banded`, `solveh_banded`, `rq` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
@@ -478,6 +479,22 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `invhilbert` takes no `exact` flag. `pascal` and `invpascal` take no
   `exact` flag either. Each gives floating point values.
 - `ishermitian` reads a real matrix. The complex form stays out.
+- `eigvalsh_tridiagonal` and `eigh_tridiagonal` hold real values only.
+  The values come from the bisection. The vectors come from the inverse
+  iteration. SciPy runs the routines of LAPACK. The values agree to the
+  last digits that the bisection reaches. The vectors hold no fixed
+  sign, because the form is not unique.
+- A select of `i` takes the ranks from zero. A select of `v` takes the
+  values from the lower bound up to the upper bound. A select of `a`
+  takes all. The diagonal holds at most 4096 values. The cost of the
+  bisection grows with the square of the size.
+- `cholesky_banded` expands the band into the dense matrix. It runs the
+  dense Cholesky of the package. SciPy runs the banded routine of
+  LAPACK. The values agree. The cost grows with the square of n, where
+  the banded routine grows with the width of the band.
+- `rq` follows LAPACK. The mode `r` holds back the orthogonal matrix.
+  The mode `economic` drops the zero rows and the zero columns of the
+  wide matrix.
   `issymmetric` and `ishermitian` take `atol` and `rtol`, and the
   matrix with NaN is never symmetric. `bandwidth` takes one matrix and
   gives the lower and the upper width. SciPy accepts stacks of

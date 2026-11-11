@@ -67,6 +67,7 @@ import array_minimize_grad;
 import array_toms748;
 import array_root;
 import array_global;
+import array_banded;
 import array_bspline;
 import array_curfit;
 import array_delaunay;
