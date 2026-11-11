@@ -34,3 +34,28 @@ show("rotation", np.array([[0, 1.0], [-1, 0]]), np.eye(2))
 r = qz(np.array([[0, 1.0], [-1, 0]]), np.eye(2))
 print("rotation AA", r[0], "BB", r[1])
 print("side 1", qz(np.array([[3.0]]), np.array([[-2.0]])))
+
+# The complex pair. The eigenvalues, the diagonal of BB and the first
+# group of each rule.
+CA = np.array([[2 + 1j, 5 - 1j, 8, 7 + 2j], [5, 2 + 3j, 2, 8 - 1j],
+               [7 - 2j, 5, 6 + 1j, 6], [5, 4 + 1j, 4, 8 - 2j]])
+CB = np.array([[1j, 6, 0, 0], [5, 1, 2 - 1j, 1],
+               [5 + 1j, 2, 6, 6 - 1j], [4, 7, 7j, 7]])
+caa, cbb, cq, cz = qz(CA, CB)
+ev = np.diag(caa) / np.diag(cbb).real
+print("complex eigenvalues", sorted(ev, key=lambda w: (w.real, w.imag)))
+print("complex diag BB", np.diag(cbb))
+print("complex reconstruction", abs(cq @ caa @ cz.conj().T - CA).max())
+for rule in ("lhp", "rhp", "iuc", "ouc"):
+    r = ordqz(CA, CB, sort=rule)
+    print("complex", rule, "alpha/beta", r[2] / r[3])
+
+# The relative reconstruction error of SciPy at four scales.
+for s in (1e-300, 1e-150, 1e150, 1e300):
+    aa, bb, q, z = qz(A * s, B * s)
+    ea = abs(q @ aa @ z.T - A * s).max() / abs(A * s).max()
+    print("scale", s, "relative error", ea)
+
+# A callable sort: the eigenvalues of modulus below 1 first.
+r = ordqz(A, B, sort=lambda al, be: abs(al) < abs(be))
+print("callable abs(alpha)<beta alpha/beta", r[2] / r[3])

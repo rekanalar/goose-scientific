@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.141.0";
+import scientific from "rekanalar/goose-scientific@v0.142.0";
 ```
 
 ## API
@@ -88,7 +88,7 @@ import scientific from "rekanalar/goose-scientific@v0.141.0";
 | Update of the QR decomposition | `qr_update`, `qr_insert`, `qr_delete` |
 | Complex Schur form and real block form | `rsf2csf`, `cdf2rdf` |
 | Cosine-sine decomposition | `cossin`, `cossin_separate`, `cossin_blocks` |
-| Generalized Schur form of a pair | `qz`, `ordqz`, `qz_complex`, `ordqz_complex` |
+| Generalized Schur form of a pair | `qz`, `ordqz`, `qz_complex`, `ordqz_complex`, `qz_c`, `ordqz_c`, `ordqz_by`, `ordqz_complex_by`, `ordqz_c_by` |
 | Algebraic Riccati equations | `solve_continuous_are`, `solve_discrete_are` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
@@ -1303,17 +1303,21 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The element limit of `cossin` does not bound the time of a call.
   The work of one matrix grows with the cube of its side.
 - `qz` and `ordqz` give the generalized Schur form of a real pair.
-  They take real matrices only. A complex input matrix waits for the
-  complex array functions of the package.
-- `ordqz` takes the four names `lhp`, `rhp`, `iuc` and `ouc`. SciPy
-  also takes a function that the caller writes. The package has no such
-  sort.
+  `qz_c` and `ordqz_c` take a complex pair and give the complex form.
+- `ordqz` takes the four names `lhp`, `rhp`, `iuc` and `ouc`. The calls
+  `ordqz_by`, `ordqz_complex_by` and `ordqz_c_by` take a block of the
+  caller instead. The block takes the alpha and the beta of a diagonal
+  block. It gives true for a chosen block.
+- A block of sort that crashes ends the program. The package cannot
+  catch a crash of the caller.
 - SciPy picks the type of the result by the argument `output`. Goose
   has no result type that changes at run time. `qz_complex` and
   `ordqz_complex` therefore give the triangular complex form.
 - `qz` gives the factors `Q` and `Z` up to the sign of each column.
   LAPACK fixes that sign by its own steps. The eigenvalues are equal to
   those of SciPy.
+- The phase of a column of `q` and `z` can differ from the phase that
+  LAPACK gives. The eigenvalues are equal.
 - The order of the eigenvalues of `qz` can differ from the order of
   SciPy for the same pair. The set of the eigenvalues is equal. After
   `ordqz` the chosen eigenvalues come first in both libraries.
@@ -1321,16 +1325,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   hold the geometric mean of the two entries of `BB`. LAPACK scales
   them in another way. The quotient `alpha / beta` is equal.
 - `ordqz` swaps two blocks by the solution of a generalized Sylvester
-  system. It gives a fault of kind `F_VALUE` when a pivot of the system
-  falls below `1.0e-14` times its largest entry. A pair of equal
-  eigenvalues in two blocks that must swap causes that fault. A pair
-  whose entries are far below the entries of the other matrix causes
-  that fault too. SciPy gives a result for such a pair. LAPACK tests
-  the swap by its residual and also refuses an unsafe swap.
+  system. The package tests the swap by its residual. A residual above
+  `1.0e-11` of the largest entry of the window gives a fault of kind
+  `F_VALUE`. A pair of equal eigenvalues in two blocks that must swap
+  causes that fault. LAPACK also refuses an unsafe swap.
 - A pair whose values come near the limit of the number format gives a
-  fault of kind `F_VALUE`. SciPy gives a result for such a pair. The
-  iteration multiplies the values of the pair, and the product leaves
-  the range of the format.
+  result. The package scales the pair by a power of two before the
+  iteration. A power of two leaves every digit of a value alone.
 - The iteration takes at most 30 turns for each eigenvalue. A pair that
   needs more gives a fault of kind `F_LIMIT`.
 - A pair of side 512 takes about 50 seconds on a current machine. The
@@ -1548,6 +1549,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   entries near the limit of the number format gives a fault. No result
   holds a NaN without a fault.
 - `ordqz` checks the name of the rule before it reads a value.
+- `qz_c` checks the length of the buffer of each operand against twice
+  the count of its shape. A short buffer is a fault, so a bad shape
+  cannot read outside the buffer.
+- `ordqz_by` calls the block of the caller once for each diagonal
+  block. A block that changes its answer cannot hold the call in a
+  loop.
+- `qz` and `qz_c` scale the pair by a power of two before the
+  iteration. The scale keeps the values of the iteration near one. A
+  pair with entries near the limit of the number format cannot
+  overflow the work.
 
 ## License
 
