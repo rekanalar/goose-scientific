@@ -4548,6 +4548,10 @@ fn test_carray() {
     assert(bad3f.kind == scientific::F_SHAPE);
     let bad4, bad4f = scientific::eigvals_complex(mx(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]));
     assert(bad4f.kind == scientific::F_SHAPE);
+    // The buffer of the operand is shorter than the matrix.
+    let short = scientific::Arr { ndim: 2, shape: [2, 2], data: [1.0] };
+    let bad5, bad5f = scientific::eigvals_complex(short);
+    assert(bad5f.kind == scientific::F_SHAPE);
     return;
 }
 
@@ -10579,6 +10583,285 @@ fn test_dare_singular_hostile() {
     return;
 }
 
+// all_close_c tells whether every element of a complex array agrees
+// with the values of the two lists, relative to one plus the value.
+fn all_close_c(a: scientific::CArr&, vr: f64[:], vi: f64[:], tol: f64) -> bool {
+    var i: i64 = 0;
+    while i < vr.len {
+        if !close(a.data[2 * i], vr[i], tol) { return false; }
+        if !close(a.data[2 * i + 1], vi[i], tol) { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+// test_cdot pins the products of complex arrays against NumPy.
+fn test_cdot() {
+    let a, f0 = scientific::complex_from_values([1.0, 3.0], [2.0, -1.0]);
+    let b, f1 = scientific::complex_from_values([2.0, -1.0], [-1.0, 0.5]);
+    assert(f0.kind == scientific::F_NONE && f1.kind == scientific::F_NONE);
+    let p, pf = scientific::cdot(a, b);
+    assert(pf.kind == scientific::F_NONE);
+    assert(all_close_c(p, [1.5], [5.5], 1.0e-12));
+    let m, mf = scientific::complex_array(mx(2, 2, [2.0, 1.0, 1.0, 3.0]), mx(2, 2, [0.0, 1.0, -1.0, 0.0]));
+    assert(mf.kind == scientific::F_NONE);
+    let mm, mmf = scientific::cdot(m, m);
+    assert(mmf.kind == scientific::F_NONE);
+    assert(all_close_c(mm, [6.0, 5.0, 5.0, 11.0], [0.0, 5.0, -5.0, 0.0], 1.0e-12));
+    let v, vf = scientific::complex_from_values([1.0, 2.0], [0.0, 0.0]);
+    assert(vf.kind == scientific::F_NONE);
+    let mv, mvf = scientific::cdot(m, v);
+    assert(mvf.kind == scientific::F_NONE);
+    assert(all_close_c(mv, [4.0, 7.0], [2.0, -1.0], 1.0e-12));
+    let vm, vmf = scientific::cdot(v, m);
+    assert(vmf.kind == scientific::F_NONE);
+    assert(all_close_c(vm, [4.0, 7.0], [-2.0, 1.0], 1.0e-12));
+    // The vectors of one element.
+    let one, f2 = scientific::complex_from_values([1.0], [2.0]);
+    let two, f3 = scientific::complex_from_values([3.0], [-1.0]);
+    assert(f2.kind == scientific::F_NONE && f3.kind == scientific::F_NONE);
+    let p1, p1f = scientific::cdot(one, two);
+    assert(p1f.kind == scientific::F_NONE);
+    assert(all_close_c(p1, [5.0], [5.0], 1.0e-12));
+    let q1, q2, q3 = scientific::cvdot(one, two);
+    assert(q3.kind == scientific::F_NONE);
+    assert(close(q1, 1.0, 1.0e-12) && close(q2, -7.0, 1.0e-12));
+    // The matrix of one row and one column.
+    let tiny, f4 = scientific::complex_array(mx(1, 1, [2.0]), mx(1, 1, [1.0]));
+    assert(f4.kind == scientific::F_NONE);
+    let p2, p2f = scientific::cdot(tiny, tiny);
+    assert(p2f.kind == scientific::F_NONE);
+    assert(all_close_c(p2, [3.0], [4.0], 1.0e-12));
+    // The scalar product conjugates its first operand.
+    let cr, ci, cf = scientific::cvdot(a, b);
+    assert(cf.kind == scientific::F_NONE);
+    assert(close(cr, -3.5, 1.0e-12) && close(ci, -4.5, 1.0e-12));
+    let cr2, ci2, cf2 = scientific::cvdot(b, a);
+    assert(cf2.kind == scientific::F_NONE);
+    assert(close(cr2, -3.5, 1.0e-12) && close(ci2, 4.5, 1.0e-12));
+    return;
+}
+
+// test_cdot_hostile covers the faults of the products.
+fn test_cdot_hostile() {
+    let a, f0 = scientific::complex_from_values([1.0, 3.0], [2.0, -1.0]);
+    let c, f1 = scientific::complex_from_values([1.0, 2.0, 3.0], [0.0, 0.0, 0.0]);
+    let m, mf = scientific::complex_array(mx(2, 2, [2.0, 1.0, 1.0, 3.0]), mx(2, 2, [0.0, 1.0, -1.0, 0.0]));
+    assert(f0.kind == scientific::F_NONE && f1.kind == scientific::F_NONE && mf.kind == scientific::F_NONE);
+    // The lengths do not agree.
+    let r1, r1f = scientific::cdot(a, c);
+    assert(r1f.kind == scientific::F_SHAPE);
+    // The inner sides do not agree.
+    let r2, r2f = scientific::cdot(m, c);
+    assert(r2f.kind == scientific::F_SHAPE);
+    // An operand holds more than two dimensions.
+    let three = scientific::CArr { ndim: 3, shape: [2, 2, 2], data: [1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0] };
+    let r3, r3f = scientific::cdot(three, a);
+    assert(r3f.kind == scientific::F_SHAPE);
+    // A real array reaches the call.
+    let r4, r4f = scientific::cdot(m, mx(2, 2, [1.0, 2.0, 3.0, 4.0]));
+    assert(r4f.kind == scientific::F_SHAPE);
+    // The buffer does not match the shape.
+    let short = scientific::CArr { ndim: 2, shape: [2, 2], data: [1.0] };
+    let r5, r5f = scientific::cdot(short, m);
+    assert(r5f.kind == scientific::F_SHAPE);
+    // An axis holds a length below one.
+    let empty = scientific::CArr { ndim: 1, shape: [0], data: [] };
+    let r6, r6f = scientific::cdot(empty, a);
+    assert(r6f.kind == scientific::F_VALUE);
+    // A shape holds more elements than the limit.
+    let huge = scientific::CArr { ndim: 2, shape: [268435456, 2], data: [1.0] };
+    let r7, r7f = scientific::cdot(huge, m);
+    assert(r7f.kind == scientific::F_LIMIT);
+    // The counts of the elements do not agree.
+    let s1, s2, s3 = scientific::cvdot(a, c);
+    assert(s3.kind == scientific::F_SHAPE);
+    // A real array reaches the call.
+    let s4, s5, s6 = scientific::cvdot(mx(2, 2, [1.0, 2.0, 3.0, 4.0]), mx(2, 2, [1.0, 2.0, 3.0, 4.0]));
+    assert(s6.kind == scientific::F_SHAPE);
+    return;
+}
+
+// test_ccholesky pins the factor of a complex matrix against NumPy.
+fn test_ccholesky() {
+    let a, f0 = scientific::complex_array(mx(2, 2, [2.0, 1.0, 1.0, 3.0]), mx(2, 2, [0.0, 1.0, -1.0, 0.0]));
+    assert(f0.kind == scientific::F_NONE);
+    let l, lf = scientific::ccholesky(a);
+    assert(lf.kind == scientific::F_NONE);
+    assert(all_close_c(l, [1.4142135623730951, 0.0, 0.7071067811865475, 1.4142135623730951], [0.0, 0.0, -0.7071067811865475, 0.0], 1.0e-12));
+    // The upper triangle of the operand stays out.
+    let b, f1 = scientific::complex_array(mx(2, 2, [4.0, 1.0, 1.0, 2.0]), mx(2, 2, [0.0, 9.0, 1.0, 0.0]));
+    assert(f1.kind == scientific::F_NONE);
+    let lb, lbf = scientific::ccholesky(b);
+    assert(lbf.kind == scientific::F_NONE);
+    assert(all_close_c(lb, [2.0, 0.0, 0.5, 1.224744871391589], [0.0, 0.0, 0.5, 0.0], 1.0e-12));
+    // The imaginary part of the diagonal stays out.
+    let c, f2 = scientific::complex_array(mx(2, 2, [4.0, 0.0, 0.0, 2.0]), mx(2, 2, [1.0, 0.0, 0.0, 0.0]));
+    assert(f2.kind == scientific::F_NONE);
+    let lc, lcf = scientific::ccholesky(c);
+    assert(lcf.kind == scientific::F_NONE);
+    assert(all_close_c(lc, [2.0, 0.0, 0.0, 1.4142135623730951], [0.0, 0.0, 0.0, 0.0], 1.0e-12));
+    // The factor and its conjugate transpose give the matrix back.
+    let la, laf = scientific::adjoint(l);
+    assert(laf.kind == scientific::F_NONE);
+    let pr, prf = scientific::cmatmul(l, la);
+    assert(prf.kind == scientific::F_NONE);
+    assert(all_close_c(pr, [2.0, 1.0, 1.0, 3.0], [0.0, 1.0, -1.0, 0.0], 1.0e-12));
+    // The matrix of one by one.
+    let one, f2 = scientific::complex_array(mx(1, 1, [4.0]), mx(1, 1, [0.0]));
+    assert(f2.kind == scientific::F_NONE);
+    let lo, lof = scientific::ccholesky(one);
+    assert(lof.kind == scientific::F_NONE);
+    assert(all_close_c(lo, [2.0], [0.0], 1.0e-12));
+    // The factor of 20 random Hermitian matrices gives the matrix
+    // back. The factor of a positive definite matrix is unique, so the
+    // property holds the value of NumPy.
+    var g = scientific::default_rng(295);
+    let idm = scientific::complex_real(mx(4, 4, [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]));
+    let eight = scientific::complex_real(mx(4, 4, [8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]));
+    var t: i64 = 0;
+    while t < 20 {
+        let re, f2 = scientific::randn(g, [4, 4]);
+        let im, f3 = scientific::randn(g, [4, 4]);
+        assert(f2.kind == scientific::F_NONE && f3.kind == scientific::F_NONE);
+        let mm, f4 = scientific::complex_array(re, im);
+        assert(f4.kind == scientific::F_NONE);
+        let ad, f5 = scientific::adjoint(mm);
+        assert(f5.kind == scientific::F_NONE);
+        let w, f6 = scientific::cmatmul(mm, ad);
+        assert(f6.kind == scientific::F_NONE);
+        let di, f7 = scientific::cmul(idm, eight);
+        assert(f7.kind == scientific::F_NONE);
+        let h, f8 = scientific::cadd(w, di);
+        assert(f8.kind == scientific::F_NONE);
+        let lf2, f9 = scientific::ccholesky(h);
+        assert(f9.kind == scientific::F_NONE);
+        let lf2a, f10 = scientific::adjoint(lf2);
+        assert(f10.kind == scientific::F_NONE);
+        let pr2, f11 = scientific::cmatmul(lf2, lf2a);
+        assert(f11.kind == scientific::F_NONE);
+        var i: i64 = 0;
+        while i < h.data.len {
+            assert(close(pr2.data[i], h.data[i], 1.0e-12));
+            i += 1;
+        }
+        t += 1;
+    }
+    return;
+}
+
+// test_ccholesky_hostile covers the faults of the factor.
+fn test_ccholesky_hostile() {
+    // The matrix is not square.
+    let a, f0 = scientific::complex_array(mx(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]), mx(2, 3, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(f0.kind == scientific::F_NONE);
+    let l1, l1f = scientific::ccholesky(a);
+    assert(l1f.kind == scientific::F_SHAPE);
+    // The shape holds fewer entries than the count of dimensions says.
+    let lie = scientific::CArr { ndim: 2, shape: [3], data: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0] };
+    let l6, l6f = scientific::ccholesky(lie);
+    assert(l6f.kind == scientific::F_SHAPE);
+    // The buffer does not match the shape.
+    let short = scientific::CArr { ndim: 2, shape: [2, 2], data: [1.0] };
+    let l2, l2f = scientific::ccholesky(short);
+    assert(l2f.kind == scientific::F_SHAPE);
+    // The side is above the limit.
+    let big = scientific::CArr { ndim: 2, shape: [1025, 1025], data: [1.0] };
+    let l3, l3f = scientific::ccholesky(big);
+    assert(l3f.kind == scientific::F_LIMIT);
+    // A value is not finite.
+    let nan = 0.0 / 0.0;
+    let nf, f1 = scientific::complex_array(mx(2, 2, [1.0, 2.0, 3.0, 4.0]), mx(2, 2, [nan, 0.0, 0.0, 0.0]));
+    assert(f1.kind == scientific::F_NONE);
+    let l4, l4f = scientific::ccholesky(nf);
+    assert(l4f.kind == scientific::F_VALUE);
+    // The matrix is not positive definite.
+    let np, f2 = scientific::complex_array(mx(2, 2, [0.0, 1.0, 1.0, 0.0]), mx(2, 2, [0.0, 0.0, 0.0, 0.0]));
+    assert(f2.kind == scientific::F_NONE);
+    let l5, l5f = scientific::ccholesky(np);
+    assert(l5f.kind == scientific::F_VALUE);
+    return;
+}
+
+// test_cfftn pins the transform of a complex array against NumPy.
+fn test_cfftn() {
+    let a, f0 = scientific::complex_array(mx(2, 2, [1.0, 2.0, 3.0, 4.0]), mx(2, 2, [1.0, 0.0, -1.0, 2.0]));
+    assert(f0.kind == scientific::F_NONE);
+    let f, ff = scientific::cfftn(a);
+    assert(ff.kind == scientific::F_NONE);
+    assert(all_close_c(f, [10.0, -2.0, -4.0, 0.0], [2.0, -2.0, 0.0, 4.0], 1.0e-12));
+    let g, gf = scientific::cifftn(a);
+    assert(gf.kind == scientific::F_NONE);
+    assert(all_close_c(g, [2.5, -0.5, -1.0, 0.0], [0.5, -0.5, 0.0, 1.0], 1.0e-12));
+    // The matrix of three columns.
+    let b, f1 = scientific::complex_array(mx(2, 3, [1.0, 2.0, 0.0, 3.0, 0.0, 1.0]), mx(2, 3, [2.0, 0.0, -1.0, -4.0, 0.0, 1.0]));
+    assert(f1.kind == scientific::F_NONE);
+    let fb, fbf = scientific::cfftn(b);
+    assert(fbf.kind == scientific::F_NONE);
+    assert(all_close_c(fb, [7.0, 2.5, 2.5, -1.0, -0.7679491924311228, -4.232050807568877], [-2.0, -2.866025403784439, -1.1339745962155616, 4.0, 4.401923788646684, 9.598076211353316], 1.0e-12));
+    // The axis of a length of one gives the array back.
+    let one, f2 = scientific::complex_array(mx(1, 1, [1.0]), mx(1, 1, [2.0]));
+    assert(f2.kind == scientific::F_NONE);
+    let fo, fof = scientific::cfftn(one);
+    assert(fof.kind == scientific::F_NONE);
+    assert(all_close_c(fo, [1.0], [2.0], 1.0e-12));
+    // The array of zeros gives zero in every element.
+    let zero, f3 = scientific::complex_array(mx(2, 2, [0.0, 0.0, 0.0, 0.0]), mx(2, 2, [0.0, 0.0, 0.0, 0.0]));
+    assert(f3.kind == scientific::F_NONE);
+    let fz, fzf = scientific::cfftn(zero);
+    assert(fzf.kind == scientific::F_NONE);
+    assert(all_close_c(fz, [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], 1.0e-12));
+    // The round trip of 20 random arrays of one, two and three
+    // dimensions gives the array back.
+    var g2 = scientific::default_rng(296);
+    var t: i64 = 0;
+    while t < 20 {
+        var sh: i64[..8] = [];
+        sh.push(3);
+        var k: i64 = 1;
+        while k < 1 + (t % 3) { sh.push(3); k += 1; }
+        let re, f2 = scientific::randn(g2, sh);
+        let im, f3 = scientific::randn(g2, sh);
+        assert(f2.kind == scientific::F_NONE && f3.kind == scientific::F_NONE);
+        let x, f4 = scientific::complex_array(re, im);
+        assert(f4.kind == scientific::F_NONE);
+        let ft, f5 = scientific::cfftn(x);
+        assert(f5.kind == scientific::F_NONE);
+        let iv, f6 = scientific::cifftn(ft);
+        assert(f6.kind == scientific::F_NONE);
+        var i: i64 = 0;
+        while i < x.data.len {
+            assert(close(iv.data[i], x.data[i], 1.0e-12));
+            i += 1;
+        }
+        t += 1;
+    }
+    return;
+}
+
+// test_cfftn_hostile covers the faults of the transform.
+fn test_cfftn_hostile() {
+    // The buffer does not match the shape.
+    let short = scientific::CArr { ndim: 2, shape: [2, 2], data: [1.0] };
+    let f1, f1f = scientific::cfftn(short);
+    assert(f1f.kind == scientific::F_SHAPE);
+    let f2, f2f = scientific::cifftn(short);
+    assert(f2f.kind == scientific::F_SHAPE);
+    // A value is not finite.
+    let nan = 0.0 / 0.0;
+    let bad, f3 = scientific::complex_array(mx(2, 2, [1.0, 2.0, 3.0, 4.0]), mx(2, 2, [nan, 0.0, 0.0, 0.0]));
+    assert(f3.kind == scientific::F_NONE);
+    let f4, f4f = scientific::cfftn(bad);
+    assert(f4f.kind == scientific::F_VALUE);
+    let f5, f5f = scientific::cifftn(bad);
+    assert(f5f.kind == scientific::F_VALUE);
+    // A shape holds more elements than the limit.
+    let huge = scientific::CArr { ndim: 1, shape: [268435457], data: [1.0] };
+    let f6, f6f = scientific::cfftn(huge);
+    assert(f6f.kind == scientific::F_LIMIT);
+    return;
+}
+
 fn main() {
     test_schur_funm_ldl();
     test_eigvalsh_larger();
@@ -10716,6 +10999,12 @@ fn main() {
     test_dare_singular();
     test_dare_random();
     test_dare_singular_hostile();
+    test_cdot();
+    test_cdot_hostile();
+    test_ccholesky();
+    test_ccholesky_hostile();
+    test_cfftn();
+    test_cfftn_hostile();
     print("ok\n");
     return;
 }

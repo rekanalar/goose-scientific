@@ -320,6 +320,129 @@ fn cmatmul(a, b) -> CArr, Fault {
     return carr_make(s, copy(d)), no_fault();
 }
 
+// carr_finite gives false when an element of a complex array holds a
+// value that is not finite. It checks the real part and the imaginary
+// part of every element.
+fn carr_finite(c) -> bool {
+    var i: i64 = 0;
+    while i < c.data.len {
+        if !(c.data[i] - c.data[i] == 0.0) { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+// carr_check checks the buffer of a complex array against its shape. The
+// buffer holds two values for each element of the shape. A fault of
+// kind F_SHAPE says that the counts differ.
+fn carr_check(a, tag: const u8[:]) -> Fault {
+    return check_stack(a.ndim, a.shape, a.data.len, 2, tag);
+}
+
+// c_dot_stride gives the sum of the products of two complex buffers.
+// The offsets give the first element of each side. The strides give
+// the step between two elements. The flag conjugates the first side.
+fn c_dot_stride(a: f64[>..]&, aoff: i64, astride: i64, b: f64[>..]&, boff: i64, bstride: i64, n: i64, conjugate: bool) -> f64, f64 {
+    var sr: f64 = 0.0;
+    var si: f64 = 0.0;
+    var i: i64 = 0;
+    while i < n {
+        var ai = a[aoff + astride * i + 1];
+        if conjugate { ai = -ai; }
+        let p = c_mul(Cplx { re: a[aoff + astride * i], im: ai },
+                      Cplx { re: b[boff + bstride * i], im: b[boff + bstride * i + 1] });
+        sr += p.re;
+        si += p.im;
+        i += 1;
+    }
+    return sr, si;
+}
+
+// cdot gives the product of two complex arrays. Two vectors give a
+// scalar. A matrix and a vector give a vector. A vector and a matrix
+// give a vector. Two matrices give the matrix product. The products do
+// not conjugate, as NumPy does not. The count of dimensions of an
+// operand must be one or two.
+fn cdot(a, b) -> CArr, Fault {
+    let fa = carr_check(a, "cdot");
+    if fa.kind != F_NONE { return carr_empty(), fa; }
+    let fb = carr_check(b, "cdot");
+    if fb.kind != F_NONE { return carr_empty(), fb; }
+    if a.ndim > 2 || b.ndim > 2 {
+        return carr_empty(), fault(F_SHAPE, "cdot", "an operand holds more than two dimensions");
+    }
+    if a.ndim < 1 || b.ndim < 1 {
+        return carr_empty(), fault(F_SHAPE, "cdot", "an operand holds no dimension");
+    }
+    if a.shape[a.ndim - 1] != b.shape[0] {
+        return carr_empty(), fault(F_SHAPE, "cdot", "the inner dimensions do not agree");
+    }
+    // Two vectors give a scalar.
+    if a.ndim == 1 && b.ndim == 1 {
+        let sr, si = c_dot_stride(a.data, 0, 2, b.data, 0, 2, a.shape[0], false);
+        var d: f64[>..] = [];
+        d.push(sr);
+        d.push(si);
+        return CArr { ndim: 0, shape: [], data: d }, no_fault();
+    }
+    // Two matrices give the matrix product.
+    if a.ndim == 2 && b.ndim == 2 {
+        let m = a.shape[0];
+        let p = b.shape[1];
+        // The count of the elements of the result must not overflow.
+        if m > MAX_ELEMENTS / p {
+            return carr_empty(), fault(F_LIMIT, "cdot", "the result holds more elements than the limit");
+        }
+        let r, f = cmatmul(a, b);
+        if f.kind != F_NONE { return carr_empty(), fault(f.kind, "cdot", f.detail); }
+        return r, no_fault();
+    }
+    // A matrix and a vector give a vector.
+    if a.ndim == 2 {
+        let m = a.shape[0];
+        let n = a.shape[1];
+        var d: f64[>..] = [];
+        var i: i64 = 0;
+        while i < m {
+            let sr, si = c_dot_stride(a.data, 2 * i * n, 2, b.data, 0, 2, n, false);
+            d.push(sr);
+            d.push(si);
+            i += 1;
+        }
+        var s: i64[..8] = [];
+        s.push(m);
+        return CArr { ndim: 1, shape: s, data: d }, no_fault();
+    }
+    // A vector and a matrix give a vector.
+    let m = b.shape[0];
+    let n = b.shape[1];
+    var d: f64[>..] = [];
+    var j: i64 = 0;
+    while j < n {
+        let sr, si = c_dot_stride(a.data, 0, 2, b.data, 2 * j, 2 * n, m, false);
+        d.push(sr);
+        d.push(si);
+        j += 1;
+    }
+    var s: i64[..8] = [];
+    s.push(n);
+    return CArr { ndim: 1, shape: s, data: d }, no_fault();
+}
+
+// cvdot gives the scalar product of two complex arrays. It flattens
+// both operands and conjugates the first one, as NumPy does.
+fn cvdot(a, b) -> f64, f64, Fault {
+    let fa = carr_check(a, "cvdot");
+    if fa.kind != F_NONE { return 0.0, 0.0, fa; }
+    let fb = carr_check(b, "cvdot");
+    if fb.kind != F_NONE { return 0.0, 0.0, fb; }
+    if a.data.len != b.data.len {
+        return 0.0, 0.0, fault(F_SHAPE, "cvdot", "the counts of elements do not agree");
+    }
+    let sr, si = c_dot_stride(a.data, 0, 2, b.data, 0, 2, a.data.len / 2, true);
+    return sr, si, no_fault();
+}
+
 // csolve solves a x = b for a complex square matrix a. The right side
 // holds a vector or a matrix. The method solves the real system of
 // twice the side that holds the real and the imaginary parts.
@@ -467,6 +590,72 @@ fn cdet(a) -> f64, f64, Fault {
     return dr, di, no_fault();
 }
 
+// ccholesky gives the lower triangle of the Cholesky factor of a
+// complex Hermitian matrix. It reads the lower triangle of the operand
+// and takes the real part of the diagonal, as NumPy does. The upper
+// triangle of the result holds zero. A matrix that is not positive
+// definite gives a fault of kind F_VALUE.
+fn ccholesky(a) -> CArr, Fault {
+    if a.ndim != 2 || a.shape.len != 2 || a.shape[0] != a.shape[1] {
+        return carr_empty(), fault(F_SHAPE, "ccholesky", "the matrix is not square");
+    }
+    let n = a.shape[0];
+    if n > 1024 {
+        return carr_empty(), fault(F_LIMIT, "ccholesky", "the side is above 1024");
+    }
+    let f = carr_check(a, "ccholesky");
+    if f.kind != F_NONE { return carr_empty(), f; }
+    if !carr_finite(a) {
+        return carr_empty(), fault(F_VALUE, "ccholesky", "the matrix holds a value that is not finite");
+    }
+    var d: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n * n { d.push(0.0); d.push(0.0); i += 1; }
+    var j: i64 = 0;
+    while j < n {
+        // The pivot of the column is the real part of the diagonal
+        // minus the sum of the squares of the row above it.
+        var s = a.data[2 * (j * n + j)];
+        var k: i64 = 0;
+        while k < j {
+            let lr = d[2 * (j * n + k)];
+            let li = d[2 * (j * n + k) + 1];
+            s -= lr * lr + li * li;
+            k += 1;
+        }
+        if !(s > 0.0) {
+            return carr_empty(), fault(F_VALUE, "ccholesky", "the matrix is not positive definite");
+        }
+        let piv = mathshim::root(s);
+        d[2 * (j * n + j)] = piv;
+        d[2 * (j * n + j) + 1] = 0.0;
+        var r = j + 1;
+        while r < n {
+            var tr = a.data[2 * (r * n + j)];
+            var ti = a.data[2 * (r * n + j) + 1];
+            k = 0;
+            while k < j {
+                // The sum takes the conjugate of the row above.
+                let ar = d[2 * (r * n + k)];
+                let ai = d[2 * (r * n + k) + 1];
+                let br = d[2 * (j * n + k)];
+                let bi = -d[2 * (j * n + k) + 1];
+                tr -= ar * br - ai * bi;
+                ti -= ar * bi + ai * br;
+                k += 1;
+            }
+            d[2 * (r * n + j)] = tr / piv;
+            d[2 * (r * n + j) + 1] = ti / piv;
+            r += 1;
+        }
+        j += 1;
+    }
+    var sh: i64[..8] = [];
+    sh.push(n);
+    sh.push(n);
+    return CArr { ndim: 2, shape: sh, data: d }, no_fault();
+}
+
 // cfft gives the transform of a complex signal of one dimension.
 fn cfft(a) -> CArr, Fault {
     if a.ndim != 1 {
@@ -491,6 +680,35 @@ fn cifft(a) -> CArr, Fault {
     return complex_array(r, i);
 }
 
+// cfftn gives the transform of a complex array along every axis. The
+// norm backward leaves the result as it is.
+fn cfftn(a) -> CArr, Fault {
+    let f = carr_check(a, "cfftn");
+    if f.kind != F_NONE { return carr_empty(), f; }
+    if !carr_finite(a) {
+        return carr_empty(), fault(F_VALUE, "cfftn", "the operand holds a value that is not finite");
+    }
+    let re = real(a);
+    let im = imag(a);
+    let r, i, g = fftn_ex(re, im);
+    if g.kind != F_NONE { return carr_empty(), g; }
+    return complex_array(r, i);
+}
+
+// cifftn gives the inverse transform of a complex array along every
+// axis. The norm backward divides by the count of the places.
+fn cifftn(a) -> CArr, Fault {
+    let f = carr_check(a, "cifftn");
+    if f.kind != F_NONE { return carr_empty(), f; }
+    if !carr_finite(a) {
+        return carr_empty(), fault(F_VALUE, "cifftn", "the operand holds a value that is not finite");
+    }
+    let re = real(a);
+    let im = imag(a);
+    let r, i, g = ifftn_ex(re, im);
+    if g.kind != F_NONE { return carr_empty(), g; }
+    return complex_array(r, i);
+}
 // hqr_value reads the element (i, j) of the work matrix. The indexes
 // start at one, as in the method.
 fn hqr_at(i: i64, j: i64, n: i64) -> i64 { return (i - 1) * n + (j - 1); }
@@ -506,23 +724,21 @@ fn hqr_sign(a: f64, b: f64) -> f64 {
 // iteration with two shifts. The eigenvalues come sorted by the real
 // part, then by the imaginary part. NumPy gives them in another order.
 fn eigvals_complex(a) -> CArr, Fault {
-    if a.ndim != 2 || a.shape[0] != a.shape[1] || a.shape[0] < 1 {
+    if a.ndim != 2 || a.shape.len != 2 || a.shape[0] != a.shape[1] || a.shape[0] < 1 {
         return carr_empty(), fault(F_SHAPE, "eigvals_complex", "the operand is not a square matrix");
     }
     let n = a.shape[0];
     if n > 512 {
         return carr_empty(), fault(F_LIMIT, "eigvals_complex", "the side is above 512");
     }
-    var i: i64 = 0;
-    while i < n * n {
-        if !(a.data[i] - a.data[i] == 0.0) {
-            return carr_empty(), fault(F_VALUE, "eigvals_complex", "the matrix holds a value that is not finite");
-        }
-        i += 1;
+    let fb = check_stack(a.ndim, a.shape, a.data.len, 1, "eigvals_complex");
+    if fb.kind != F_NONE { return carr_empty(), fb; }
+    if !carr_finite(a) {
+        return carr_empty(), fault(F_VALUE, "eigvals_complex", "the matrix holds a value that is not finite");
     }
     var h: f64[>..] = [];
     hessenberg(a.data, n, h);
-    i = 0;
+    var i: i64 = 0;
     while i < n {
         var j: i64 = 0;
         while j < i - 1 { h[i * n + j] = 0.0; j += 1; }
@@ -701,3 +917,4 @@ fn eigvals_complex(a) -> CArr, Fault {
     s1.push(n);
     return carr_make(s1, copy(d)), no_fault();
 }
+
