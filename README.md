@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.139.0";
+import scientific from "rekanalar/goose-scientific@v0.140.0";
 ```
 
 ## API
@@ -87,6 +87,7 @@ import scientific from "rekanalar/goose-scientific@v0.139.0";
 | Balance of a matrix and the exponential | `matrix_balance`, `matrix_balance_separate`, `expm_frechet`, `expm_cond` |
 | Update of the QR decomposition | `qr_update`, `qr_insert`, `qr_delete` |
 | Complex Schur form and real block form | `rsf2csf`, `cdf2rdf` |
+| Cosine-sine decomposition | `cossin`, `cossin_separate`, `cossin_blocks` |
 | Algebraic Riccati equations | `solve_continuous_are`, `solve_discrete_are` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `csolve`, `cinv`, `cdet`, `cfft`, `cifft`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
@@ -1282,6 +1283,24 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   of Hann. The sizes come as the mean of the squares of the values of
   the transform. The result holds the positive frequencies of one
   side.
+- `cossin` gives the cosine-sine decomposition of an orthogonal
+  matrix. It takes the split of the rows and of the columns as two
+  integers. A float split is a fault. SciPy takes the integer part of
+  a float.
+- `cossin` takes both parts of the split. A call with one part only
+  has no default. SciPy sets the second part to one.
+- `cossin` gives the factors up to the sign of each paired column and
+  row. LAPACK fixes that sign by its method of bidiagonalization. The
+  package fixes it by its own rule. A free block of a factor is fixed
+  by its properties only.
+- An angle of `cossin` below `1.0e-8` has an absolute accuracy of
+  that order. A cluster of equal cosines hides the small angles.
+- `cossin` takes a real matrix only. A complex unitary matrix waits
+  for the complex array functions of the package.
+- `cossin_separate` takes one matrix. A stack of matrices gives a
+  fault of kind `F_SHAPE`. SciPy fails for a stack there too.
+- The element limit of `cossin` does not bound the time of a call.
+  The work of one matrix grows with the cube of its side.
 
 ## Security
 
@@ -1461,6 +1480,22 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   size of the factors before it removes anything.
   A count above the size is a fault, so a bad count cannot read
   outside the buffer.
+- `cossin` checks the length of the buffer of its operand against its
+  shape before it reads a value. A shape that lies is a fault, so a bad
+  shape cannot read outside the buffer.
+- `cossin` checks the side of its operand against the limit of 512
+  before it copies. A side above the limit is a fault, so a bad side
+  cannot grow the memory without bound.
+- `cossin` checks the count of elements of every result against the
+  limit. A stack of many matrices cannot exhaust the memory.
+- `cossin` faults on a value that is not finite. A value that is not
+  finite would spread through every result.
+- `cossin` checks that its operand is orthogonal. The fault follows
+  when the largest entry of `X^T X - I` is above `1.0e-8`. SciPy
+  checks nothing here and gives a wrong answer.
+- `cossin_blocks` checks the sides of its four blocks before it joins
+  them. Blocks that do not fit give a fault, so a bad side cannot read
+  outside a buffer.
 
 ## License
 

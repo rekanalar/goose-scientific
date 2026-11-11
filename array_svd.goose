@@ -60,6 +60,10 @@ fn jacobi_svd(a, m: i64, n: i64) -> Arr, Arr, Fault {
                     // the two lengths and their product.
                     let diff = alpha - beta;
                     let root = mathshim::root(diff * diff + 4.0 * gamma * gamma);
+                    // Two columns that shrank to the size of the
+                    // underflow give a root of zero. The turn would
+                    // divide zero by zero, so those columns stay.
+                    if root == 0.0 { q += 1; continue; }
                     var t: f64 = 0.0;
                     // The two forms are equal by algebra. These ones
                     // hold no subtraction of two close numbers.
@@ -172,47 +176,61 @@ fn complete_basis(cols: f64[:], m: i64, count: i64, want: i64) -> f64[>..] {
     var c = count;
     while c < want {
         // The new column comes from the unit vector that no column
-        // holds.
+        // holds. The part of a unit vector that the columns hold has
+        // the squared length of the sum of the squares of its entries.
+        // One pass over the columns gives that length for every unit
+        // vector. Without the pass, a search for a vector that the
+        // columns do not hold costs the square of the count of the
+        // columns for each candidate.
         var k: i64 = 0;
         var found = false;
         while k < m && !found {
-            var v: f64[>..] = [];
-            var r: i64 = 0;
-            while r < m {
-                if r == k { v.push(1.0); } else { v.push(0.0); }
-                r += 1;
-            }
-            // The vector takes the part that no column holds.
+            var held: f64 = 0.0;
             var j: i64 = 0;
             while j < c {
-                var t: f64 = 0.0;
-                r = 0;
-                while r < m {
-                    t += v[r] * out[r * want + j];
-                    r += 1;
-                }
-                r = 0;
-                while r < m {
-                    v[r] = v[r] - t * out[r * want + j];
-                    r += 1;
-                }
+                let t = out[k * want + j];
+                held += t * t;
                 j += 1;
             }
-            // The vector must hold a length.
-            var length: f64 = 0.0;
-            r = 0;
-            while r < m {
-                length += v[r] * v[r];
-                r += 1;
-            }
-            length = mathshim::root(length);
-            if length > 0.000001 {
-                r = 0;
+            if 1.0 - held > 1.0e-12 {
+                var v: f64[>..] = [];
+                var r: i64 = 0;
                 while r < m {
-                    out[r * want + c] = v[r] / length;
+                    if r == k { v.push(1.0); } else { v.push(0.0); }
                     r += 1;
                 }
-                found = true;
+                // The vector takes the part that no column holds.
+                j = 0;
+                while j < c {
+                    var t: f64 = 0.0;
+                    r = 0;
+                    while r < m {
+                        t += v[r] * out[r * want + j];
+                        r += 1;
+                    }
+                    r = 0;
+                    while r < m {
+                        v[r] = v[r] - t * out[r * want + j];
+                        r += 1;
+                    }
+                    j += 1;
+                }
+                // The vector must hold a length.
+                var length: f64 = 0.0;
+                r = 0;
+                while r < m {
+                    length += v[r] * v[r];
+                    r += 1;
+                }
+                length = mathshim::root(length);
+                if length > 0.000001 {
+                    r = 0;
+                    while r < m {
+                        out[r * want + c] = v[r] / length;
+                        r += 1;
+                    }
+                    found = true;
+                }
             }
             k += 1;
         }
