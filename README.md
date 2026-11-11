@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.146.0";
+import scientific from "rekanalar/goose-scientific@v0.147.0";
 ```
 
 ## API
@@ -90,7 +90,7 @@ import scientific from "rekanalar/goose-scientific@v0.146.0";
 | Cosine-sine decomposition | `cossin`, `cossin_separate`, `cossin_blocks` |
 | Generalized Schur form of a pair | `qz`, `ordqz`, `qz_complex`, `ordqz_complex`, `qz_c`, `ordqz_c`, `ordqz_by`, `ordqz_complex_by`, `ordqz_c_by` |
 | Algebraic Riccati equations | `solve_continuous_are`, `solve_discrete_are`, `solve_discrete_are_pencil` |
-| Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `cdot`, `cvdot`, `csolve`, `cinv`, `cdet`, `ccholesky`, `cfft`, `cifft`, `cfftn`, `cifftn`, `cqr`, `csvd`, `ceig`, `ceigvals`, `ceigh`, `ceigvalsh`, `eigvals_complex` |
+| Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `cdot`, `cvdot`, `csolve`, `cinv`, `cdet`, `ccholesky`, `cfft`, `cifft`, `cfftn`, `cifftn`, `cqr`, `csvd`, `ceig`, `ceigvals`, `ceigh`, `ceigvalsh`, `eigvals_complex`, `ceig_pair`, `ceigvals_pair`, `ceigh_pair`, `ceigvalsh_pair`, `eig_pair`, `eigvals_pair`, `eigh_pair`, `eigvalsh_pair` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -185,7 +185,24 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - An unknown `uplo` is a fault.
 - The four eigen calls take a side up to 256. A matrix of random
   values of side 256 took about 1.4 seconds for each of `ceig` and
-  `ceigh`. The eigenproblem of a pair of complex matrices stays open.
+  `ceigh`.
+- `ceig_pair` gives alpha, beta and the vectors of a pair of matrices.
+  The eigenvalue is alpha divided by beta. The order follows the
+  generalized Schur form, and SciPy fixes no order. Each vector has
+  length one with a real largest component above zero. SciPy scales
+  its vectors in another way, so compare after the same rule.
+- `ceigvals_pair` gives the real part infinity and the imaginary part
+  zero for a zero beta. A zero alpha with a zero beta gives not a
+  number, as SciPy does for a singular pair.
+  An eigenvalue beyond the number range also gives infinity. The vectors of
+  a singular pair stay finite.
+- `ceigh_pair` needs a positive definite B and gives a fault otherwise.
+  It reads one triangle of both operands. The vectors satisfy
+  V^H B V equal to the unit matrix. The largest component of each
+  vector is real and above zero. SciPy fixes no phase.
+- The eight pair calls take a side up to 256 and no batch. A pair of
+  random values of side 256 took about 1.4 seconds for `ceig_pair` and
+  about 0.8 seconds for `ceigh_pair`.
 - `solve_sylvester` and the two Lyapunov solvers build the Kronecker
   form. The product of the sides stays at 4096 or below.
 - `schur` holds the real form. The form is not unique, so the signs
@@ -1646,6 +1663,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   part lies outside 1e-100 to 1e100 and scale the eigenvalues back.
   Both iterations have a fixed cap, so hostile input cannot loop
   forever.
+- The eight pair calls check both buffers, both shapes, the side and
+  every value. A side above 256 is a fault. Two sides that differ are a
+  fault. A value that is not finite is a fault. The back substitution
+  scales both triangles first and replaces a tiny denominator, so no
+  division by zero occurs. The iterations have fixed caps.
 - `ccholesky` checks the side of the matrix before it reads a value.
   A side above 1024 is a fault. It checks every element for a value
   that is not finite. A matrix that is not positive definite gives a
