@@ -10862,6 +10862,402 @@ fn test_cfftn_hostile() {
     return;
 }
 
+// cmat_err gives the largest difference between two complex arrays.
+fn cmat_err(x: scientific::CArr&, y: scientific::CArr&) -> f64 {
+    var worst: f64 = 0.0;
+    var i: i64 = 0;
+    while i < x.data.len {
+        var d = x.data[i] - y.data[i];
+        if d < 0.0 { d = -d; }
+        if d > worst { worst = d; }
+        i += 1;
+    }
+    return worst;
+}
+
+// gram_dev gives the largest deviation of the inner products of the
+// first count vectors from the unit matrix. The vectors are the columns
+// when by_cols holds, else the rows.
+fn gram_dev(q: scientific::CArr&, by_cols: bool, count: i64) -> f64 {
+    let rows = q.shape[0];
+    let cols = q.shape[1];
+    var len = cols;
+    if by_cols { len = rows; }
+    var worst: f64 = 0.0;
+    var a: i64 = 0;
+    while a < count {
+        var b: i64 = 0;
+        while b < count {
+            var sr: f64 = 0.0;
+            var si: f64 = 0.0;
+            var k: i64 = 0;
+            while k < len {
+                var ia = a * cols + k;
+                var ib = b * cols + k;
+                if by_cols {
+                    ia = k * cols + a;
+                    ib = k * cols + b;
+                }
+                // The inner product of the vector a with the conjugate of b.
+                sr += q.data[2 * ia] * q.data[2 * ib] + q.data[2 * ia + 1] * q.data[2 * ib + 1];
+                si += q.data[2 * ia + 1] * q.data[2 * ib] - q.data[2 * ia] * q.data[2 * ib + 1];
+                k += 1;
+            }
+            var want: f64 = 0.0;
+            if a == b { want = 1.0; }
+            var dr = sr - want;
+            if dr < 0.0 { dr = -dr; }
+            var di = si;
+            if di < 0.0 { di = -di; }
+            if dr > worst { worst = dr; }
+            if di > worst { worst = di; }
+            b += 1;
+        }
+        a += 1;
+    }
+    return worst;
+}
+
+// check_qr tests the properties of the two factors of a complex matrix.
+fn check_qr(a: scientific::CArr&) {
+    let m = a.shape[0];
+    let n = a.shape[1];
+    var p = m;
+    if n < p { p = n; }
+    let q, r, f = scientific::cqr(a);
+    assert(f.kind == scientific::F_NONE);
+    assert(q.shape[0] == m && q.shape[1] == p);
+    assert(r.shape[0] == p && r.shape[1] == n);
+    let qr, pf = scientific::cdot(q, r);
+    assert(pf.kind == scientific::F_NONE);
+    assert(cmat_err(qr, a) < 1.0e-12);
+    assert(gram_dev(q, true, p) < 1.0e-12);
+    // The upper triangle holds zero below the diagonal and a real diagonal.
+    var i: i64 = 0;
+    while i < p {
+        var j: i64 = 0;
+        while j < n {
+            if j <= i {
+                if j < i {
+                    assert(r.data[2 * (i * n + j)] == 0.0 && r.data[2 * (i * n + j) + 1] == 0.0);
+                } else {
+                    assert(r.data[2 * (i * n + j) + 1] == 0.0);
+                }
+            }
+            j += 1;
+        }
+        i += 1;
+    }
+    return;
+}
+
+// check_svd tests the properties of the three results of a complex matrix.
+fn check_svd(a: scientific::CArr&) {
+    let m = a.shape[0];
+    let n = a.shape[1];
+    var k = m;
+    if n < k { k = n; }
+    let u, s, vh, f = scientific::csvd(a);
+    assert(f.kind == scientific::F_NONE);
+    assert(u.shape[0] == m && u.shape[1] == m);
+    assert(vh.shape[0] == n && vh.shape[1] == n);
+    assert(s.data.len == k);
+    var i: i64 = 0;
+    while i < k {
+        assert(s.data[i] >= 0.0);
+        if i > 0 { assert(s.data[i - 1] >= s.data[i]); }
+        i += 1;
+    }
+    assert(gram_dev(u, true, m) < 1.0e-12);
+    assert(gram_dev(vh, false, n) < 1.0e-12);
+    // The matrix equals the first k columns of U times S times the first k rows of Vh.
+    var worst: f64 = 0.0;
+    i = 0;
+    while i < m {
+        var j: i64 = 0;
+        while j < n {
+            var sr: f64 = 0.0;
+            var si: f64 = 0.0;
+            var t: i64 = 0;
+            while t < k {
+                let ur = u.data[2 * (i * m + t)] * s.data[t];
+                let ui = u.data[2 * (i * m + t) + 1] * s.data[t];
+                let vr = vh.data[2 * (t * n + j)];
+                let vi = vh.data[2 * (t * n + j) + 1];
+                sr += ur * vr - ui * vi;
+                si += ur * vi + ui * vr;
+                t += 1;
+            }
+            var dr = sr - a.data[2 * (i * n + j)];
+            var di = si - a.data[2 * (i * n + j) + 1];
+            if dr < 0.0 { dr = -dr; }
+            if di < 0.0 { di = -di; }
+            if dr > worst { worst = dr; }
+            if di > worst { worst = di; }
+            j += 1;
+        }
+        i += 1;
+    }
+    assert(worst < 1.0e-12);
+    // The largest component of each column of U is real and above zero.
+    var c: i64 = 0;
+    while c < k {
+        if s.data[c] > 1.0e-6 {
+            var best: f64 = -1.0;
+            var br: f64 = 0.0;
+            var bi: f64 = 0.0;
+            var r: i64 = 0;
+            while r < m {
+                let xr = u.data[2 * (r * m + c)];
+                let xi = u.data[2 * (r * m + c) + 1];
+                if xr * xr + xi * xi > best + 1.0e-9 {
+                    best = xr * xr + xi * xi;
+                    br = xr;
+                    bi = xi;
+                }
+                r += 1;
+            }
+            assert(br > 0.0);
+            var abi = bi;
+            if abi < 0.0 { abi = -abi; }
+            assert(abi < 1.0e-12);
+        }
+        c += 1;
+    }
+    return;
+}
+
+// random_complex gives a matrix of normal complex values.
+fn random_complex(rng: scientific::Rng&, m: i64, n: i64) -> scientific::CArr {
+    let re, f0 = scientific::randn(rng, [m, n]);
+    let im, f1 = scientific::randn(rng, [m, n]);
+    assert(f0.kind == scientific::F_NONE && f1.kind == scientific::F_NONE);
+    let a, f2 = scientific::complex_array(re, im);
+    assert(f2.kind == scientific::F_NONE);
+    return a;
+}
+
+// test_cqr pins the factors against NumPy and tests their properties.
+fn test_cqr() {
+    let a1, f1 = scientific::complex_array(mx(2, 2, [1.0, 2.0, 3.0, 4.0]), mx(2, 2, [1.0, 0.0, -2.0, 1.0]));
+    assert(f1.kind == scientific::F_NONE);
+    let q, r, f = scientific::cqr(a1);
+    assert(f.kind == scientific::F_NONE);
+    assert(all_close_c(q, [-0.258198889747161, -0.7348469228349537, -0.7745966692414835, -0.16329931618554494], [-0.25819888974716115, 0.5715476066494081, 0.5163977794943222, -0.3265986323710902], 1.0e-12));
+    assert(all_close_c(r, [-3.8729833462074166, -3.0983866769659345, 0.0, -2.4494897427831783], [0.0, -2.32379000772445, 0.0, 0.0], 1.0e-12));
+    // A tall matrix. The reduced form holds two columns.
+    let a2, f2 = scientific::complex_array(mx(3, 2, [1.0, 2.0, 0.0, 1.0, 2.0, -1.0]), mx(3, 2, [0.0, -1.0, 3.0, 1.0, 0.0, 2.0]));
+    assert(f2.kind == scientific::F_NONE);
+    let q2, r2, g2 = scientific::cqr(a2);
+    assert(g2.kind == scientific::F_NONE);
+    assert(q2.shape[0] == 3 && q2.shape[1] == 2 && r2.shape[0] == 2 && r2.shape[1] == 2);
+    assert(all_close_c(q2, [-0.2672612419124243, -0.5298798792491219, -0.0, -0.29673273237950815, -0.5345224838248488, 0.4239039033992974], [0.0, 0.2967327323795083, -0.8017837257372732, -0.10597597584982449, -0.0, -0.5934654647590163], 1.0e-12));
+    assert(all_close_c(r2, [-3.7416573867739413, -0.8017837257372729, 0.0, -3.3700360320244136], [0.0, 0.0, 0.0, 0.0], 1.0e-12));
+    // A wide matrix.
+    let a3, f3 = scientific::complex_array(mx(2, 3, [1.0, 2.0, 0.0, 3.0, 4.0, 1.0]), mx(2, 3, [1.0, 0.0, -1.0, -2.0, 1.0, 0.0]));
+    assert(f3.kind == scientific::F_NONE);
+    let q3, r3, g3 = scientific::cqr(a3);
+    assert(g3.kind == scientific::F_NONE);
+    assert(q3.shape[0] == 2 && q3.shape[1] == 2 && r3.shape[0] == 2 && r3.shape[1] == 3);
+    assert(all_close_c(r3, [-3.8729833462074166, -3.0983866769659345, -0.5163977794943224, 0.0, -2.4494897427831783, -0.734846922834953], [0.0, -2.32379000772445, -0.2581988897471612, 0.0, 0.0, 1.0614455552060438], 1.0e-12));
+    // A matrix of rank one, a matrix of zeros and a matrix of one element.
+    let a4, f4 = scientific::complex_array(mx(2, 2, [1.0, 2.0, 2.0, 4.0]), mx(2, 2, [1.0, 2.0, 2.0, 4.0]));
+    assert(f4.kind == scientific::F_NONE);
+    let q4, r4, g4 = scientific::cqr(a4);
+    assert(g4.kind == scientific::F_NONE);
+    assert(all_close_c(r4, [-3.1622776601683795, -6.32455532033676, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], 1.0e-12));
+    check_qr(a4);
+    let a5, f5 = scientific::complex_array(mx(2, 2, [0.0, 0.0, 0.0, 0.0]), mx(2, 2, [0.0, 0.0, 0.0, 0.0]));
+    assert(f5.kind == scientific::F_NONE);
+    let q5, r5, g5 = scientific::cqr(a5);
+    assert(g5.kind == scientific::F_NONE);
+    assert(all_close_c(q5, [1.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0], 1.0e-12));
+    assert(all_close_c(r5, [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], 1.0e-12));
+    let a6, f6 = scientific::complex_array(mx(1, 1, [3.0]), mx(1, 1, [-4.0]));
+    assert(f6.kind == scientific::F_NONE);
+    let q6, r6, g6 = scientific::cqr(a6);
+    assert(g6.kind == scientific::F_NONE);
+    assert(all_close_c(q6, [-0.6000000000000001], [0.8], 1.0e-12));
+    assert(all_close_c(r6, [-5.0], [0.0], 1.0e-12));
+    // The properties hold for random matrices of several shapes.
+    var rng = scientific::default_rng(296);
+    var t: i64 = 0;
+    while t < 20 {
+        let m = random_complex(rng, 4, 4);
+        check_qr(m);
+        t += 1;
+    }
+    let tall = random_complex(rng, 6, 3);
+    check_qr(tall);
+    let wide = random_complex(rng, 3, 6);
+    check_qr(wide);
+    check_qr(a1);
+    check_qr(a2);
+    check_qr(a3);
+    return;
+}
+
+// test_csvd_real_product tests a pair of columns whose inner product is a
+// negative real value. The method must still turn them to zero.
+fn test_csvd_real_product() {
+    let a = scientific::CArr { ndim: 2, shape: [2, 2], data: [1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0] };
+    let u, s, vh, g = scientific::csvd(a);
+    assert(g.kind == scientific::F_NONE);
+    assert(close(s.data[0], 2.414213562373095, 1.0e-12) && close(s.data[1], 0.41421356237309503, 1.0e-12));
+    check_svd(a);
+    let b, f = scientific::complex_array(mx(3, 3, [1.0, -2.0, 3.0, -1.0, 4.0, 2.0, 2.0, -3.0, 1.0]), mx(3, 3, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(f.kind == scientific::F_NONE);
+    check_svd(b);
+    return;
+}
+
+// test_cfactor_scale tests entries near the limits of the number format.
+fn test_cfactor_scale() {
+    let big = scientific::CArr { ndim: 2, shape: [2, 2], data: [1.0e300, 1.0e300, 1.0e300, 0.0, 0.0, 1.0e300, 1.0e300, 1.0e300] };
+    let q, r, f = scientific::cqr(big);
+    assert(f.kind == scientific::F_NONE);
+    assert(close(r.data[0] / 1.0e300, -1.7320508075688772, 1.0e-12));
+    assert(close(r.data[6] / 1.0e300, -0.5773502691896257, 1.0e-12));
+    let u, s, vh, g = scientific::csvd(big);
+    assert(g.kind == scientific::F_NONE);
+    assert(close(s.data[0] / 1.0e300, 2.414213562373095, 1.0e-12));
+    assert(close(s.data[1] / 1.0e300, 0.41421356237309503, 1.0e-12));
+    let small = scientific::CArr { ndim: 2, shape: [2, 2], data: [1.0e-300, 1.0e-300, 1.0e-300, 0.0, 0.0, 1.0e-300, 1.0e-300, 1.0e-300] };
+    let us, ss, vs, gs = scientific::csvd(small);
+    assert(gs.kind == scientific::F_NONE);
+    assert(close(ss.data[0] / 1.0e-300, 2.414213562373095, 1.0e-12));
+    return;
+}
+
+// test_cqr_hostile covers the faults of the QR decomposition.
+fn test_cqr_hostile() {
+    let v, f0 = scientific::complex_from_values([1.0, 2.0], [0.0, 0.0]);
+    assert(f0.kind == scientific::F_NONE);
+    // A vector is not a matrix.
+    let q1, r1, g1 = scientific::cqr(v);
+    assert(g1.kind == scientific::F_SHAPE);
+    // The buffer does not match the shape.
+    let short = scientific::CArr { ndim: 2, shape: [2, 2], data: [1.0] };
+    let q2, r2, g2 = scientific::cqr(short);
+    assert(g2.kind == scientific::F_SHAPE);
+    // The shape holds fewer entries than the count of dimensions says.
+    let lie = scientific::CArr { ndim: 2, shape: [2], data: [1.0, 0.0, 2.0, 0.0] };
+    let q3, r3, g3 = scientific::cqr(lie);
+    assert(g3.kind == scientific::F_SHAPE);
+    // A value is not finite.
+    let nan = 0.0 / 0.0;
+    let bad = scientific::CArr { ndim: 2, shape: [1, 2], data: [1.0, 0.0, nan, 0.0] };
+    let q4, r4, g4 = scientific::cqr(bad);
+    assert(g4.kind == scientific::F_VALUE);
+    // A side holds more than the limit.
+    var big: f64[>..] = [];
+    var bi: i64 = 0;
+    while bi < 2 * 513 { big.push(1.0); bi += 1; }
+    let wide = scientific::CArr { ndim: 2, shape: [1, 513], data: copy(big) };
+    let q5, r5, g5 = scientific::cqr(wide);
+    assert(g5.kind == scientific::F_LIMIT);
+    // A real array reaches the call.
+    let q6, r6, g6 = scientific::cqr(mx(2, 2, [1.0, 2.0, 3.0, 4.0]));
+    assert(g6.kind == scientific::F_SHAPE);
+    return;
+}
+
+// test_csvd pins the singular values against NumPy and tests the factors.
+fn test_csvd() {
+    let a1, f1 = scientific::complex_array(mx(2, 2, [1.0, 2.0, 3.0, 4.0]), mx(2, 2, [1.0, 0.0, -2.0, 1.0]));
+    assert(f1.kind == scientific::F_NONE);
+    let u, s, vh, f = scientific::csvd(a1);
+    assert(f.kind == scientific::F_NONE);
+    assert(close(s.data[0], 5.770360347567416, 1.0e-12) && close(s.data[1], 1.6440624864103084, 1.0e-12));
+    check_svd(a1);
+    let a2, f2 = scientific::complex_array(mx(3, 2, [1.0, 2.0, 0.0, 1.0, 2.0, -1.0]), mx(3, 2, [0.0, -1.0, 3.0, 1.0, 0.0, 2.0]));
+    assert(f2.kind == scientific::F_NONE);
+    let u2, s2, vh2, g2 = scientific::csvd(a2);
+    assert(g2.kind == scientific::F_NONE);
+    assert(u2.shape[0] == 3 && u2.shape[1] == 3 && vh2.shape[0] == 2 && vh2.shape[1] == 2 && s2.data.len == 2);
+    assert(close(s2.data[0], 4.020233533038644, 1.0e-12) && close(s2.data[1], 3.136514361489777, 1.0e-12));
+    check_svd(a2);
+    let a3, f3 = scientific::complex_array(mx(2, 3, [1.0, 2.0, 0.0, 3.0, 4.0, 1.0]), mx(2, 3, [1.0, 0.0, -1.0, -2.0, 1.0, 0.0]));
+    assert(f3.kind == scientific::F_NONE);
+    let u3, s3, vh3, g3 = scientific::csvd(a3);
+    assert(g3.kind == scientific::F_NONE);
+    assert(vh3.shape[0] == 3 && vh3.shape[1] == 3 && s3.data.len == 2);
+    assert(close(s3.data[0], 5.842323677306963, 1.0e-12) && close(s3.data[1], 1.9665335109218063, 1.0e-12));
+    check_svd(a3);
+    // A matrix of rank one. The second value is near zero.
+    let a4, f4 = scientific::complex_array(mx(2, 2, [1.0, 2.0, 2.0, 4.0]), mx(2, 2, [1.0, 2.0, 2.0, 4.0]));
+    assert(f4.kind == scientific::F_NONE);
+    let u4, s4, vh4, g4 = scientific::csvd(a4);
+    assert(g4.kind == scientific::F_NONE);
+    assert(close(s4.data[0], 7.071067811865476, 1.0e-12) && s4.data[1] < 1.0e-12);
+    check_svd(a4);
+    // A matrix of zeros.
+    let a5, f5 = scientific::complex_array(mx(2, 2, [0.0, 0.0, 0.0, 0.0]), mx(2, 2, [0.0, 0.0, 0.0, 0.0]));
+    assert(f5.kind == scientific::F_NONE);
+    let u5, s5, vh5, g5 = scientific::csvd(a5);
+    assert(g5.kind == scientific::F_NONE);
+    assert(s5.data[0] == 0.0 && s5.data[1] == 0.0);
+    assert(gram_dev(u5, true, 2) < 1.0e-12 && gram_dev(vh5, false, 2) < 1.0e-12);
+    // A matrix of one element.
+    let a6, f6 = scientific::complex_array(mx(1, 1, [3.0]), mx(1, 1, [-4.0]));
+    assert(f6.kind == scientific::F_NONE);
+    let u6, s6, vh6, g6 = scientific::csvd(a6);
+    assert(g6.kind == scientific::F_NONE);
+    assert(close(s6.data[0], 5.0, 1.0e-12));
+    check_svd(a6);
+    // The properties hold for random matrices.
+    var rng = scientific::default_rng(2960);
+    var t: i64 = 0;
+    while t < 20 {
+        let m = random_complex(rng, 4, 4);
+        check_svd(m);
+        t += 1;
+    }
+    let tall = random_complex(rng, 6, 3);
+    check_svd(tall);
+    let wide = random_complex(rng, 3, 6);
+    check_svd(wide);
+    // Matrices of rank two with more rows or more columns.
+    let l = random_complex(rng, 5, 2);
+    let rr = random_complex(rng, 2, 4);
+    let low, lowf = scientific::cdot(l, rr);
+    assert(lowf.kind == scientific::F_NONE);
+    check_svd(low);
+    let lw = random_complex(rng, 2, 5);
+    let rw = random_complex(rng, 4, 2);
+    let lowwide, lwf = scientific::cdot(rw, lw);
+    assert(lwf.kind == scientific::F_NONE);
+    check_svd(lowwide);
+    return;
+}
+
+// test_csvd_hostile covers the faults of the singular values.
+fn test_csvd_hostile() {
+    let v, f0 = scientific::complex_from_values([1.0, 2.0], [0.0, 0.0]);
+    assert(f0.kind == scientific::F_NONE);
+    let u1, s1, vh1, g1 = scientific::csvd(v);
+    assert(g1.kind == scientific::F_SHAPE);
+    let short = scientific::CArr { ndim: 2, shape: [2, 2], data: [1.0] };
+    let u2, s2, vh2, g2 = scientific::csvd(short);
+    assert(g2.kind == scientific::F_SHAPE);
+    let lie = scientific::CArr { ndim: 2, shape: [2], data: [1.0, 0.0, 2.0, 0.0] };
+    let u3, s3, vh3, g3 = scientific::csvd(lie);
+    assert(g3.kind == scientific::F_SHAPE);
+    let nan = 0.0 / 0.0;
+    let bad = scientific::CArr { ndim: 2, shape: [1, 2], data: [1.0, 0.0, nan, 0.0] };
+    let u4, s4, vh4, g4 = scientific::csvd(bad);
+    assert(g4.kind == scientific::F_VALUE);
+    var big: f64[>..] = [];
+    var bi: i64 = 0;
+    while bi < 2 * 513 { big.push(1.0); bi += 1; }
+    let wide = scientific::CArr { ndim: 2, shape: [1, 513], data: copy(big) };
+    let u5, s5, vh5, g5 = scientific::csvd(wide);
+    assert(g5.kind == scientific::F_LIMIT);
+    let u6, s6, vh6, g6 = scientific::csvd(mx(2, 2, [1.0, 2.0, 3.0, 4.0]));
+    assert(g6.kind == scientific::F_SHAPE);
+    return;
+}
+
 fn main() {
     test_schur_funm_ldl();
     test_eigvalsh_larger();
@@ -11005,6 +11401,12 @@ fn main() {
     test_ccholesky_hostile();
     test_cfftn();
     test_cfftn_hostile();
+    test_cqr();
+    test_cqr_hostile();
+    test_csvd();
+    test_csvd_hostile();
+    test_cfactor_scale();
+    test_csvd_real_product();
     print("ok\n");
     return;
 }

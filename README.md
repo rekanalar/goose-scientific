@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.144.0";
+import scientific from "rekanalar/goose-scientific@v0.145.0";
 ```
 
 ## API
@@ -90,7 +90,7 @@ import scientific from "rekanalar/goose-scientific@v0.144.0";
 | Cosine-sine decomposition | `cossin`, `cossin_separate`, `cossin_blocks` |
 | Generalized Schur form of a pair | `qz`, `ordqz`, `qz_complex`, `ordqz_complex`, `qz_c`, `ordqz_c`, `ordqz_by`, `ordqz_complex_by`, `ordqz_c_by` |
 | Algebraic Riccati equations | `solve_continuous_are`, `solve_discrete_are`, `solve_discrete_are_pencil` |
-| Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `cdot`, `cvdot`, `csolve`, `cinv`, `cdet`, `ccholesky`, `cfft`, `cifft`, `cfftn`, `cifftn`, `eigvals_complex` |
+| Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `cdot`, `cvdot`, `csolve`, `cinv`, `cdet`, `ccholesky`, `cfft`, `cifft`, `cfftn`, `cifftn`, `cqr`, `csvd`, `eigvals_complex` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -139,8 +139,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `iscomplex` and `isreal` give arrays of one and zero, not booleans.
 - `csolve` and `cinv` solve the real system of twice the side, so the
   side stays at 1024 or below. `cdet` takes a side up to 2048
-  and gives the real and the imaginary part. The complex matrices have no `eig`, `svd` or `qr`.
-  `eigvals_complex` gives no eigenvectors. `cfft` and
+  and gives the real and the imaginary part. The complex matrices have no `eig`.
+  `eigvals_complex` takes a real matrix and gives no eigenvectors. `cfft` and
   `cifft` take one dimension.
 - `cdot` takes vectors and matrices only. A count of dimensions above
   two gives a fault. NumPy takes more than two dimensions. It sums the
@@ -155,9 +155,22 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   triangle by default. SciPy gives a fault for a matrix that is not
   Hermitian. The package follows NumPy.
 - `cfftn` and `cifftn` transform every axis. They take no choice of
-  axes and no shape. The QR, the SVD and the eigenvalues of a complex
-  matrix stay open. The methods of LAPACK give a phase that the
-  package does not reproduce yet.
+  axes and no shape. The eigenvalues and the eigenvectors of a
+  complex matrix stay open.
+- `cqr` gives the reduced form. The diagonal of the upper triangle
+  holds real values, and the sign follows LAPACK, as NumPy does. It
+  takes no `mode` and no pivoting.
+- `csvd` gives the full left and right
+  vectors and the singular values from the largest to the smallest.
+  NumPy fixes no phase for these vectors. The package makes the
+  largest component of each left vector real and positive. The vectors
+  of a repeated singular value differ from the vectors of NumPy. The
+  singular values agree.
+- `csvd` takes no `full_matrices` choice and no `compute_uv` choice.
+  Both `cqr` and `csvd` take a side up to 512. The Jacobi method of
+  `csvd` runs at most 60 sweeps. A matrix of random values of side 512
+  took about 70 seconds. A matrix that needs all 60 sweeps takes longer.
+  Cap the side of untrusted input.
 - `solve_sylvester` and the two Lyapunov solvers build the Kronecker
   form. The product of the sides stays at 4096 or below.
 - `schur` holds the real form. The form is not unique, so the signs
@@ -1605,6 +1618,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   the shape against the count of dimensions before they read an
   entry. `ccholesky` and `eigvals_complex` do the same. `eigvals_complex`
   checks its buffer of one value per element before it reads a value.
+- `cqr` and `csvd` check the buffer, the count of the entries of the
+  shape, the side and every value. A side above 512 is a fault. A value
+  that is not finite is a fault. NumPy lets a NaN into the factors. The
+  package does not.
+- `cqr` and `csvd` scale an operand whose largest part lies outside
+  1e-100 to 1e100. The squares of the parts then cannot overflow or
+  underflow. A matrix near 1e300 gives finite factors, not infinity.
 - `ccholesky` checks the side of the matrix before it reads a value.
   A side above 1024 is a fault. It checks every element for a value
   that is not finite. A matrix that is not positive definite gives a
