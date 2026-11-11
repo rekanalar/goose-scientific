@@ -70,6 +70,7 @@ import array_global;
 import array_bspline;
 import array_curfit;
 import array_delaunay;
+import array_special_matrices;
 import array_windows;
 import array_elliptic;
 import array_programs;
