@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.164.0";
+import scientific from "rekanalar/goose-scientific@v0.165.0";
 ```
 
 ## API
@@ -92,6 +92,7 @@ import scientific from "rekanalar/goose-scientific@v0.164.0";
 | Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `bessel`, `residue`, `residue_complex`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `welch_ex`, `stft`, `istft`, `resample` |
 | Sparse matrices of coordinates | `Coo`, `coo_from_triplets`, `coo_from_dense`, `coo_to_dense`, `coo_to_csr`, `coo_from_csr`, `coo_transpose`, `coo_get`, `coo_scale`, `coo_matvec` |
 | Sparse matrices of diagonals | `Dia`, `dia_from_dense`, `dia_to_dense`, `dia_from_csr`, `dia_to_csr`, `dia_from_coo`, `dia_to_coo`, `dia_get`, `dia_scale`, `dia_matvec`, `dia_transpose`, `dia_sum`, `dia_nnz`, `dia_diagonals`, `dia_from_diagonals` |
+| Sparse matrices of blocks | `Bsr`, `bsr_from_entries`, `bsr_from_dense`, `bsr_to_dense`, `bsr_from_csr`, `bsr_to_csr`, `bsr_from_coo`, `bsr_to_coo`, `bsr_get`, `bsr_scale`, `bsr_matvec`, `bsr_transpose`, `bsr_sum`, `bsr_nnz`, `bsr_diagonal`, `bsr_blocks` |
 | Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_kronsum`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `bicg`, `cgs`, `qmr`, `tfqmr`, `gmres`, `lsqr`, `lsmr`, `Lsmr`, `minres`, `eigsh`, `csr_matvec_t` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
@@ -281,13 +282,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `csr_slice` takes the row and column ranges with the end excluded and
   no step. `csr_tril` and `csr_triu` take the diagonal `k`.
   `csr_multiply` takes two matrices of one shape and does not broadcast.
-- The sparse types are `Csr` for compressed rows, `Csc` for compressed
-  columns, `Coo` for coordinates and `Dia` for diagonals. The types
-  `lil_array`, `dok_array` and `bsr_array` stay out. Build a matrix from
-  a list of entries with `csr_from_triplets`, with `csc_from_triplets` or
-  with `coo_from_triplets`. The first two add the entries of one place.
-  The third keeps them. A sparse result keeps the stored zeros that a sum
-  or a product makes.
+- The sparse types are `Csr`, `Csc`, `Coo`, `Dia` and `Bsr`. They hold
+  the compressed rows, the compressed columns, the coordinates, the
+  diagonals and the blocks. The types `lil_array` and `dok_array` stay
+  out.
+- Build a matrix from a list of entries with `csr_from_triplets`, with
+  `csc_from_triplets` or with `coo_from_triplets`. The first two add the
+  entries of one place. The third keeps them. A sparse result keeps the
+  stored zeros that a sum or a product makes.
 - The type `Dia` holds the offsets of the diagonals and the values of the
   diagonals. The offsets rise and no two of them are the same. The values
   of one diagonal lie in the order of the row. The first place of a
@@ -305,6 +307,27 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   diagonal cover its places inside the matrix. The older
   `scipy.sparse.spdiags` places the values by column, so it drops the
   first values of an upper diagonal.
+- The type `Bsr` cuts the matrix into blocks of `br` rows and `bc`
+  columns. The block size divides the shape. A block that holds no entry
+  is not kept. A zero inside a kept block stays in the block, so
+  `bsr_nnz` counts the zeros.
+- The blocks of one block row keep the order of their first entry. SciPy
+  keeps that order too. The block columns of a block row can therefore
+  fall. `bsr_get` and `bsr_to_csr` walk the blocks of the row, so they
+  need no sorted row.
+- The transpose of `Bsr` swaps the block size. It sorts the blocks by the
+  block row and the block column of the result, as SciPy sorts them.
+- The conversion to the compressed rows keeps the zeros of the blocks, as
+  SciPy keeps them. The count of the stored values of the compressed rows
+  counts those zeros too.
+- The coordinates of a block matrix hold every value of every block.
+  The zeros stay, as the coordinates of SciPy keep them. The count of
+  the entries is the count of the stored values.
+- The blocks of a matrix that the coordinates build keep the order of the
+  first entry of the coordinates. That order can differ from the order
+  of the source. SciPy differs in the same way.
+- `bsr_diagonal` gives the values on the main diagonal. The sums along an
+  axis come from the compressed rows.
 - The type `Coo` keeps the duplicate entries of one place, as SciPy does,
   and `nnz` counts them. The dense form, `coo_get` and the compressed
   rows add them up. `coo_get` and `coo_matvec` read every entry, so they
@@ -1726,6 +1749,19 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   count of the values that does not match the diagonals is a fault. A
   value that is not finite is a fault, so a bad value cannot spread
   through the matrix.
+- The coordinates of a block matrix hold every value of every block.
+  Their count grows with the count of the stored values. A count above
+  `MAX_SPARSE_NNZ` is a fault of kind `F_LIMIT`. The check comes before
+  the entries are built.
+- The block format checks its block size before it builds the matrix. A
+  block size below one is a fault of kind `F_RANGE`. A block size that
+  does not divide the shape is a fault of kind `F_RANGE`. The count of
+  the stored values above `MAX_SPARSE_NNZ` is a fault of kind `F_LIMIT`.
+  The count is checked by a division, so no product can overflow. A value
+  that is not finite is a fault, so a bad value cannot spread through
+  the blocks.
+- `bsr_scale` checks every product. A factor that makes a product not
+  finite is a fault of kind `F_VALUE`.
 - The diagonal format checks an offset before it turns it into a whole
   number. An offset that lies outside the range of an integer is a fault.
   The cast of such a number gives no defined value, so the check must come
