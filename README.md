@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.163.0";
+import scientific from "rekanalar/goose-scientific@v0.164.0";
 ```
 
 ## API
@@ -93,7 +93,7 @@ import scientific from "rekanalar/goose-scientific@v0.163.0";
 | Sparse matrices of coordinates | `Coo`, `coo_from_triplets`, `coo_from_dense`, `coo_to_dense`, `coo_to_csr`, `coo_from_csr`, `coo_transpose`, `coo_get`, `coo_scale`, `coo_matvec` |
 | Sparse matrices of diagonals | `Dia`, `dia_from_dense`, `dia_to_dense`, `dia_from_csr`, `dia_to_csr`, `dia_from_coo`, `dia_to_coo`, `dia_get`, `dia_scale`, `dia_matvec`, `dia_transpose`, `dia_sum`, `dia_nnz`, `dia_diagonals`, `dia_from_diagonals` |
 | Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
-| Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `bicg`, `cgs`, `qmr`, `tfqmr`, `gmres`, `lsqr`, `lsmr`, `Lsmr`, `minres`, `eigsh`, `csr_matvec_t` |
+| Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_kronsum`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `bicg`, `cgs`, `qmr`, `tfqmr`, `gmres`, `lsqr`, `lsmr`, `Lsmr`, `minres`, `eigsh`, `csr_matvec_t` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Tridiagonal, banded and RQ forms | `eigvalsh_tridiagonal`, `eigh_tridiagonal`, `cholesky_banded`, `cho_solve_banded`, `solveh_banded`, `rq` |
 | DFT matrix and QR product | `dft`, `qr_multiply` |
@@ -275,6 +275,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   sign from SciPy. Give it a symmetric matrix.
 - `csr_hstack` and `csr_vstack` join two matrices, not a list. Call them
   again for more. `csr_kron` and `csr_block_diag` take two matrices.
+- `csr_kronsum` follows `scipy.sparse.kronsum`: `kron(I_m, a) + kron(b, I_n)`.
+  Both operands need to be square. Any other shape gives a fault of kind
+  `F_SHAPE`. It takes two matrices of the type `Csr` and gives one.
 - `csr_slice` takes the row and column ranges with the end excluded and
   no step. `csr_tril` and `csr_triu` take the diagonal `k`.
   `csr_multiply` takes two matrices of one shape and does not broadcast.
@@ -1728,6 +1731,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   The cast of such a number gives no defined value, so the check must come
   first. An offset of that size would otherwise build the wrong diagonal
   and read as a correct answer.
+- `csr_kronsum` builds two products with `csr_kron`, and each product
+  checks its sides and its count of stored values. `csr_add` checks the
+  count of the sum, so a result above `MAX_SPARSE_NNZ` is a fault of kind
+  `F_LIMIT`. The count checks the stored values of the result, so a sum
+  that fits the limit is not refused.
 - The duplicate entries of one place add up, as the duplicates of SciPy
   add them up. The coordinates take only whole places inside the
   matrix. A negative or fractional place is a fault.

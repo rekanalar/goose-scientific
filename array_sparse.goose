@@ -288,6 +288,9 @@ fn csr_axpby(x, y, a: f64, b: f64) -> Csr, Fault {
         ptr.push(idx.len);
         i += 1;
     }
+    if idx.len > MAX_SPARSE_NNZ {
+        return csr_empty(), fault(F_LIMIT, "csr_add", "the count of stored values is above the limit");
+    }
     return csr_from_parts(x.rows, x.cols, ptr, idx, val), no_fault();
 }
 
@@ -490,6 +493,25 @@ fn csr_kron(a, b) -> Csr, Fault {
         i += 1;
     }
     return csr_from_triplets(rows, cols, ri, ci, v);
+}
+
+// csr_kronsum gives the Kronecker sum of two square sparse matrices, as
+// scipy.sparse.kronsum does: kron(I_m, a) + kron(b, I_n), where a has n
+// rows and b has m rows. csr_kron checks the sides and the count of
+// each product, and csr_add checks the count of the sum.
+fn csr_kronsum(a, b) -> Csr, Fault {
+    if a.rows != a.cols || b.rows != b.cols {
+        return csr_empty(), fault(F_SHAPE, "csr_kronsum", "an operand is not square");
+    }
+    let ib, fb = csr_eye(b.rows);
+    if fb.kind != F_NONE { return csr_empty(), fb; }
+    let ia, fa = csr_eye(a.rows);
+    if fa.kind != F_NONE { return csr_empty(), fa; }
+    let left, fl = csr_kron(ib, a);
+    if fl.kind != F_NONE { return csr_empty(), fl; }
+    let right, fr = csr_kron(b, ia);
+    if fr.kind != F_NONE { return csr_empty(), fr; }
+    return csr_add(left, right);
 }
 
 // csr_hstack joins two sparse matrices side by side. They hold the same

@@ -29558,6 +29558,199 @@ fn test_sparse_dia_hostile() {
     assert(ms_same(e16, [0.0, 7.0, 0.0, 9.0, 0.0, 8.0, 0.0, 5.0, 0.0]));
 }
 
+fn test_sparse_kronsum_pins0() {
+    let a, fa = scientific::csr_from_dense(mx(2, 2, [1.0, 2.0, 0.0, 3.0]));
+    let b, fb = scientific::csr_from_dense(mx(2, 2, [0.0, 5.0, 6.0, 0.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 4 && k.cols == 4 && k.nnz == 10);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [1.0, 2.0, 5.0, 0.0, 0.0, 3.0, 0.0, 5.0, 6.0, 0.0, 1.0, 2.0, 0.0, 6.0, 0.0, 3.0]));
+    return;
+}
+
+fn test_sparse_kronsum_pins1() {
+    let a, fa = scientific::csr_from_dense(mx(2, 2, [1.0, 2.0, 0.0, 3.0]));
+    let b, fb = scientific::csr_from_dense(mx(3, 3, [0.0, 5.0, 1.0, 6.0, 0.0, 0.0, 0.0, 0.0, 2.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 6 && k.cols == 6 && k.nnz == 15);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [1.0, 2.0, 5.0, 0.0, 1.0, 0.0, 0.0, 3.0, 0.0, 5.0, 0.0, 1.0, 6.0, 0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 6.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.0]));
+    return;
+}
+
+fn test_sparse_kronsum_pins2() {
+    let a, fa = scientific::csr_from_dense(mx(1, 1, [2.0]));
+    let b, fb = scientific::csr_from_dense(mx(1, 1, [3.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 1 && k.cols == 1 && k.nnz == 1);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [5.0]));
+    return;
+}
+
+fn test_sparse_kronsum_pins3() {
+    let a, fa = scientific::csr_from_dense(mx(2, 2, [0.0, 0.0, 0.0, 0.0]));
+    let b, fb = scientific::csr_from_dense(mx(2, 2, [0.0, 0.0, 0.0, 0.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 4 && k.cols == 4 && k.nnz == 0);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    return;
+}
+
+fn test_sparse_kronsum_pins4() {
+    let a, fa = scientific::csr_from_dense(mx(2, 2, [1.0, 0.0, 0.0, 2.0]));
+    let b, fb = scientific::csr_from_dense(mx(2, 2, [1.0, 0.0, 0.0, 1.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 4 && k.cols == 4 && k.nnz == 4);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [2.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 3.0]));
+    return;
+}
+
+fn test_sparse_kronsum_pins5() {
+    let a, fa = scientific::csr_from_dense(mx(1, 1, [0.659]));
+    let b, fb = scientific::csr_from_dense(mx(2, 2, [0.908, 0.0, 0.725, 0.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 2 && k.cols == 2 && k.nnz == 3);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [1.5670000000000002, 0.0, 0.725, 0.659]));
+    return;
+}
+
+fn test_sparse_kronsum_pins6() {
+    let a, fa = scientific::csr_from_dense(mx(3, 3, [0.901, 0.683, 0.0, 0.0, 0.962, 0.958, 0.0, 0.775, 0.0]));
+    let b, fb = scientific::csr_from_dense(mx(3, 3, [0.892, 0.901, 0.0, 0.923, 0.763, 0.0, 0.0, 0.0, 0.853]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 9 && k.cols == 9 && k.nnz == 24);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [1.7930000000000001, 0.683, 0.0, 0.901, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.854, 0.958, 0.0, 0.901, 0.0, 0.0, 0.0, 0.0, 0.0, 0.775, 0.892, 0.0, 0.0, 0.901, 0.0, 0.0, 0.0, 0.923, 0.0, 0.0, 1.6640000000000001, 0.683, 0.0, 0.0, 0.0, 0.0, 0.0, 0.923, 0.0, 0.0, 1.725, 0.958, 0.0, 0.0, 0.0, 0.0, 0.0, 0.923, 0.0, 0.775, 0.763, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.754, 0.683, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.815, 0.958, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.775, 0.853]));
+    return;
+}
+
+fn test_sparse_kronsum_pins7() {
+    let a, fa = scientific::csr_from_dense(mx(4, 4, [0.781, 0.99, 0.0, 0.0, 0.647, 0.0, 0.769, 0.0, 0.0, 0.0, 0.0, 0.0, 0.873, 0.931, 0.0, 0.0]));
+    let b, fb = scientific::csr_from_dense(mx(2, 2, [0.0, 0.0, 0.0, 0.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 8 && k.cols == 8 && k.nnz == 12);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [0.781, 0.99, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.647, 0.0, 0.769, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.873, 0.931, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.781, 0.99, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.647, 0.0, 0.769, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.873, 0.931, 0.0, 0.0]));
+    return;
+}
+
+fn test_sparse_kronsum_pins8() {
+    let a, fa = scientific::csr_from_dense(mx(5, 5, [0.0, 0.906, 0.0, 0.0, 0.0, 0.0, 0.0, 0.931, 0.0, 0.0, 0.747, 0.865, 0.666, 0.821, 0.0, 0.0, 0.833, 0.806, 0.0, 0.0, 0.847, 0.0, 0.0, 0.0, 0.814]));
+    let b, fb = scientific::csr_from_dense(mx(5, 5, [0.0, 0.648, 0.0, 0.0, 0.0, 0.668, 0.0, 0.731, 0.0, 0.0, 0.6, 0.0, 0.0, 0.947, 0.779, 0.0, 0.653, 0.0, 0.0, 0.844, 0.0, 0.974, 0.0, 0.0, 0.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 25 && k.cols == 25 && k.nnz == 95);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [0.0, 0.906, 0.0, 0.0, 0.0, 0.648, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.931, 0.0, 0.0, 0.0, 0.648, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.747, 0.865, 0.666, 0.821, 0.0, 0.0, 0.0, 0.648, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.833, 0.806, 0.0, 0.0, 0.0, 0.0, 0.0, 0.648, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.847, 0.0, 0.0, 0.0, 0.814, 0.0, 0.0, 0.0, 0.0, 0.648, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.668, 0.0, 0.0, 0.0, 0.0, 0.0, 0.906, 0.0, 0.0, 0.0, 0.731, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.668, 0.0, 0.0, 0.0, 0.0, 0.0, 0.931, 0.0, 0.0, 0.0, 0.731, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.668, 0.0, 0.0, 0.747, 0.865, 0.666, 0.821, 0.0, 0.0, 0.0, 0.731, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.668, 0.0, 0.0, 0.833, 0.806, 0.0, 0.0, 0.0, 0.0, 0.0, 0.731, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.668, 0.847, 0.0, 0.0, 0.0, 0.814, 0.0, 0.0, 0.0, 0.0, 0.731, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.906, 0.0, 0.0, 0.0, 0.947, 0.0, 0.0, 0.0, 0.0, 0.779, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.931, 0.0, 0.0, 0.0, 0.947, 0.0, 0.0, 0.0, 0.0, 0.779, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.747, 0.865, 0.666, 0.821, 0.0, 0.0, 0.0, 0.947, 0.0, 0.0, 0.0, 0.0, 0.779, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.833, 0.806, 0.0, 0.0, 0.0, 0.0, 0.0, 0.947, 0.0, 0.0, 0.0, 0.0, 0.779, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.847, 0.0, 0.0, 0.0, 0.814, 0.0, 0.0, 0.0, 0.0, 0.947, 0.0, 0.0, 0.0, 0.0, 0.779, 0.0, 0.0, 0.0, 0.0, 0.0, 0.653, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.906, 0.0, 0.0, 0.0, 0.844, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.653, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.931, 0.0, 0.0, 0.0, 0.844, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.653, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.747, 0.865, 0.666, 0.821, 0.0, 0.0, 0.0, 0.844, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.653, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.833, 0.806, 0.0, 0.0, 0.0, 0.0, 0.0, 0.844, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.653, 0.0, 0.0, 0.0, 0.0, 0.0, 0.847, 0.0, 0.0, 0.0, 0.814, 0.0, 0.0, 0.0, 0.0, 0.844, 0.0, 0.0, 0.0, 0.0, 0.0, 0.974, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.906, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.974, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.931, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.974, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.747, 0.865, 0.666, 0.821, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.974, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.833, 0.806, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.974, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.847, 0.0, 0.0, 0.0, 0.814]));
+    return;
+}
+
+fn test_sparse_kronsum_pins9() {
+    let a, fa = scientific::csr_from_dense(mx(2, 2, [0.998, 0.0, 0.671, 0.0]));
+    let b, fb = scientific::csr_from_dense(mx(4, 4, [0.68, 0.0, 0.0, 0.0, 0.74, 0.0, 0.0, 0.792, 0.865, 0.868, 0.0, 0.0, 0.94, 0.0, 0.0, 0.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 8 && k.cols == 8 && k.nnz == 19);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [1.678, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.671, 0.68, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.74, 0.0, 0.998, 0.0, 0.0, 0.0, 0.792, 0.0, 0.0, 0.74, 0.671, 0.0, 0.0, 0.0, 0.0, 0.792, 0.865, 0.0, 0.868, 0.0, 0.998, 0.0, 0.0, 0.0, 0.0, 0.865, 0.0, 0.868, 0.671, 0.0, 0.0, 0.0, 0.94, 0.0, 0.0, 0.0, 0.0, 0.0, 0.998, 0.0, 0.0, 0.94, 0.0, 0.0, 0.0, 0.0, 0.671, 0.0]));
+    return;
+}
+
+fn test_sparse_kronsum_pins10() {
+    let a, fa = scientific::csr_from_dense(mx(3, 3, [0.806, 0.938, 0.0, 0.902, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    let b, fb = scientific::csr_from_dense(mx(1, 1, [0.604]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 3 && k.cols == 3 && k.nnz == 5);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [1.4100000000000001, 0.938, 0.0, 0.902, 0.604, 0.0, 0.0, 0.0, 0.604]));
+    return;
+}
+
+fn test_sparse_kronsum_pins11() {
+    let a, fa = scientific::csr_from_dense(mx(1, 1, [0.765]));
+    let b, fb = scientific::csr_from_dense(mx(1, 1, [0.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 1 && k.cols == 1 && k.nnz == 1);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [0.765]));
+    return;
+}
+
+fn test_sparse_kronsum_pins12() {
+    let a, fa = scientific::csr_from_dense(mx(4, 4, [0.92, 0.0, 0.0, 0.0, 0.0, 0.0, 0.777, 0.0, 0.841, 0.0, 0.0, 0.888, 0.0, 0.0, 0.607, 0.0]));
+    let b, fb = scientific::csr_from_dense(mx(5, 5, [0.908, 0.0, 0.0, 0.0, 0.0, 0.0, 0.877, 0.94, 0.607, 0.68, 0.95, 0.628, 0.0, 0.0, 0.0, 0.0, 0.709, 0.0, 0.0, 0.828, 0.0, 0.0, 0.0, 0.779, 0.0]));
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.rows == 20 && k.cols == 20 && k.nnz == 63);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [1.828, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.908, 0.777, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.841, 0.0, 0.908, 0.888, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.607, 0.908, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.7970000000000002, 0.0, 0.0, 0.0, 0.94, 0.0, 0.0, 0.0, 0.607, 0.0, 0.0, 0.0, 0.68, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.877, 0.777, 0.0, 0.0, 0.94, 0.0, 0.0, 0.0, 0.607, 0.0, 0.0, 0.0, 0.68, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.841, 0.0, 0.877, 0.888, 0.0, 0.0, 0.94, 0.0, 0.0, 0.0, 0.607, 0.0, 0.0, 0.0, 0.68, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.607, 0.877, 0.0, 0.0, 0.0, 0.94, 0.0, 0.0, 0.0, 0.607, 0.0, 0.0, 0.0, 0.68, 0.95, 0.0, 0.0, 0.0, 0.628, 0.0, 0.0, 0.0, 0.92, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.95, 0.0, 0.0, 0.0, 0.628, 0.0, 0.0, 0.0, 0.0, 0.777, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.95, 0.0, 0.0, 0.0, 0.628, 0.0, 0.841, 0.0, 0.0, 0.888, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.95, 0.0, 0.0, 0.0, 0.628, 0.0, 0.0, 0.607, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.709, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.92, 0.0, 0.0, 0.0, 0.828, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.709, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.777, 0.0, 0.0, 0.828, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.709, 0.0, 0.0, 0.0, 0.0, 0.0, 0.841, 0.0, 0.0, 0.888, 0.0, 0.0, 0.828, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.709, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.607, 0.0, 0.0, 0.0, 0.0, 0.828, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.779, 0.0, 0.0, 0.0, 0.92, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.779, 0.0, 0.0, 0.0, 0.0, 0.777, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.779, 0.0, 0.841, 0.0, 0.0, 0.888, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.779, 0.0, 0.0, 0.607, 0.0]));
+    return;
+}
+
+fn test_sparse_kronsum_pins_zero() {
+    let a, fa = scientific::csr_from_triplets(2, 2, [0.0, 1.0], [0.0, 1.0], [0.0, 2.0]);
+    let b, fb = scientific::csr_eye(2);
+    assert(fa.kind == scientific::F_NONE && fb.kind == scientific::F_NONE && a.nnz == 2);
+    let k, fk = scientific::csr_kronsum(a, b);
+    assert(fk.kind == scientific::F_NONE && k.nnz == 4);
+    let kd, fd = scientific::csr_to_dense(k);
+    assert(fd.kind == scientific::F_NONE && all_near(kd, [1.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 3.0]));
+    return;
+}
+
+fn test_sparse_kronsum_pins() {
+    test_sparse_kronsum_pins0();
+    test_sparse_kronsum_pins1();
+    test_sparse_kronsum_pins2();
+    test_sparse_kronsum_pins3();
+    test_sparse_kronsum_pins4();
+    test_sparse_kronsum_pins5();
+    test_sparse_kronsum_pins6();
+    test_sparse_kronsum_pins7();
+    test_sparse_kronsum_pins8();
+    test_sparse_kronsum_pins9();
+    test_sparse_kronsum_pins10();
+    test_sparse_kronsum_pins11();
+    test_sparse_kronsum_pins12();
+    test_sparse_kronsum_pins_zero();
+    return;
+}
+
+// csr_kronsum refuses an operand that is not square, a side that is too
+// large and a count of stored values that is too large.
+fn test_sparse_kronsum_hostile() {
+    let sq, f0 = scientific::csr_from_dense(mx(2, 2, [1.0, 2.0, 0.0, 3.0]));
+    let wide, f1 = scientific::csr_from_dense(mx(2, 3, [1.0, 0.0, 2.0, 0.0, 0.0, 3.0]));
+    assert(f0.kind == scientific::F_NONE && f1.kind == scientific::F_NONE);
+    let k1, g1 = scientific::csr_kronsum(wide, sq);
+    assert(g1.kind == scientific::F_SHAPE);
+    let k2, g2 = scientific::csr_kronsum(sq, wide);
+    assert(g2.kind == scientific::F_SHAPE);
+    let big, f2 = scientific::csr_eye(40000);
+    assert(f2.kind == scientific::F_NONE);
+    let k3, g3 = scientific::csr_kronsum(big, big);
+    assert(g3.kind == scientific::F_RANGE);
+    let mid, f3 = scientific::csr_eye(12000);
+    assert(f3.kind == scientific::F_NONE);
+    let k4, g4 = scientific::csr_kronsum(mid, mid);
+    assert(g4.kind == scientific::F_LIMIT);
+    return;
+}
+
 fn main() {
     test_schur_funm_ldl();
     test_eigvalsh_larger();
@@ -29750,6 +29943,8 @@ fn main() {
     test_sparse_lsmr_hostile();
     test_sparse_dia_pins();
     test_sparse_dia_hostile();
+    test_sparse_kronsum_pins();
+    test_sparse_kronsum_hostile();
     print("ok\n");
     return;
 }
