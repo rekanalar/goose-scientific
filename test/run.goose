@@ -37691,6 +37691,1336 @@ fn test_sparse_lil_hostile() {
     }
 }
 
+// The pins of the block matrix and the columnwise diagonals, measured from SciPy.
+fn bmat_place(g: scientific::Bmat&, i: f64, j: f64, v: f64[:], rows: i64, cols: i64) {
+    let a2 = mx(rows, cols, v);
+    let c, fc = scientific::csr_from_dense(a2);
+    assert(fc.kind == scientific::F_NONE);
+    assert(scientific::bmat_put(g, i, j, c).kind == scientific::F_NONE);
+}
+
+fn bmat_place_triplets(g: scientific::Bmat&, i: f64, j: f64, rows: i64, cols: i64, ri: f64[:], ci: f64[:], vv: f64[:]) {
+    let c, fc = scientific::csr_from_triplets(rows, cols, ri, ci, vv);
+    assert(fc.kind == scientific::F_NONE);
+    assert(scientific::bmat_put(g, i, j, c).kind == scientific::F_NONE);
+}
+
+fn bmat_pin_p1() {
+    var g, f0 = scientific::bmat_new(2, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [1.0, 2.0, 0.0, 3.0], 2, 2);
+    bmat_place(g, 0.0, 1.0, [4.0, 5.0], 2, 1);
+    bmat_place(g, 1.0, 0.0, [6.0, 0.0], 1, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 2.0, 4.0, 0.0, 3.0, 5.0, 6.0, 0.0, 0.0]));
+    assert(m.nnz == 6);
+}
+
+fn bmat_pin_p2() {
+    var g, f0 = scientific::bmat_new(2, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [1.0, 2.0, 0.0, 3.0], 2, 2);
+    bmat_place(g, 1.0, 1.0, [6.0, 0.0], 1, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 2.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 6.0, 0.0]));
+    assert(m.nnz == 4);
+}
+
+fn bmat_pin_p3() {
+    var g, f0 = scientific::bmat_new(1, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [1.0, 2.0, 0.0, 3.0], 2, 2);
+    bmat_place(g, 0.0, 1.0, [1.0, 2.0, 0.0, 3.0], 2, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 2.0, 1.0, 2.0, 0.0, 3.0, 0.0, 3.0]));
+    assert(m.nnz == 6);
+}
+
+fn bmat_pin_p4() {
+    var g, f0 = scientific::bmat_new(2, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 1.0, [1.0, 2.0, 0.0, 3.0], 2, 2);
+    bmat_place(g, 1.0, 0.0, [1.0, 2.0, 0.0, 3.0], 2, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 3.0, 1.0, 2.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0]));
+    assert(m.nnz == 6);
+}
+
+fn bmat_pin_p5() {
+    var g, f0 = scientific::bmat_new(2, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [1.0, 2.0, 0.0, 3.0], 2, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 2.0, 0.0, 3.0]));
+    assert(m.nnz == 3);
+}
+
+fn bmat_pin_p6() {
+    var g, f0 = scientific::bmat_new(1, 3);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [1.0, 2.0, 0.0, 3.0], 2, 2);
+    bmat_place(g, 0.0, 2.0, [1.0, 2.0, 0.0, 3.0], 2, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 2.0, 1.0, 2.0, 0.0, 3.0, 0.0, 3.0]));
+    assert(m.nnz == 6);
+}
+
+fn bmat_pin_p2z() {
+    var g, f0 = scientific::bmat_new(2, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [1.0, 2.0, 0.0, 3.0], 2, 2);
+    bmat_place_triplets(g, 1.0, 1.0, 1, 2, [0.0, 0.0], [0.0, 1.0], [6.0, 0.0]);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 2.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 6.0, 0.0]));
+    assert(m.nnz == 5);
+}
+
+fn bmat_pin_p7() {
+    let a2 = mx(2, 4, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+    let d, fd = scientific::spdiags(a2, [0.0, 1.0], 3, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 6.0, 0.0, 0.0, 0.0, 2.0, 7.0, 0.0, 0.0, 0.0, 3.0, 8.0]));
+    assert(d.nnz == 6);
+}
+
+fn bmat_pin_p8() {
+    let a2 = mx(2, 4, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+    let d, fd = scientific::spdiags(a2, [0.0, -1.0], 4, 3);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 0.0, 0.0, 5.0, 2.0, 0.0, 0.0, 6.0, 3.0, 0.0, 0.0, 7.0]));
+    assert(d.nnz == 6);
+}
+
+fn bmat_pin_p9() {
+    let a2 = mx(1, 6, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let d, fd = scientific::spdiags(a2, [0.0], 3, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0]));
+    assert(d.nnz == 3);
+}
+
+fn bmat_pin_p10() {
+    let a2 = mx(1, 4, [1.0, 2.0, 3.0, 4.0]);
+    let d, fd = scientific::spdiags(a2, [-2.0], 3, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_p11() {
+    let a2 = mx(2, 4, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+    let d, fd = scientific::spdiags(a2, [1.0, 0.0], 3, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [5.0, 2.0, 0.0, 0.0, 0.0, 6.0, 3.0, 0.0, 0.0, 0.0, 7.0, 4.0]));
+    assert(d.nnz == 6);
+}
+
+fn bmat_pin_p12() {
+    let a2 = mx(2, 2, [1.0, 2.0, 5.0, 6.0]);
+    let d, fd = scientific::spdiags(a2, [0.0, 1.0], 3, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 6.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 6);
+}
+
+fn bmat_pin_r0() {
+    var g, f0 = scientific::bmat_new(1, 3);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 2.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 2, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 0);
+}
+
+fn bmat_pin_r1() {
+    var g, f0 = scientific::bmat_new(1, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0], 1, 1);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0]));
+    assert(m.nnz == 0);
+}
+
+fn bmat_pin_r2() {
+    var g, f0 = scientific::bmat_new(2, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0], 1, 1);
+    bmat_place(g, 1.0, 0.0, [2.0, -3.0], 2, 1);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 2.0, -3.0]));
+    assert(m.nnz == 2);
+}
+
+fn bmat_pin_r3() {
+    var g, f0 = scientific::bmat_new(3, 3);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 0.0, 1.0], 1, 3);
+    bmat_place(g, 0.0, 1.0, [0.0, 5.0, -3.0], 1, 3);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0, 1.0, 0.0, 0.0, 0.0], 2, 3);
+    bmat_place(g, 1.0, 1.0, [1.0, 0.0, 5.0, -3.0, 0.0, 0.0], 2, 3);
+    bmat_place(g, 2.0, 0.0, [0.0, 0.0, 0.0, 0.0, 0.0, 2.0], 2, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 1.0, 0.0, 5.0, -3.0, 0.0, 0.0, 1.0, 1.0, 0.0, 5.0, 0.0, 0.0, 0.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 8);
+}
+
+fn bmat_pin_r4() {
+    var g, f0 = scientific::bmat_new(3, 3);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 2.0, [2.0, 5.0], 1, 2);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0], 3, 3);
+    bmat_place(g, 1.0, 1.0, [0.0, 0.0, 0.0], 3, 1);
+    bmat_place(g, 1.0, 2.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 3, 2);
+    bmat_place(g, 2.0, 0.0, [0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0], 3, 3);
+    bmat_place(g, 2.0, 1.0, [0.0, 0.0, -3.0], 3, 1);
+    bmat_place(g, 2.0, 2.0, [0.0, 0.0, 0.0, 0.0, 0.0, 1.0], 3, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 2.0, 5.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -3.0, 0.0, 1.0]));
+    assert(m.nnz == 9);
+}
+
+fn bmat_pin_r5() {
+    var g, f0 = scientific::bmat_new(2, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [1.0, 5.0, 0.0, 0.0, 0.0, 0.0], 2, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 5.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 2);
+}
+
+fn bmat_pin_r6() {
+    var g, f0 = scientific::bmat_new(2, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 1.0, [0.0, -3.0, 5.0], 1, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, -3.0, 5.0]));
+    assert(m.nnz == 2);
+}
+
+fn bmat_pin_r7() {
+    var g, f0 = scientific::bmat_new(1, 3);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 5.0, 5.0], 3, 1);
+    bmat_place(g, 0.0, 1.0, [0.0, -3.0, 0.0, 0.0, 0.0, 0.0], 3, 2);
+    bmat_place(g, 0.0, 2.0, [0.0, 0.0, 2.0, 0.0, 0.0, 0.0], 3, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, -3.0, 0.0, 0.0, 5.0, 0.0, 0.0, 2.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 4);
+}
+
+fn bmat_pin_r8() {
+    var g, f0 = scientific::bmat_new(3, 3);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 5.0], 1, 2);
+    bmat_place(g, 0.0, 1.0, [1.0], 1, 1);
+    bmat_place(g, 0.0, 2.0, [2.0, 0.0], 1, 2);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0], 1, 2);
+    bmat_place(g, 1.0, 2.0, [2.0, 5.0], 1, 2);
+    bmat_place(g, 2.0, 0.0, [-3.0, 0.0, 0.0, 2.0], 2, 2);
+    bmat_place(g, 2.0, 2.0, [1.0, 2.0, 0.0, 0.0], 2, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 5.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 2.0, 5.0, -3.0, 0.0, 0.0, 1.0, 2.0, 0.0, 2.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 9);
+}
+
+fn bmat_pin_r9() {
+    var g, f0 = scientific::bmat_new(1, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 0.0, 0.0, 0.0], 2, 2);
+    bmat_place(g, 0.0, 1.0, [0.0, 1.0, 0.0, 1.0], 2, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]));
+    assert(m.nnz == 2);
+}
+
+fn bmat_pin_r10() {
+    var g, f0 = scientific::bmat_new(2, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 0.0, 5.0, 0.0, 1.0, 0.0], 2, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 5.0, 0.0, 1.0, 0.0]));
+    assert(m.nnz == 2);
+}
+
+fn bmat_pin_r11() {
+    var g, f0 = scientific::bmat_new(3, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 2.0, 0.0, [5.0, 5.0], 2, 1);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [5.0, 5.0]));
+    assert(m.nnz == 2);
+}
+
+fn bmat_pin_r12() {
+    var g, f0 = scientific::bmat_new(2, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 1.0, [5.0, 0.0], 1, 2);
+    bmat_place(g, 1.0, 0.0, [2.0, 5.0], 1, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 5.0, 0.0, 2.0, 5.0, 0.0, 0.0]));
+    assert(m.nnz == 3);
+}
+
+fn bmat_pin_r13() {
+    var g, f0 = scientific::bmat_new(2, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 2, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 0);
+}
+
+fn bmat_pin_r14() {
+    var g, f0 = scientific::bmat_new(3, 3);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 2.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], 3, 3);
+    bmat_place(g, 1.0, 0.0, [0.0, 1.0, -3.0], 1, 3);
+    bmat_place(g, 1.0, 1.0, [-3.0], 1, 1);
+    bmat_place(g, 1.0, 2.0, [0.0, 0.0, 0.0], 1, 3);
+    bmat_place(g, 2.0, 0.0, [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0], 3, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, -3.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 6);
+}
+
+fn bmat_pin_r15() {
+    var g, f0 = scientific::bmat_new(3, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 0.0, 0.0], 3, 1);
+    bmat_place(g, 1.0, 0.0, [5.0], 1, 1);
+    bmat_place(g, 1.0, 1.0, [2.0], 1, 1);
+    bmat_place(g, 2.0, 0.0, [1.0], 1, 1);
+    bmat_place(g, 2.0, 1.0, [0.0], 1, 1);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.0, 2.0, 1.0, 0.0]));
+    assert(m.nnz == 3);
+}
+
+fn bmat_pin_r16() {
+    var g, f0 = scientific::bmat_new(2, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [1.0, 0.0, 0.0, 0.0, 5.0, 5.0], 2, 3);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 3, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 0.0, 0.0, 0.0, 5.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 3);
+}
+
+fn bmat_pin_r17() {
+    var g, f0 = scientific::bmat_new(2, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [1.0], 1, 1);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0]));
+    assert(m.nnz == 1);
+}
+
+fn bmat_pin_r18() {
+    var g, f0 = scientific::bmat_new(3, 3);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 1.0, 0.0], 1, 3);
+    bmat_place(g, 0.0, 1.0, [0.0, 2.0], 1, 2);
+    bmat_place(g, 0.0, 2.0, [-3.0, 1.0, -3.0], 1, 3);
+    bmat_place(g, 1.0, 0.0, [5.0, 0.0, 0.0, 0.0, 0.0, 0.0], 2, 3);
+    bmat_place(g, 1.0, 1.0, [0.0, 0.0, 0.0, 5.0], 2, 2);
+    bmat_place(g, 1.0, 2.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 2, 3);
+    bmat_place(g, 2.0, 0.0, [5.0, 0.0, 0.0, -3.0, 0.0, 0.0], 2, 3);
+    bmat_place(g, 2.0, 2.0, [0.0, 1.0, 0.0, 0.0, 0.0, 0.0], 2, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 1.0, 0.0, 0.0, 2.0, -3.0, 1.0, -3.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 10);
+}
+
+fn bmat_pin_r19() {
+    var g, f0 = scientific::bmat_new(1, 3);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 1.0], 1, 2);
+    bmat_place(g, 0.0, 1.0, [0.0, 0.0, 0.0], 1, 3);
+    bmat_place(g, 0.0, 2.0, [0.0, -3.0, 5.0], 1, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -3.0, 5.0]));
+    assert(m.nnz == 3);
+}
+
+fn bmat_pin_r20() {
+    var g, f0 = scientific::bmat_new(3, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0, 1.0, 2.0, 1.0, 2.0], 2, 3);
+    bmat_place(g, 2.0, 0.0, [0.0, 2.0, 0.0, 0.0, -3.0, 0.0], 2, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 1.0, 2.0, 1.0, 2.0, 0.0, 2.0, 0.0, 0.0, -3.0, 0.0]));
+    assert(m.nnz == 6);
+}
+
+fn bmat_pin_r21() {
+    var g, f0 = scientific::bmat_new(3, 3);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 0.0, 0.0, 0.0], 2, 2);
+    bmat_place(g, 0.0, 2.0, [5.0, 0.0, 2.0, 0.0, 0.0, 0.0], 2, 3);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0, 2.0, 2.0], 2, 2);
+    bmat_place(g, 1.0, 1.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 2, 3);
+    bmat_place(g, 1.0, 2.0, [0.0, 0.0, 0.0, 0.0, 1.0, 0.0], 2, 3);
+    bmat_place(g, 2.0, 0.0, [5.0, 0.0], 1, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 6);
+}
+
+fn bmat_pin_r22() {
+    var g, f0 = scientific::bmat_new(3, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [5.0, 0.0], 1, 2);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0, 0.0, 0.0], 2, 2);
+    bmat_place(g, 2.0, 0.0, [-3.0, 0.0, -3.0, 0.0, 0.0, 0.0], 3, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [5.0, 0.0, 0.0, 0.0, 0.0, 0.0, -3.0, 0.0, -3.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 3);
+}
+
+fn bmat_pin_r23() {
+    var g, f0 = scientific::bmat_new(1, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 1.0, [0.0, 2.0, 0.0, 1.0, 0.0, 0.0], 2, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 2.0, 0.0, 1.0, 0.0, 0.0]));
+    assert(m.nnz == 2);
+}
+
+fn bmat_pin_r24() {
+    var g, f0 = scientific::bmat_new(1, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 0.0, 0.0, 0.0, 0.0, 1.0], 2, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]));
+    assert(m.nnz == 1);
+}
+
+fn bmat_pin_r25() {
+    var g, f0 = scientific::bmat_new(2, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [5.0, 0.0], 1, 2);
+    bmat_place(g, 0.0, 1.0, [0.0, 5.0], 1, 2);
+    bmat_place(g, 1.0, 0.0, [5.0, -3.0, 0.0, 0.0, 0.0, 0.0], 3, 2);
+    bmat_place(g, 1.0, 1.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 3, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [5.0, 0.0, 0.0, 5.0, 5.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 4);
+}
+
+fn bmat_pin_r26() {
+    var g, f0 = scientific::bmat_new(1, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 0.0, 0.0], 1, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0]));
+    assert(m.nnz == 0);
+}
+
+fn bmat_pin_r27() {
+    var g, f0 = scientific::bmat_new(1, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [5.0, 0.0, 2.0], 3, 1);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [5.0, 0.0, 2.0]));
+    assert(m.nnz == 2);
+}
+
+fn bmat_pin_r28() {
+    var g, f0 = scientific::bmat_new(1, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [-3.0, -3.0, 0.0], 3, 1);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [-3.0, -3.0, 0.0]));
+    assert(m.nnz == 2);
+}
+
+fn bmat_pin_r29() {
+    var g, f0 = scientific::bmat_new(1, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [2.0, 0.0, 0.0], 3, 1);
+    bmat_place(g, 0.0, 1.0, [0.0, 0.0, 0.0], 3, 1);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [2.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 1);
+}
+
+fn bmat_pin_r30() {
+    var g, f0 = scientific::bmat_new(1, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [1.0], 1, 1);
+    bmat_place(g, 0.0, 1.0, [1.0], 1, 1);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 1.0]));
+    assert(m.nnz == 2);
+}
+
+fn bmat_pin_r31() {
+    var g, f0 = scientific::bmat_new(2, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 0.0, 0.0, 0.0], 2, 2);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0], 1, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 0);
+}
+
+fn bmat_pin_r32() {
+    var g, f0 = scientific::bmat_new(3, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 1.0, 1.0, [0.0, 0.0, 0.0, 0.0, 1.0, 2.0], 3, 2);
+    bmat_place(g, 2.0, 0.0, [0.0, 0.0, 0.0], 1, 3);
+    bmat_place(g, 2.0, 1.0, [2.0, 0.0], 1, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 2.0, 0.0]));
+    assert(m.nnz == 3);
+}
+
+fn bmat_pin_r33() {
+    var g, f0 = scientific::bmat_new(2, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 3, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 0);
+}
+
+fn bmat_pin_r34() {
+    var g, f0 = scientific::bmat_new(3, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 0.0, 0.0, 0.0], 2, 2);
+    bmat_place(g, 1.0, 0.0, [2.0, 0.0, 2.0, 0.0], 2, 2);
+    bmat_place(g, 2.0, 0.0, [1.0, 0.0], 1, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 2.0, 0.0, 1.0, 0.0]));
+    assert(m.nnz == 3);
+}
+
+fn bmat_pin_r35() {
+    var g, f0 = scientific::bmat_new(1, 3);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [1.0], 1, 1);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0]));
+    assert(m.nnz == 1);
+}
+
+fn bmat_pin_r36() {
+    var g, f0 = scientific::bmat_new(2, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 1.0, 1.0, [2.0, 0.0, 0.0, 2.0, 0.0, -3.0], 2, 3);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [2.0, 0.0, 0.0, 2.0, 0.0, -3.0]));
+    assert(m.nnz == 3);
+}
+
+fn bmat_pin_r37() {
+    var g, f0 = scientific::bmat_new(2, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 1.0, [0.0, 0.0, 0.0, 0.0], 2, 2);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0, 0.0, -3.0, 0.0, 2.0], 2, 3);
+    bmat_place(g, 1.0, 1.0, [0.0, 0.0, 0.0, 5.0], 2, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -3.0, 0.0, 2.0, 0.0, 5.0]));
+    assert(m.nnz == 3);
+}
+
+fn bmat_pin_r38() {
+    var g, f0 = scientific::bmat_new(3, 1);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [5.0, 0.0], 1, 2);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 3, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(m.nnz == 1);
+}
+
+fn bmat_pin_r39() {
+    var g, f0 = scientific::bmat_new(3, 2);
+    assert(f0.kind == scientific::F_NONE);
+    bmat_place(g, 0.0, 0.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 3, 3);
+    bmat_place(g, 0.0, 1.0, [0.0, 2.0, 0.0, 5.0, 5.0, 0.0], 3, 2);
+    bmat_place(g, 1.0, 0.0, [0.0, 0.0, 0.0], 1, 3);
+    bmat_place(g, 1.0, 1.0, [0.0, -3.0], 1, 2);
+    bmat_place(g, 2.0, 0.0, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 2, 3);
+    bmat_place(g, 2.0, 1.0, [0.0, 0.0, 0.0, 1.0], 2, 2);
+    let m, fm = scientific::csr_bmat(g);
+    assert(fm.kind == scientific::F_NONE);
+    let dn, fz = scientific::csr_to_dense(m);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]));
+    assert(m.nnz == 5);
+}
+
+fn bmat_pin_s0() {
+    let a2 = mx(2, 4, [-3.0, -3.0, 1.0, 5.0, 2.0, 5.0, 2.0, 2.0]);
+    let d, fd = scientific::spdiags(a2, [-4.0, -1.0], 5, 3);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 2.0, -3.0, 0.0, 0.0]));
+    assert(d.nnz == 4);
+}
+
+fn bmat_pin_s1() {
+    let a2 = mx(3, 1, [2.0, 5.0, 5.0]);
+    let d, fd = scientific::spdiags(a2, [-2.0, -1.0, 1.0], 3, 3);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 2.0, 0.0, 0.0]));
+    assert(d.nnz == 5);
+}
+
+fn bmat_pin_s2() {
+    let a2 = mx(1, 1, [2.0]);
+    let d, fd = scientific::spdiags(a2, [1.0], 2, 2);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s3() {
+    let a2 = mx(1, 1, [5.0]);
+    let d, fd = scientific::spdiags(a2, [0.0], 1, 1);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [5.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s4() {
+    let a2 = mx(1, 4, [2.0, 0.0, 0.0, 5.0]);
+    let d, fd = scientific::spdiags(a2, [3.0], 3, 5);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 2);
+}
+
+fn bmat_pin_s5() {
+    let a2 = mx(2, 4, [-3.0, 1.0, 1.0, 5.0, 1.0, 5.0, 5.0, 0.0]);
+    let d, fd = scientific::spdiags(a2, [0.0, 1.0], 2, 3);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [-3.0, 5.0, 0.0, 0.0, 1.0, 5.0]));
+    assert(d.nnz == 4);
+}
+
+fn bmat_pin_s6() {
+    let a2 = mx(2, 1, [5.0, -3.0]);
+    let d, fd = scientific::spdiags(a2, [-2.0, -1.0], 3, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, -3.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 3);
+}
+
+fn bmat_pin_s7() {
+    let a2 = mx(3, 6, [1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 2.0, 1.0, 2.0, 5.0, 1.0, 1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 0.0]);
+    let d, fd = scientific::spdiags(a2, [0.0, 1.0, 4.0], 2, 5);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 2.0, 0.0, 0.0]));
+    assert(d.nnz == 5);
+}
+
+fn bmat_pin_s8() {
+    let a2 = mx(1, 2, [-3.0, -3.0]);
+    let d, fd = scientific::spdiags(a2, [-3.0], 4, 1);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, -3.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s9() {
+    let a2 = mx(3, 1, [-3.0, 2.0, -3.0]);
+    let d, fd = scientific::spdiags(a2, [-4.0, -1.0, 0.0], 5, 1);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [-3.0, 2.0, 0.0, 0.0, -3.0]));
+    assert(d.nnz == 3);
+}
+
+fn bmat_pin_s10() {
+    let a2 = mx(2, 2, [2.0, -3.0, 2.0, -3.0]);
+    let d, fd = scientific::spdiags(a2, [-4.0, -1.0], 5, 1);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 2.0, 0.0, 0.0, 2.0]));
+    assert(d.nnz == 2);
+}
+
+fn bmat_pin_s11() {
+    let a2 = mx(1, 1, [0.0]);
+    let d, fd = scientific::spdiags(a2, [-1.0], 4, 1);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s12() {
+    let a2 = mx(1, 6, [5.0, 5.0, 1.0, 1.0, 1.0, 5.0]);
+    let d, fd = scientific::spdiags(a2, [-1.0], 3, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0]));
+    assert(d.nnz == 2);
+}
+
+fn bmat_pin_s13() {
+    let a2 = mx(1, 3, [5.0, 5.0, 2.0]);
+    let d, fd = scientific::spdiags(a2, [0.0], 1, 2);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [5.0, 0.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s14() {
+    let a2 = mx(2, 2, [1.0, 2.0, 1.0, 2.0]);
+    let d, fd = scientific::spdiags(a2, [-1.0, 2.0], 5, 5);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 7);
+}
+
+fn bmat_pin_s15() {
+    let a2 = mx(3, 5, [-3.0, -3.0, 2.0, 0.0, 2.0, -3.0, 2.0, -3.0, 5.0, 0.0, -3.0, 5.0, 0.0, -3.0, 0.0]);
+    let d, fd = scientific::spdiags(a2, [-1.0, 1.0, 2.0], 5, 3);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 2.0, 0.0, -3.0, 0.0, -3.0, 0.0, -3.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 6);
+}
+
+fn bmat_pin_s16() {
+    let a2 = mx(1, 1, [-3.0]);
+    let d, fd = scientific::spdiags(a2, [0.0], 1, 1);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [-3.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s17() {
+    let a2 = mx(2, 2, [5.0, 2.0, 2.0, 2.0]);
+    let d, fd = scientific::spdiags(a2, [-1.0, 3.0], 3, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0]));
+    assert(d.nnz == 3);
+}
+
+fn bmat_pin_s18() {
+    let a2 = mx(2, 4, [5.0, 0.0, 0.0, 1.0, 1.0, 0.0, 2.0, 2.0]);
+    let d, fd = scientific::spdiags(a2, [0.0, 2.0], 4, 3);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [5.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 4);
+}
+
+fn bmat_pin_s19() {
+    let a2 = mx(2, 1, [2.0, 2.0]);
+    let d, fd = scientific::spdiags(a2, [0.0, 1.0], 1, 3);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [2.0, 0.0, 0.0]));
+    assert(d.nnz == 2);
+}
+
+fn bmat_pin_s20() {
+    let a2 = mx(1, 7, [-3.0, 2.0, 0.0, -3.0, 2.0, 0.0, 1.0]);
+    let d, fd = scientific::spdiags(a2, [0.0], 1, 5);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [-3.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s21() {
+    let a2 = mx(2, 3, [-3.0, 5.0, -3.0, -3.0, 0.0, 1.0]);
+    let d, fd = scientific::spdiags(a2, [-1.0, 1.0], 4, 2);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, -3.0, 0.0, 0.0, 5.0, 0.0, 0.0]));
+    assert(d.nnz == 3);
+}
+
+fn bmat_pin_s22() {
+    let a2 = mx(1, 3, [0.0, 2.0, 1.0]);
+    let d, fd = scientific::spdiags(a2, [-1.0], 3, 1);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s23() {
+    let a2 = mx(1, 3, [5.0, 0.0, 5.0]);
+    let d, fd = scientific::spdiags(a2, [-4.0], 5, 2);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s24() {
+    let a2 = mx(2, 5, [2.0, 0.0, 1.0, 2.0, 2.0, -3.0, 2.0, 0.0, 0.0, 5.0]);
+    let d, fd = scientific::spdiags(a2, [-3.0, -2.0], 4, 3);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -3.0, 0.0, 0.0, 2.0, 2.0, 0.0]));
+    assert(d.nnz == 3);
+}
+
+fn bmat_pin_s25() {
+    let a2 = mx(1, 2, [1.0, 0.0]);
+    let d, fd = scientific::spdiags(a2, [-2.0], 4, 1);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 1.0, 0.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s26() {
+    let a2 = mx(1, 1, [-3.0]);
+    let d, fd = scientific::spdiags(a2, [2.0], 2, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 2);
+}
+
+fn bmat_pin_s27() {
+    let a2 = mx(2, 3, [-3.0, 2.0, 0.0, 2.0, 1.0, 0.0]);
+    let d, fd = scientific::spdiags(a2, [1.0, 2.0], 1, 3);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 2.0, 0.0]));
+    assert(d.nnz == 2);
+}
+
+fn bmat_pin_s28() {
+    let a2 = mx(3, 5, [1.0, -3.0, 5.0, 1.0, 0.0, -3.0, 0.0, 5.0, 1.0, 0.0, 2.0, 2.0, 1.0, -3.0, -3.0]);
+    let d, fd = scientific::spdiags(a2, [-2.0, 0.0, 2.0], 3, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [-3.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -3.0, 1.0, 0.0, 5.0, 0.0]));
+    assert(d.nnz == 6);
+}
+
+fn bmat_pin_s29() {
+    let a2 = mx(3, 3, [1.0, 1.0, 0.0, -3.0, 0.0, 5.0, 0.0, -3.0, 1.0]);
+    let d, fd = scientific::spdiags(a2, [-2.0, -1.0, 0.0], 4, 2);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, -3.0, -3.0, 1.0, 0.0, 0.0, 1.0]));
+    assert(d.nnz == 6);
+}
+
+fn bmat_pin_s30() {
+    let a2 = mx(3, 5, [-3.0, 2.0, -3.0, 1.0, 0.0, 5.0, 2.0, 5.0, -3.0, 0.0, 5.0, 5.0, 2.0, 1.0, 5.0]);
+    let d, fd = scientific::spdiags(a2, [-2.0, 0.0, 3.0], 4, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [5.0, 0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 0.0, -3.0, 0.0, 5.0, 0.0, 0.0, 2.0, 0.0, -3.0]));
+    assert(d.nnz == 7);
+}
+
+fn bmat_pin_s31() {
+    let a2 = mx(2, 2, [-3.0, -3.0, 5.0, 5.0]);
+    let d, fd = scientific::spdiags(a2, [-1.0, 1.0], 4, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 5.0, 0.0, 0.0, -3.0, 0.0, 0.0, 0.0, 0.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 6);
+}
+
+fn bmat_pin_s32() {
+    let a2 = mx(2, 4, [2.0, 1.0, 1.0, 2.0, 0.0, 1.0, 5.0, 0.0]);
+    let d, fd = scientific::spdiags(a2, [-2.0, -1.0], 4, 3);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 1.0, 0.0, 0.0, 1.0, 5.0]));
+    assert(d.nnz == 5);
+}
+
+fn bmat_pin_s33() {
+    let a2 = mx(2, 4, [2.0, 0.0, 2.0, 1.0, 1.0, 1.0, 5.0, 1.0]);
+    let d, fd = scientific::spdiags(a2, [0.0, 1.0], 1, 2);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [2.0, 1.0]));
+    assert(d.nnz == 2);
+}
+
+fn bmat_pin_s34() {
+    let a2 = mx(1, 1, [0.0]);
+    let d, fd = scientific::spdiags(a2, [-4.0], 5, 3);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s35() {
+    let a2 = mx(1, 5, [5.0, 5.0, 0.0, 5.0, 2.0]);
+    let d, fd = scientific::spdiags(a2, [-2.0], 4, 5);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 2);
+}
+
+fn bmat_pin_s36() {
+    let a2 = mx(1, 2, [2.0, 2.0]);
+    let d, fd = scientific::spdiags(a2, [1.0], 2, 4);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 2);
+}
+
+fn bmat_pin_s37() {
+    let a2 = mx(1, 1, [1.0]);
+    let d, fd = scientific::spdiags(a2, [4.0], 3, 5);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 1);
+}
+
+fn bmat_pin_s38() {
+    let a2 = mx(3, 5, [0.0, 0.0, 0.0, -3.0, 5.0, -3.0, 5.0, 1.0, 2.0, -3.0, 1.0, 1.0, 1.0, -3.0, 1.0]);
+    let d, fd = scientific::spdiags(a2, [-4.0, -2.0, 3.0], 5, 5);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]));
+    assert(d.nnz == 6);
+}
+
+fn bmat_pin_s39() {
+    let a2 = mx(1, 1, [5.0]);
+    let d, fd = scientific::spdiags(a2, [3.0], 3, 5);
+    assert(fd.kind == scientific::F_NONE);
+    let dn, fz = scientific::dia_to_dense(d);
+    assert(fz.kind == scientific::F_NONE && all_near(dn, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(d.nnz == 2);
+}
+
+fn test_sparse_bmat_pins() {
+    bmat_pin_p1();
+    bmat_pin_p2();
+    bmat_pin_p3();
+    bmat_pin_p4();
+    bmat_pin_p5();
+    bmat_pin_p6();
+    bmat_pin_p2z();
+    bmat_pin_p7();
+    bmat_pin_p8();
+    bmat_pin_p9();
+    bmat_pin_p10();
+    bmat_pin_p11();
+    bmat_pin_p12();
+    bmat_pin_r0();
+    bmat_pin_r1();
+    bmat_pin_r2();
+    bmat_pin_r3();
+    bmat_pin_r4();
+    bmat_pin_r5();
+    bmat_pin_r6();
+    bmat_pin_r7();
+    bmat_pin_r8();
+    bmat_pin_r9();
+    bmat_pin_r10();
+    bmat_pin_r11();
+    bmat_pin_r12();
+    bmat_pin_r13();
+    bmat_pin_r14();
+    bmat_pin_r15();
+    bmat_pin_r16();
+    bmat_pin_r17();
+    bmat_pin_r18();
+    bmat_pin_r19();
+    bmat_pin_r20();
+    bmat_pin_r21();
+    bmat_pin_r22();
+    bmat_pin_r23();
+    bmat_pin_r24();
+    bmat_pin_r25();
+    bmat_pin_r26();
+    bmat_pin_r27();
+    bmat_pin_r28();
+    bmat_pin_r29();
+    bmat_pin_r30();
+    bmat_pin_r31();
+    bmat_pin_r32();
+    bmat_pin_r33();
+    bmat_pin_r34();
+    bmat_pin_r35();
+    bmat_pin_r36();
+    bmat_pin_r37();
+    bmat_pin_r38();
+    bmat_pin_r39();
+    bmat_pin_s0();
+    bmat_pin_s1();
+    bmat_pin_s2();
+    bmat_pin_s3();
+    bmat_pin_s4();
+    bmat_pin_s5();
+    bmat_pin_s6();
+    bmat_pin_s7();
+    bmat_pin_s8();
+    bmat_pin_s9();
+    bmat_pin_s10();
+    bmat_pin_s11();
+    bmat_pin_s12();
+    bmat_pin_s13();
+    bmat_pin_s14();
+    bmat_pin_s15();
+    bmat_pin_s16();
+    bmat_pin_s17();
+    bmat_pin_s18();
+    bmat_pin_s19();
+    bmat_pin_s20();
+    bmat_pin_s21();
+    bmat_pin_s22();
+    bmat_pin_s23();
+    bmat_pin_s24();
+    bmat_pin_s25();
+    bmat_pin_s26();
+    bmat_pin_s27();
+    bmat_pin_s28();
+    bmat_pin_s29();
+    bmat_pin_s30();
+    bmat_pin_s31();
+    bmat_pin_s32();
+    bmat_pin_s33();
+    bmat_pin_s34();
+    bmat_pin_s35();
+    bmat_pin_s36();
+    bmat_pin_s37();
+    bmat_pin_s38();
+    bmat_pin_s39();
+}
+
+// The faults of the block matrix and the columnwise diagonals.
+fn test_sparse_bmat_hostile() {
+    let a, fa = scientific::from_values([1.0, 2.0, 0.0, 3.0]);
+    assert(fa.kind == scientific::F_NONE);
+    let a2, fr = scientific::reshape(a, [2, 2]);
+    assert(fr.kind == scientific::F_NONE);
+    let ac, fc = scientific::csr_from_dense(a2);
+    assert(fc.kind == scientific::F_NONE);
+    let u, fu = scientific::from_values([1.0]);
+    assert(fu.kind == scientific::F_NONE);
+    let u2, fv = scientific::reshape(u, [1, 1]);
+    assert(fv.kind == scientific::F_NONE);
+    let uc, fw = scientific::csr_from_dense(u2);
+    assert(fw.kind == scientific::F_NONE);
+
+    // The sides of the grid stand between one and the limit.
+    var g0, fg0 = scientific::bmat_new(0, 2);
+    assert(fg0.kind == scientific::F_RANGE);
+    var g1, fg1 = scientific::bmat_new(2, 0);
+    assert(fg1.kind == scientific::F_RANGE);
+    var g2, fg2 = scientific::bmat_new(1048577, 2);
+    assert(fg2.kind == scientific::F_RANGE);
+    var g3, fg3 = scientific::bmat_new(2, 1048577);
+    assert(fg3.kind == scientific::F_RANGE);
+
+    // The place of a block stands inside the grid.
+    var g, fgn = scientific::bmat_new(2, 2);
+    assert(fgn.kind == scientific::F_NONE);
+    assert(scientific::bmat_put(g, 0.0 / 0.0, 0.0, ac).kind == scientific::F_RANGE);
+    assert(scientific::bmat_put(g, 1.0 / 0.0, 0.0, ac).kind == scientific::F_RANGE);
+    assert(scientific::bmat_put(g, 0.5, 0.0, ac).kind == scientific::F_RANGE);
+    assert(scientific::bmat_put(g, -1.0, 0.0, ac).kind == scientific::F_RANGE);
+    assert(scientific::bmat_put(g, 2.0, 0.0, ac).kind == scientific::F_RANGE);
+    assert(scientific::bmat_put(g, 0.0, 0.0 / 0.0, ac).kind == scientific::F_RANGE);
+    assert(scientific::bmat_put(g, 0.0, 0.5, ac).kind == scientific::F_RANGE);
+    assert(scientific::bmat_put(g, 0.0, -1.0, ac).kind == scientific::F_RANGE);
+    assert(scientific::bmat_put(g, 0.0, 2.0, ac).kind == scientific::F_RANGE);
+    assert(g.n == 0 && g.buf.len == 0);
+
+    // A place that holds a block already is a fault.
+    assert(scientific::bmat_put(g, 0.0, 0.0, ac).kind == scientific::F_NONE);
+    assert(scientific::bmat_put(g, 0.0, 0.0, ac).kind == scientific::F_RANGE);
+    assert(g.n == 1);
+
+    // The blocks of one grid row share their height.
+    var gh, fgh = scientific::bmat_new(2, 2);
+    assert(fgh.kind == scientific::F_NONE);
+    assert(scientific::bmat_put(gh, 0.0, 0.0, ac).kind == scientific::F_NONE);
+    assert(scientific::bmat_put(gh, 0.0, 1.0, uc).kind == scientific::F_SHAPE);
+    assert(gh.n == 1);
+
+    // The blocks of one grid column share their width.
+    var gw, fgw = scientific::bmat_new(2, 2);
+    assert(fgw.kind == scientific::F_NONE);
+    assert(scientific::bmat_put(gw, 0.0, 0.0, ac).kind == scientific::F_NONE);
+    assert(scientific::bmat_put(gw, 1.0, 0.0, uc).kind == scientific::F_SHAPE);
+    assert(gw.n == 1);
+
+    // A value of the block that is not finite is a fault.
+    let nv, fnv = scientific::from_values([1.0 / 0.0]);
+    assert(fnv.kind == scientific::F_NONE);
+    let nv2, fnv2 = scientific::reshape(nv, [1, 1]);
+    assert(fnv2.kind == scientific::F_NONE);
+    let nc, fnc = scientific::csr_from_dense(nv2);
+    assert(fnc.kind == scientific::F_NONE);
+    var gv, fgv = scientific::bmat_new(2, 2);
+    assert(fgv.kind == scientific::F_NONE);
+    assert(scientific::bmat_put(gv, 0.0, 0.0, nc).kind == scientific::F_VALUE);
+    assert(gv.n == 0 && gv.buf.len == 0);
+
+    // A grid that holds no block is a fault.
+    var ge, fge = scientific::bmat_new(2, 2);
+    assert(fge.kind == scientific::F_NONE);
+    let er, fer = scientific::csr_bmat(ge);
+    assert(fer.kind == scientific::F_RANGE);
+
+    // The count of the stored values stands below the limit.
+    var lim, flim = scientific::bmat_new(2, 2);
+    assert(flim.kind == scientific::F_NONE);
+    lim.n = 1;
+    lim.buf.push(0.0); lim.buf.push(0.0); lim.buf.push(1.0); lim.buf.push(1.0); lim.buf.push(134217729.0);
+    assert(scientific::bmat_put(lim, 1.0, 0.0, uc).kind == scientific::F_LIMIT);
+    assert(lim.n == 1 && lim.buf.len == 5);
+
+    // The buffer of the builder stands below the limit. The block claims
+    // so many values that the buffer would grow past the limit.
+    var siz, fsiz = scientific::bmat_new(2, 2);
+    assert(fsiz.kind == scientific::F_NONE);
+    siz.n = 1;
+    siz.buf.push(0.0); siz.buf.push(0.0); siz.buf.push(1.0); siz.buf.push(1.0); siz.buf.push(1.0);
+    let bigc = scientific::Csr { rows: 1, cols: 1, nnz: 89478485, buf: [] };
+    assert(scientific::bmat_put(siz, 1.0, 0.0, bigc).kind == scientific::F_LIMIT);
+    assert(siz.n == 1 && siz.buf.len == 5);
+
+    // The layout of the block holds the count and the values together.
+    // A block that lies about its count is a fault.
+    var gl, fgl = scientific::bmat_new(2, 2);
+    assert(fgl.kind == scientific::F_NONE);
+    let nan = 0.0 / 0.0;
+    // The count says one value, but the row pointers reach three.
+    let lie = scientific::Csr { rows: 1, cols: 1, nnz: 1, buf: [0.0, 3.0, 1.0, 1.0, 0.0, nan] };
+    assert(scientific::bmat_put(gl, 0.0, 0.0, lie).kind == scientific::F_SHAPE);
+    assert(gl.n == 0 && gl.buf.len == 0);
+    // The buffer of the block is too short for its count.
+    let short = scientific::Csr { rows: 1, cols: 1, nnz: 1, buf: [] };
+    assert(scientific::bmat_put(gl, 0.0, 0.0, short).kind == scientific::F_SHAPE);
+    assert(gl.n == 0 && gl.buf.len == 0);
+    // The first row pointer of the block is not zero.
+    let head = scientific::Csr { rows: 1, cols: 1, nnz: 1, buf: [1.0, 2.0, 1.0, 1.0, 0.0, 1.0] };
+    assert(scientific::bmat_put(gl, 0.0, 0.0, head).kind == scientific::F_SHAPE);
+    // The row pointers of the block do not rise.
+    let fall = scientific::Csr { rows: 2, cols: 1, nnz: 2, buf: [0.0, 2.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0] };
+    assert(scientific::bmat_put(gl, 0.0, 0.0, fall).kind == scientific::F_SHAPE);
+    // A column of the block lies outside the block.
+    let wide = scientific::Csr { rows: 1, cols: 1, nnz: 1, buf: [0.0, 1.0, 1.0, 1.0, 0.0, 1.0] };
+    assert(scientific::bmat_put(gl, 0.0, 0.0, wide).kind == scientific::F_SHAPE);
+    assert(gl.n == 0 && gl.buf.len == 0);
+
+    // The sum of the sides of the grid stands below the limit.
+    var big, fbig = scientific::bmat_new(2, 2);
+    assert(fbig.kind == scientific::F_NONE);
+    big.n = 2;
+    big.buf.push(0.0); big.buf.push(0.0); big.buf.push(1073741824.0); big.buf.push(1073741824.0); big.buf.push(0.0);
+    big.buf.push(1.0); big.buf.push(0.0); big.buf.push(1073741824.0); big.buf.push(1073741824.0); big.buf.push(0.0);
+    let bigm, fbigm = scientific::csr_bmat(big);
+    assert(fbigm.kind == scientific::F_RANGE);
+
+    // The data of the diagonals must be a matrix.
+    let v1, fv1 = scientific::from_values([1.0, 2.0, 3.0]);
+    assert(fv1.kind == scientific::F_NONE);
+    let e0, fe0 = scientific::spdiags(v1, [0.0], 2, 2);
+    assert(fe0.kind == scientific::F_SHAPE);
+
+    // The count of the offsets must match the count of the rows.
+    let m2, fm2 = scientific::from_values([1.0, 2.0, 3.0, 4.0]);
+    assert(fm2.kind == scientific::F_NONE);
+    let m2r, fmr = scientific::reshape(m2, [2, 2]);
+    assert(fmr.kind == scientific::F_NONE);
+    let e1, fe1 = scientific::spdiags(m2r, [0.0], 2, 2);
+    assert(fe1.kind == scientific::F_SHAPE);
+
+    // The sides of the matrix of diagonals stand between one and the limit.
+    let e2, fe2 = scientific::spdiags(m2r, [0.0, 1.0], 0, 2);
+    assert(fe2.kind == scientific::F_RANGE);
+    let e3, fe3 = scientific::spdiags(m2r, [0.0, 1.0], 2, 1073741825);
+    assert(fe3.kind == scientific::F_RANGE);
+
+    // The offsets stand inside the matrix.
+    let o1, fo1 = scientific::from_values([1.0, 2.0]);
+    assert(fo1.kind == scientific::F_NONE);
+    let o1r, for1 = scientific::reshape(o1, [1, 2]);
+    assert(for1.kind == scientific::F_NONE);
+    let e4, fe4 = scientific::spdiags(o1r, [0.0 / 0.0], 2, 2);
+    assert(fe4.kind == scientific::F_RANGE);
+    let e5, fe5 = scientific::spdiags(o1r, [1.0 / 0.0], 2, 2);
+    assert(fe5.kind == scientific::F_RANGE);
+    let e6, fe6 = scientific::spdiags(o1r, [0.5], 2, 2);
+    assert(fe6.kind == scientific::F_RANGE);
+    let e7, fe7 = scientific::spdiags(o1r, [-2.0], 2, 2);
+    assert(fe7.kind == scientific::F_RANGE);
+    let e8, fe8 = scientific::spdiags(o1r, [2.0], 2, 2);
+    assert(fe8.kind == scientific::F_RANGE);
+
+    // Two offsets that are the same are a fault.
+    let e9, fe9 = scientific::spdiags(m2r, [0.0, 0.0], 2, 2);
+    assert(fe9.kind == scientific::F_RANGE);
+
+    // A value of the data that is not finite is a fault.
+    let n1, fn1 = scientific::from_values([1.0 / 0.0, 2.0]);
+    assert(fn1.kind == scientific::F_NONE);
+    let n1r, fn1r = scientific::reshape(n1, [1, 2]);
+    assert(fn1r.kind == scientific::F_NONE);
+    let e10, fe10 = scientific::spdiags(n1r, [0.0], 2, 2);
+    assert(fe10.kind == scientific::F_VALUE);
+
+    // The count of the stored values stands below the limit.
+    let e11, fe11 = scientific::spdiags(m2r, [0.0, 1.0], 1073741824, 1073741824);
+    assert(fe11.kind == scientific::F_LIMIT);
+
+    // The grid of blocks gives the same matrix as the calls that stack.
+    var gg, fgg = scientific::bmat_new(1, 2);
+    assert(fgg.kind == scientific::F_NONE);
+    assert(scientific::bmat_put(gg, 0.0, 0.0, ac).kind == scientific::F_NONE);
+    assert(scientific::bmat_put(gg, 0.0, 1.0, ac).kind == scientific::F_NONE);
+    let gm, fgm = scientific::csr_bmat(gg);
+    assert(fgm.kind == scientific::F_NONE);
+    let hs, fhs = scientific::csr_hstack(ac, ac);
+    assert(fhs.kind == scientific::F_NONE);
+    let gd, fgd = scientific::csr_to_dense(gm);
+    let hd, fhd = scientific::csr_to_dense(hs);
+    assert(fgd.kind == scientific::F_NONE && fhd.kind == scientific::F_NONE && all_near(gd, hd.data));
+
+    var gv2, fgv2 = scientific::bmat_new(2, 1);
+    assert(fgv2.kind == scientific::F_NONE);
+    assert(scientific::bmat_put(gv2, 0.0, 0.0, ac).kind == scientific::F_NONE);
+    assert(scientific::bmat_put(gv2, 1.0, 0.0, ac).kind == scientific::F_NONE);
+    let vm, fvm = scientific::csr_bmat(gv2);
+    assert(fvm.kind == scientific::F_NONE);
+    let vs, fvs = scientific::csr_vstack(ac, ac);
+    assert(fvs.kind == scientific::F_NONE);
+    let vd, fvd = scientific::csr_to_dense(vm);
+    let vsd, fvsd = scientific::csr_to_dense(vs);
+    assert(fvd.kind == scientific::F_NONE && fvsd.kind == scientific::F_NONE && all_near(vd, vsd.data));
+
+    var gb2, fgb2 = scientific::bmat_new(2, 2);
+    assert(fgb2.kind == scientific::F_NONE);
+    assert(scientific::bmat_put(gb2, 0.0, 0.0, ac).kind == scientific::F_NONE);
+    assert(scientific::bmat_put(gb2, 1.0, 1.0, ac).kind == scientific::F_NONE);
+    let bm, fbm = scientific::csr_bmat(gb2);
+    assert(fbm.kind == scientific::F_NONE);
+    let bd, fbd = scientific::csr_block_diag(ac, ac);
+    assert(fbd.kind == scientific::F_NONE);
+    let bdd, fbdd = scientific::csr_to_dense(bm);
+    let bds, fbds = scientific::csr_to_dense(bd);
+    assert(fbdd.kind == scientific::F_NONE && fbds.kind == scientific::F_NONE && all_near(bdd, bds.data));
+}
+
 fn main() {
     test_schur_funm_ldl();
     test_eigvalsh_larger();
@@ -37891,6 +39221,8 @@ fn main() {
     test_sparse_dok_hostile();
     test_sparse_lil_pins();
     test_sparse_lil_hostile();
+    test_sparse_bmat_pins();
+    test_sparse_bmat_hostile();
     print("ok\n");
     return;
 }

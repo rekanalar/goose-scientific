@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.167.0";
+import scientific from "rekanalar/goose-scientific@v0.168.0";
 ```
 
 ## API
@@ -94,6 +94,8 @@ import scientific from "rekanalar/goose-scientific@v0.167.0";
 | Sparse matrices of diagonals | `Dia`, `dia_from_dense`, `dia_to_dense`, `dia_from_csr`, `dia_to_csr`, `dia_from_coo`, `dia_to_coo`, `dia_get`, `dia_scale`, `dia_matvec`, `dia_transpose`, `dia_sum`, `dia_nnz`, `dia_diagonals`, `dia_from_diagonals` |
 | Sparse matrices of keys | `Dok`, `dok_new`, `dok_from_dense`, `dok_from_csr`, `dok_from_coo`, `dok_to_dense`, `dok_to_csr`, `dok_to_coo`, `dok_get`, `dok_set`, `dok_pop`, `dok_setdiag`, `dok_resize`, `dok_transpose`, `dok_scale`, `dok_matvec`, `dok_diagonal`, `dok_sum`, `dok_nnz`, `dok_keys` |
 | Sparse matrices of lists | `Lil`, `lil_new`, `lil_from_dense`, `lil_from_csr`, `lil_from_coo`, `lil_to_dense`, `lil_to_csr`, `lil_to_coo`, `lil_get`, `lil_set`, `lil_row`, `lil_setdiag`, `lil_resize`, `lil_transpose`, `lil_scale`, `lil_matvec`, `lil_diagonal`, `lil_sum`, `lil_nnz` |
+| Grid of sparse blocks | `Bmat`, `bmat_new`, `bmat_put`, `csr_bmat` |
+| Sparse diagonals by column | `spdiags` |
 | Sparse matrices of blocks | `Bsr`, `bsr_from_entries`, `bsr_from_dense`, `bsr_to_dense`, `bsr_from_csr`, `bsr_to_csr`, `bsr_from_coo`, `bsr_to_coo`, `bsr_get`, `bsr_scale`, `bsr_matvec`, `bsr_transpose`, `bsr_sum`, `bsr_nnz`, `bsr_diagonal`, `bsr_blocks` |
 | Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_kronsum`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `bicg`, `cgs`, `qmr`, `tfqmr`, `gmres`, `lsqr`, `lsmr`, `Lsmr`, `minres`, `eigsh`, `csr_matvec_t` |
@@ -305,7 +307,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   transpose of SciPy lists the offsets in the other order. The values of
   one diagonal keep their order in both.
 - `dia_from_diagonals` follows `scipy.sparse.diags`. The values of one
-  diagonal cover its places inside the matrix. The older
+  diagonal cover its places inside the matrix. Two offsets that are the
+  same are a fault of kind `F_VALUE`. The older
   `scipy.sparse.spdiags` places the values by column, so it drops the
   first values of an upper diagonal.
 - The type `Bsr` cuts the matrix into blocks of `br` rows and `bc`
@@ -378,6 +381,51 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The fields of `Lil` are public. A matrix that a caller builds by hand
   must keep the layout of the buffer. A forged field gives a wrong result
   or an index error. Build a matrix with `lil_new` to avoid the risk.
+- The type `Bmat` holds a grid of blocks. Goose holds no list of
+  matrices, so the user declares the grid and places the blocks one at a
+  time. The call `bmat_put` takes a builder by reference.
+- The block that `bmat_put` takes is a matrix of compressed rows. Its
+  fields are public. A block that a caller builds by hand has to keep the
+  layout of the buffer. Build a block with `csr_from_dense` or with
+  `csr_from_triplets` to avoid the risk.
+- The layout of a block is checked. A fault of kind `F_SHAPE` covers four
+  cases. The count differs from the values. The buffer is too short. The
+  row pointers do not rise. A column lies outside the block.
+- The blocks of one grid row share their height. The blocks of one grid
+  column share their width. A block with another height or width is a
+  fault of kind `F_SHAPE`. SciPy gives an error in the same case.
+- A grid row that holds no block has the height zero. A grid column that
+  holds no block has the width zero. Both add nothing to the result.
+  SciPy drops them too.
+- A place that holds a block already is a fault of kind `F_RANGE`.
+- A grid that holds no block is a fault of kind `F_RANGE`. SciPy gives
+  the shape 0 by 0 for it.
+- A side of the grid stands between one and 1048576. A side above that
+  is a fault of kind `F_RANGE`. The limit keeps the tables of the row
+  heights and the column widths small. A grid of that size needs 8 MB for
+  each table.
+- A placement of the n-th block walks the n-1 blocks that are placed. A
+  build of n blocks costs n squared walks over them.
+- The result of `csr_bmat` keeps the stored zeros of the blocks. SciPy
+  keeps them too.
+- `spdiags` places the values by column, as SciPy does. The value of the
+  diagonal d at the column j is the value `data[d, j]`.
+- `spdiags` sorts the offsets. SciPy keeps the order of the offsets. The
+  dense form is the same.
+- An offset outside the matrix is a fault of kind `F_RANGE`. SciPy
+  stores nothing for such an offset.
+- Two offsets that are the same are a fault of kind `F_RANGE`. SciPy
+  gives a ValueError.
+- The count of the offsets has to match the count of the rows of the
+  data. A difference gives a fault of kind `F_SHAPE`. SciPy gives a
+  ValueError.
+- The data of `spdiags` has to be a matrix. Another operand gives a
+  fault of kind `F_SHAPE`.
+- A column at or above the width of the data holds zero. A width above
+  the count of the columns of the matrix leaves the later places alone.
+- The matrix of diagonals keeps the zeros of the diagonals, as `Dia` does.
+  Its count of stored values counts them. SciPy cuts the band of a
+  diagonal at the width of the data. Its count is then smaller.
 - The type `Coo` keeps the duplicate entries of one place, as SciPy does,
   and `nnz` counts them. The dense form, `coo_get` and the compressed
   rows add them up. `coo_get` and `coo_matvec` read every entry, so they
@@ -1835,6 +1883,39 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `MAX_SPARSE_SIDE` would ask for gigabytes. The size `rows + 1 + 2 * n`
   above `MAX_ELEMENTS` is a fault of kind `F_LIMIT`. The check comes
   before the buffer grows, in `lil_new`, `lil_resize` and `lil_set`.
+- The grid of blocks checks a place before it turns it into a whole
+  number. A place that is not finite or not whole is a fault of kind
+  `F_RANGE`. The check comes first, because the cast of such a number
+  gives no defined value.
+- The values of a block stay finite. A block that holds a value that is
+  not finite is a fault of kind `F_VALUE`. The check comes before the
+  block enters the builder.
+- The layout of a block is checked. The count of the block and the values
+  that the block holds have to be the same number. A block whose count
+  differs from its values gives a fault of kind `F_SHAPE`. The check
+  comes before the block enters the builder.
+- The size of the buffer of the builder stands below `MAX_ELEMENTS`.
+  The check comes before the buffer grows. The buffer holds three values
+  for each stored value, so the size is the first limit that binds.
+- The count of the stored values of the builder stands below
+  `MAX_SPARSE_NNZ`. The check comes before the buffer grows. It catches
+  a builder that claims more values than it holds.
+- The sum of the heights of the grid and the sum of the widths stand
+  below `MAX_SPARSE_SIDE`. A running total stops at the first sum above
+  the limit, so a sum cannot overflow.
+- The fields of `Bmat` are public. A builder that a caller builds by hand
+  has to keep the layout of the buffer. A forged field gives a wrong result
+  or an index error. Build a builder with `bmat_new` to avoid the risk.
+- The diagonal format checks an offset before it turns it into a whole
+  number. An offset that lies outside the range of an integer is a fault.
+  The cast of such a number gives no defined value, so the check must come
+  first. An offset of that size would otherwise build the wrong diagonal
+  and read as a correct answer. The call `spdiags` uses the same check.
+- `spdiags` sums the lengths of the diagonals and checks the sum against
+  `MAX_SPARSE_NNZ` before it builds the values. The check comes first, so
+  a large shape gives a fault and no array.
+- The values of the data of the diagonals stay finite. A value that is
+  not finite is a fault of kind `F_VALUE`.
 - The table of a matrix of keys holds one and a half slots for each key.
   A count of keys above `MAX_SPARSE_NNZ` is a fault of kind `F_LIMIT`.
   The check comes before the table grows.

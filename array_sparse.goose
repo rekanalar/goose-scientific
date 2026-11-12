@@ -13,6 +13,9 @@ import mathshim;
 const MAX_SPARSE_SIDE: i64 = 1073741824;
 const MAX_SPARSE_NNZ: i64 = 134217728;
 
+// The largest count of the rows or the columns of a grid of blocks.
+const MAX_BMAT_GRID: i64 = 1048576;
+
 // Csr holds a sparse matrix of compressed rows.
 struct Csr { rows: i64, cols: i64, nnz: i64, buf: f64[>..] }
 

@@ -334,40 +334,94 @@ fn dia_diagonals(s) -> Arr, Arr, Fault {
     return line_arr(copy(offs)), line_arr(copy(vals)), no_fault();
 }
 
-// dia_from_diagonals builds a matrix from the offsets and the values of
-// the diagonals. The values of one diagonal cover its places inside the
-// matrix, in the order of the row. The offsets are sorted, and the
-// values follow them.
+// dia_check_offsets checks the offsets of the diagonals of a matrix of the
+// given shape. Every offset has to be a whole number inside the matrix.
+// The check comes before the cast to a whole number, because the cast of
+// such a number gives no defined value.
+fn dia_check_offsets(rows: i64, cols: i64, offsets: f64[:], tag: const u8[:]) -> Fault {
+    var i: i64 = 0;
+    while i < offsets.len {
+        let o = offsets[i];
+        if mathshim::is_finite_of(o) == 0.0 {
+            return fault(F_RANGE, tag, "an offset is not finite");
+        }
+        if o > cols - 1.0 || o < 0.0 - (rows - 1.0) {
+            return fault(F_RANGE, tag, "an offset lies outside the matrix");
+        }
+        if mathshim::trunc_of(o) != o {
+            return fault(F_RANGE, tag, "an offset is not a whole number");
+        }
+        i += 1;
+    }
+    return no_fault();
+}
+
+// dia_check_dup checks that no two offsets are the same. The kind of the
+// fault names the call that reports it.
+fn dia_check_dup(offsets: f64[:], ord: i64[>..]&, kind: i32, tag: const u8[:]) -> Fault {
+    var i: i64 = 1;
+    while i < ord.len {
+        if offsets[ord[i]] == offsets[ord[i - 1]] {
+            return fault(kind, tag, "two offsets are the same");
+        }
+        i += 1;
+    }
+    return no_fault();
+}
+
+// dia_total_len gives the sum of the lengths of the diagonals of the
+// given offsets.
+fn dia_total_len(rows: i64, cols: i64, offsets: f64[:]) -> i64 {
+    var total: i64 = 0;
+    var i: i64 = 0;
+    while i < offsets.len {
+        total += dia_len_of(rows, cols, offsets[i] as i64);
+        i += 1;
+    }
+    return total;
+}
+
+// dia_build makes the matrix from offsets that are checked and values
+// that are finite. The values follow the given order of the offsets.
+// The offsets come out sorted.
+fn dia_build(rows: i64, cols: i64, offsets: f64[:], values: f64[:], ord: i64[>..]&, total: i64) -> Dia {
+    // The place in the values of the first value of each diagonal.
+    var starts: i64[>..] = [];
+    var acc: i64 = 0;
+    var i: i64 = 0;
+    while i < offsets.len { starts.push(acc); acc += dia_len_of(rows, cols, offsets[i] as i64); i += 1; }
+    var buf: f64[>..] = [];
+    i = 0;
+    while i < ord.len { buf.push(offsets[ord[i]]); i += 1; }
+    i = 0;
+    while i < ord.len {
+        let k = ord[i];
+        let len = dia_len_of(rows, cols, offsets[k] as i64);
+        var t: i64 = 0;
+        while t < len { buf.push(values[starts[k] + t]); t += 1; }
+        i += 1;
+    }
+    return Dia { rows: rows, cols: cols, ndiag: offsets.len, nnz: total, buf: buf };
+}
+
+// dia_from_diagonals builds a matrix from the offsets of the diagonals and
+// the values of the diagonals. The values of one diagonal cover its places
+// inside the matrix, in the order of the row. The offsets are sorted, and
+// the values follow them.
 fn dia_from_diagonals(rows: i64, cols: i64, offsets: f64[:], values: f64[:]) -> Dia, Fault {
     let c = csr_check(rows, cols, "dia_from_diagonals");
     if c.kind != F_NONE { return dia_empty(), c; }
     let n = offsets.len;
-    var i: i64 = 0;
-    while i < n {
-        let o = offsets[i];
-        if mathshim::is_finite_of(o) == 0.0 {
-            return dia_empty(), fault(F_RANGE, "dia_from_diagonals", "an offset is not finite");
-        }
-        // The range is checked before the cast. The cast of a number that
-        // lies outside the range of an integer gives no defined value.
-        if o > (cols - 1) as f64 || o < 0.0 - ((rows - 1) as f64) {
-            return dia_empty(), fault(F_RANGE, "dia_from_diagonals", "an offset lies outside the matrix");
-        }
-        if mathshim::trunc_of(o) != o {
-            return dia_empty(), fault(F_RANGE, "dia_from_diagonals", "an offset is not a whole number");
-        }
-        i += 1;
-    }
-    var total: i64 = 0;
-    i = 0;
-    while i < n { total += dia_len_of(rows, cols, offsets[i] as i64); i += 1; }
+    let f = dia_check_offsets(rows, cols, offsets, "dia_from_diagonals");
+    if f.kind != F_NONE { return dia_empty(), f; }
+    let total = dia_total_len(rows, cols, offsets);
     if total != values.len {
         return dia_empty(), fault(F_SHAPE, "dia_from_diagonals", "the count of the values does not match the diagonals");
     }
     if total > MAX_SPARSE_NNZ {
         return dia_empty(), fault(F_LIMIT, "dia_from_diagonals", "the count of the stored values is above the limit");
     }
-    i = 0;
+    var i: i64 = 0;
     while i < values.len {
         if mathshim::is_finite_of(values[i]) == 0.0 {
             return dia_empty(), fault(F_VALUE, "dia_from_diagonals", "a value is not finite");
@@ -376,28 +430,72 @@ fn dia_from_diagonals(rows: i64, cols: i64, offsets: f64[:], values: f64[:]) -> 
     }
     var ord: i64[>..] = [];
     if n > 0 { ord = order_places(offsets, 1, n); }
-    i = 0;
-    while i < n {
-        if i > 0 && offsets[ord[i]] == offsets[ord[i - 1]] {
-            return dia_empty(), fault(F_VALUE, "dia_from_diagonals", "two offsets are the same");
+    let d = dia_check_dup(offsets, ord, F_VALUE, "dia_from_diagonals");
+    if d.kind != F_NONE { return dia_empty(), d; }
+    return dia_build(rows, cols, offsets, values, ord, total), no_fault();
+}
+
+// spdiags gives a matrix of diagonals from a dense matrix and a list of
+// offsets. The data holds one row for each offset. The value of the
+// diagonal d at the column j is the value data[d, j]. A column at or
+// above the width of the data holds zero. The offsets come out sorted.
+fn spdiags(data, offsets: f64[:], rows: i64, cols: i64) -> Dia, Fault {
+    if data.ndim != 2 {
+        return dia_empty(), fault(F_SHAPE, "spdiags", "the data is not a matrix");
+    }
+    // The shape and the buffer of the data are checked before the code
+    // reads a dimension of the shape.
+    let s = check_stack(data.ndim, data.shape, data.data.len, 1, "spdiags");
+    if s.kind != F_NONE { return dia_empty(), s; }
+    if data.shape[0] != offsets.len {
+        return dia_empty(), fault(F_SHAPE, "spdiags", "the count of the offsets differs from the count of the rows of the data");
+    }
+    let c = csr_check(rows, cols, "spdiags");
+    if c.kind != F_NONE { return dia_empty(), c; }
+    let width = data.shape[1];
+    // The offsets are checked before any cast. The cast of a number that
+    // lies outside the range of an integer gives no defined value.
+    let f = dia_check_offsets(rows, cols, offsets, "spdiags");
+    if f.kind != F_NONE { return dia_empty(), f; }
+    // Two offsets that are the same are a fault.
+    var ord: i64[>..] = [];
+    if offsets.len > 0 { ord = order_places(offsets, 1, offsets.len); }
+    let d = dia_check_dup(offsets, ord, F_RANGE, "spdiags");
+    if d.kind != F_NONE { return dia_empty(), d; }
+    // The sum of the lengths of the diagonals is checked first. It costs
+    // one pass over the offsets, and the values are not built before it.
+    let total = dia_total_len(rows, cols, offsets);
+    if total > MAX_SPARSE_NNZ {
+        return dia_empty(), fault(F_LIMIT, "spdiags", "the count of the stored values is above the limit");
+    }
+    var t: i64 = 0;
+    while t < data.data.len {
+        if mathshim::is_finite_of(data.data[t]) == 0.0 {
+            return dia_empty(), fault(F_VALUE, "spdiags", "a value of the data is not finite");
+        }
+        t += 1;
+    }
+    // The values of each diagonal lie in the order of the rows. The value
+    // at the row r of the diagonal d is the value at the column r + off.
+    var vals: f64[>..] = [];
+    var i: i64 = 0;
+    while i < offsets.len {
+        let off = offsets[i] as i64;
+        let len = dia_len_of(rows, cols, off);
+        let first = dia_first_of(off);
+        var k: i64 = 0;
+        while k < len {
+            let col = first + k + off;
+            if col < width {
+                vals.push(data.data[i * width + col]);
+            } else {
+                vals.push(0.0);
+            }
+            k += 1;
         }
         i += 1;
     }
-    // The place in the values of the first value of each diagonal.
-    var starts: i64[>..] = [];
-    var acc: i64 = 0;
-    i = 0;
-    while i < n { starts.push(acc); acc += dia_len_of(rows, cols, offsets[i] as i64); i += 1; }
-    var buf: f64[>..] = [];
-    i = 0;
-    while i < n { buf.push(offsets[ord[i]]); i += 1; }
-    i = 0;
-    while i < n {
-        let k = ord[i];
-        let len = dia_len_of(rows, cols, offsets[k] as i64);
-        var t: i64 = 0;
-        while t < len { buf.push(values[starts[k] + t]); t += 1; }
-        i += 1;
-    }
-    return Dia { rows: rows, cols: cols, ndiag: n, nnz: total, buf: buf }, no_fault();
+    // The offsets and the values are checked already, so the builder does
+    // not check them again.
+    return dia_build(rows, cols, offsets, vals, ord, total), no_fault();
 }
