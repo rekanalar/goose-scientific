@@ -240,9 +240,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   of zero. They give the solution and a count: zero on success. The
   count holds the turns when the limit ran out. A breakdown gives a
   fault, while SciPy gives a negative count. The path of the iteration
-  may differ from SciPy, so only the solution matches. A right side
-  that is not finite is a fault. A tolerance that is not finite is a
-  fault too.
+  may differ from SciPy, so only the solution matches.
+
+  A right side that is not finite is a fault. A tolerance that is not
+  finite is a fault too.
 
   `bicg` and `qmr` use the product of the transposed matrix.
   `csr_matvec_t` gives that product.
