@@ -9,8 +9,6 @@
 // this file that has no own rule converts to the compressed rows and back.
 namespace scientific;
 
-import mathshim;
-
 // Csc holds a sparse matrix of compressed columns.
 struct Csc { rows: i64, cols: i64, nnz: i64, buf: f64[>..] }
 
@@ -60,20 +58,10 @@ fn csc_from_parts(rows: i64, cols: i64, ptr: f64[:], idx: f64[:], val: f64[:]) -
 fn csc_from_triplets(rows: i64, cols: i64, ri: f64[:], ci: f64[:], v: f64[:]) -> Csc, Fault {
     let c = csc_check(rows, cols, "csc_from_triplets");
     if c.kind != F_NONE { return csc_empty(), c; }
+    let t = sparse_check_triplets(rows, cols, ri, ci, v, "csc_from_triplets");
+    if t.kind != F_NONE { return csc_empty(), t; }
     let n = v.len;
-    if ri.len != n || ci.len != n {
-        return csc_empty(), fault(F_SHAPE, "csc_from_triplets", "the rows, the columns and the values differ in count");
-    }
-    if n > MAX_SPARSE_NNZ {
-        return csc_empty(), fault(F_LIMIT, "csc_from_triplets", "the count of entries is above the limit");
-    }
     var i: i64 = 0;
-    while i < n {
-        if !(ri[i] >= 0.0) || ri[i] >= rows || mathshim::trunc_of(ri[i]) != ri[i] || !(ci[i] >= 0.0) || ci[i] >= cols || mathshim::trunc_of(ci[i]) != ci[i] {
-            return csc_empty(), fault(F_RANGE, "csc_from_triplets", "an entry lies outside the matrix");
-        }
-        i += 1;
-    }
     // The entries of one column, with the rows in order.
     var ord: i64[>..] = [];
     i = 0;

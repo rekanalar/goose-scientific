@@ -43,6 +43,27 @@ fn csr_check(rows: i64, cols: i64, tag: const u8[:]) -> Fault {
     return no_fault();
 }
 
+// sparse_check_triplets checks the rows, the columns and the values of a
+// list of entries. The count of the entries must be the same, the count
+// must stay below the limit and every entry must lie inside the matrix.
+fn sparse_check_triplets(rows: i64, cols: i64, ri: f64[:], ci: f64[:], v: f64[:], tag: const u8[:]) -> Fault {
+    let n = v.len;
+    if ri.len != n || ci.len != n {
+        return fault(F_SHAPE, tag, "the rows, the columns and the values differ in count");
+    }
+    if n > MAX_SPARSE_NNZ {
+        return fault(F_LIMIT, tag, "the count of entries is above the limit");
+    }
+    var i: i64 = 0;
+    while i < n {
+        if !(ri[i] >= 0.0) || ri[i] >= rows || mathshim::trunc_of(ri[i]) != ri[i] || !(ci[i] >= 0.0) || ci[i] >= cols || mathshim::trunc_of(ci[i]) != ci[i] {
+            return fault(F_RANGE, tag, "an entry lies outside the matrix");
+        }
+        i += 1;
+    }
+    return no_fault();
+}
+
 // csr_from_parts builds a matrix from the row pointers, the columns and
 // the values, which the caller keeps in order.
 fn csr_from_parts(rows: i64, cols: i64, ptr: f64[:], idx: f64[:], val: f64[:]) -> Csr {
@@ -62,20 +83,10 @@ fn csr_from_parts(rows: i64, cols: i64, ptr: f64[:], idx: f64[:], val: f64[:]) -
 fn csr_from_triplets(rows: i64, cols: i64, ri: f64[:], ci: f64[:], v: f64[:]) -> Csr, Fault {
     let c = csr_check(rows, cols, "csr_from_triplets");
     if c.kind != F_NONE { return csr_empty(), c; }
+    let t = sparse_check_triplets(rows, cols, ri, ci, v, "csr_from_triplets");
+    if t.kind != F_NONE { return csr_empty(), t; }
     let n = v.len;
-    if ri.len != n || ci.len != n {
-        return csr_empty(), fault(F_SHAPE, "csr_from_triplets", "the rows, the columns and the values differ in count");
-    }
-    if n > MAX_SPARSE_NNZ {
-        return csr_empty(), fault(F_LIMIT, "csr_from_triplets", "the count of entries is above the limit");
-    }
     var i: i64 = 0;
-    while i < n {
-        if !(ri[i] >= 0.0) || ri[i] >= rows || mathshim::trunc_of(ri[i]) != ri[i] || !(ci[i] >= 0.0) || ci[i] >= cols || mathshim::trunc_of(ci[i]) != ci[i] {
-            return csr_empty(), fault(F_RANGE, "csr_from_triplets", "an entry lies outside the matrix");
-        }
-        i += 1;
-    }
     var keys: f64[>..] = [];
     i = 0;
     while i < n { keys.push(ci[i]); i += 1; }

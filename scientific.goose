@@ -89,6 +89,7 @@ import array_programs;
 import array_dsp;
 import array_sparse;
 import array_sparse_csc;
+import array_sparse_coo;
 import array_matfun;
 import array_carray;
 import array_cfactor;
