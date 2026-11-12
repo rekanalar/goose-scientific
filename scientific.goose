@@ -98,6 +98,7 @@ import array_rank;
 import array_morph;
 import array_generic;
 import array_transform;
+import array_measure;
 import array_bins;
 import array_grid;
 import array_buffer;
