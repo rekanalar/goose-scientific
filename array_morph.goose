@@ -120,7 +120,8 @@ fn mo_erode(src: f64[:], shape: i64[:], offs: i64[:], t: i64, shift: i64[:], bv:
 fn mo_rounds(start: f64[:], shape: i64[:], st, mask: f64[:], iterations: i64, bv: f64, og: i64[:], dilate: bool, tag: const u8[:], out: f64[>..]&) -> Fault {
     var offs: i64[>..] = [];
     let t = mo_places(st, dilate, offs);
-    if t < 1 { return fault(F_VALUE, tag, "the structure holds no nonzero place"); }
+    var tc = t;
+    if tc < 1 { tc = 1; }
     var shift: i64[..8] = [];
     var d: i64 = 0;
     while d < shape.len {
@@ -137,8 +138,8 @@ fn mo_rounds(start: f64[:], shape: i64[:], st, mask: f64[:], iterations: i64, bv
         d += 1;
     }
     let n = start.len;
-    if n > ND_COST / t { return fault(F_LIMIT, tag, "the cost of the filter is above the limit"); }
-    let allowed = ND_COST / (n * t);
+    if n > ND_COST / tc { return fault(F_LIMIT, tag, "the cost of the filter is above the limit"); }
+    let allowed = ND_COST / (n * tc);
     if iterations > allowed { return fault(F_LIMIT, tag, "the cost of the filter is above the limit"); }
     var cur: f64[>..] = [];
     var i: i64 = 0;

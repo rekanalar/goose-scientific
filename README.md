@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.154.0";
+import scientific from "rekanalar/goose-scientific@v0.155.0";
 ```
 
 ## API
@@ -81,6 +81,7 @@ import scientific from "rekanalar/goose-scientific@v0.154.0";
 | Labels, morphology and distances of N dimensions | `generate_binary_structure`, `iterate_structure`, `label`, `label_st`, `binary_erosion`, `binary_dilation`, `binary_opening`, `binary_closing`, the forms with the suffix `_st`, `binary_fill_holes`, `binary_fill_holes_st`, `distance_transform_edt`, `distance_transform_edt_indices` |
 | Filters that take a block | `generic_filter`, `generic_filter_fp`, `generic_laplace`, `generic_gradient_magnitude` |
 | Measurements of labeled regions | `sum_labels`, `mean_labels`, `variance_labels`, `standard_deviation_labels`, `minimum_labels`, `maximum_labels`, `median_labels`, `minimum_position`, `maximum_position`, `extrema`, `center_of_mass`, `histogram_labels`, `find_objects`, `labeled_comprehension` |
+| Grey morphology, propagation and hit or miss | `grey_erosion`, `grey_dilation`, `grey_opening`, `grey_closing`, `morphological_gradient`, `morphological_laplace`, `white_tophat`, `black_tophat`, the forms with the suffix `_st`, `binary_propagation`, `binary_propagation_st`, `binary_hit_or_miss`, `binary_hit_or_miss_st` |
 | Spline filters and interpolating transforms of N dimensions | `spline_filter1d`, `spline_filter`, `map_coordinates`, `affine_transform`, `shift`, `zoom`, `rotate` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_jac`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
@@ -613,6 +614,23 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The names of the SciPy calls `mean`, `variance`, `minimum`, `maximum`,
   `median` and `histogram` carry the suffix `_labels` here. The suffix
   keeps them apart from the statistics names of the package.
+- The grey calls equal SciPy 1.18. The plain form takes a size and a flat
+  box. The form with the suffix `_st` takes a footprint and a structure. An
+  empty array stands for None. A structure without a footprint uses all its
+  places. A dilation reflects the footprint and the structure and flips the
+  origin, as SciPy does.
+- An erosion takes the minimum of value minus structure. A dilation takes
+  the maximum of value plus structure.
+- NaN is the largest value in the grey calls, as in the rank filters. The
+  result does not depend on the order of the window. The cost limit of the
+  rank filters holds for them.
+- `binary_propagation` is a dilation that repeats until no value changes. In
+  `binary_hit_or_miss` an empty `origin2` stands for `origin1`, and an empty
+  `structure2` stands for the complement of `structure1`. To get an origin of
+  zeros for the second structure, pass a list of zeros.
+- A structure with no true place gives an erosion of all ones. It gives a
+  dilation of all zeros, as in SciPy. The binary calls gave a fault there before. The cost
+  check then counts one place.
 - A measurement of an array of 512 by 512 took 0.04 seconds. The
   median sorts the values of each part, so it takes the longest.
 - A tie between two nearest points in `griddata` goes to the lower
@@ -1853,6 +1871,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The measurements find the place of a value with a heap sort of the
   index list. They use a binary search of the labels. No data gives a
   slow case.
+- The grey calls check the array, the footprint, the structure and the
+  origin before the first value moves. A structure of another shape than the
+  footprint is a fault. An origin beyond one billion is a fault, so the
+  flip of the origin cannot overflow. The cost of a call has a limit, so a
+  hostile footprint cannot hold the process for hours.
 - The distance transform faults when the array holds no background value.
   SciPy returns values without meaning there. A sampling above `1.0e100`
   on an axis is a fault, so no squared distance overflows to an infinity.
