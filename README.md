@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.160.0";
+import scientific from "rekanalar/goose-scientific@v0.161.0";
 ```
 
 ## API
@@ -92,7 +92,7 @@ import scientific from "rekanalar/goose-scientific@v0.160.0";
 | Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `bessel`, `residue`, `residue_complex`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `welch_ex`, `stft`, `istft`, `resample` |
 | Sparse matrices of coordinates | `Coo`, `coo_from_triplets`, `coo_from_dense`, `coo_to_dense`, `coo_to_csr`, `coo_from_csr`, `coo_transpose`, `coo_get`, `coo_scale`, `coo_matvec` |
 | Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
-| Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
+| Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `bicg`, `cgs`, `qmr`, `tfqmr`, `gmres`, `lsqr`, `minres`, `eigsh`, `csr_matvec_t` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Tridiagonal, banded and RQ forms | `eigvalsh_tridiagonal`, `eigh_tridiagonal`, `cholesky_banded`, `cho_solve_banded`, `solveh_banded`, `rq` |
 | DFT matrix and QR product | `dft`, `qr_multiply` |
@@ -236,6 +236,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   They give the solution and a count: zero on success. They take no
   preconditioner, no start vector and no callback. The path of the
   iteration may differ from SciPy, so only the solution matches.
+- `bicg`, `cgs`, `qmr` and `tfqmr` solve a square system from a start
+  of zero. They give the solution and a count: zero on success. The
+  count holds the turns when the limit ran out. A breakdown gives a
+  fault, while SciPy gives a negative count. The path of the iteration
+  may differ from SciPy, so only the solution matches. A right side
+  that is not finite is a fault. A tolerance that is not finite is a
+  fault too.
+
+  `bicg` and `qmr` use the product of the transposed matrix.
+  `csr_matvec_t` gives that product.
 - `lsqr` takes a matrix of any shape and solves the least squares
   problem. It gives the solution of the least norm when the unknowns
   outnumber the equations. It has no `damp`, no `x0` and no `atol`.
