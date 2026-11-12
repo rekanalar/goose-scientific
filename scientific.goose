@@ -100,6 +100,7 @@ import array_generic;
 import array_transform;
 import array_measure;
 import array_grey;
+import array_dist;
 import array_bins;
 import array_grid;
 import array_buffer;

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.155.0";
+import scientific from "rekanalar/goose-scientific@v0.156.0";
 ```
 
 ## API
@@ -82,6 +82,7 @@ import scientific from "rekanalar/goose-scientific@v0.155.0";
 | Filters that take a block | `generic_filter`, `generic_filter_fp`, `generic_laplace`, `generic_gradient_magnitude` |
 | Measurements of labeled regions | `sum_labels`, `mean_labels`, `variance_labels`, `standard_deviation_labels`, `minimum_labels`, `maximum_labels`, `median_labels`, `minimum_position`, `maximum_position`, `extrema`, `center_of_mass`, `histogram_labels`, `find_objects`, `labeled_comprehension` |
 | Grey morphology, propagation and hit or miss | `grey_erosion`, `grey_dilation`, `grey_opening`, `grey_closing`, `morphological_gradient`, `morphological_laplace`, `white_tophat`, `black_tophat`, the forms with the suffix `_st`, `binary_propagation`, `binary_propagation_st`, `binary_hit_or_miss`, `binary_hit_or_miss_st` |
+| Chamfer and brute force distances and value positions | `distance_transform_cdt`, `distance_transform_cdt_indices`, `distance_transform_cdt_st`, `distance_transform_cdt_st_indices`, `distance_transform_bf`, `distance_transform_bf_indices`, `value_indices` |
 | Spline filters and interpolating transforms of N dimensions | `spline_filter1d`, `spline_filter`, `map_coordinates`, `affine_transform`, `shift`, `zoom`, `rotate` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_jac`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
@@ -631,6 +632,26 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - A structure with no true place gives an erosion of all ones. It gives a
   dilation of all zeros, as in SciPy. The binary calls gave a fault there before. The cost
   check then counts one place.
+- `distance_transform_cdt` equals SciPy 1.18, distances and positions
+  included. The metrics are `chessboard`, `taxicab`, `cityblock` and
+  `manhattan`. The `_st` forms take a structure of side 3 on every axis.
+  A value that the structure never reaches keeps the distance -1, as in
+  SciPy. A chamfer transform of 512 by 512 took 0.1 seconds.
+- `distance_transform_bf` equals SciPy 1.18. The metrics are `euclidean`,
+  `taxicab`, `cityblock`, `manhattan` and `chessboard`. A tie goes to the
+  later position in row-major order, as in SciPy. The sampling counts for
+  the Euclidean metric only, as in SciPy. The count of pairs of foreground
+  and edge values has the limit 2.0e8, which takes about 15 seconds.
+- The indices calls give the positions in one array. Its shape is the count
+  of axes followed by the shape. A background value points to itself.
+- The distances calls fault when the array holds no background value. SciPy
+  gives a distance of -1, of 1.34e154 or of 4294967295 there. The package
+  faults, as `distance_transform_edt` does.
+- `value_indices` gives three arrays. The first holds the distinct values in
+  ascending order. The second holds the count of positions of each value.
+  The third holds one row of coordinates for each position. SciPy gives a
+  dictionary of index tuples. A value that is not a whole number is a fault.
+  With `has_ignore` true the call skips `ignore_value`.
 - A measurement of an array of 512 by 512 took 0.04 seconds. The
   median sorts the values of each part, so it takes the longest.
 - A tie between two nearest points in `griddata` goes to the lower
@@ -1876,6 +1897,15 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   footprint is a fault. An origin beyond one billion is a fault, so the
   flip of the origin cannot overflow. The cost of a call has a limit, so a
   hostile footprint cannot hold the process for hours.
+- `distance_transform_cdt_st` reads the structure by value. SciPy reads the
+  buffer of an integer or float structure as bytes, so it gives -1 or wrong
+  distances there. Only a boolean structure works in SciPy.
+- The distance calls check the shape, the buffer, the structure and the
+  sampling before any value moves. They check the count of pairs of the
+  brute force search against a limit. The size of the result is checked
+  against `MAX_ELEMENTS` with a quotient, so no product overflows.
+- `value_indices` faults on a value that is not a whole number. It sorts
+  with a heap sort, so no data gives a slow case.
 - The distance transform faults when the array holds no background value.
   SciPy returns values without meaning there. A sampling above `1.0e100`
   on an axis is a fault, so no squared distance overflows to an infinity.
