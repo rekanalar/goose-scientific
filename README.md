@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.157.0";
+import scientific from "rekanalar/goose-scientific@v0.158.0";
 ```
 
 ## API
@@ -85,6 +85,7 @@ import scientific from "rekanalar/goose-scientific@v0.157.0";
 | Chamfer and brute force distances and value positions | `distance_transform_cdt`, `distance_transform_cdt_indices`, `distance_transform_cdt_st`, `distance_transform_cdt_st_indices`, `distance_transform_bf`, `distance_transform_bf_indices`, `value_indices` |
 | Spline filters and interpolating transforms of N dimensions | `spline_filter1d`, `spline_filter`, `map_coordinates`, `affine_transform`, `shift`, `zoom`, `rotate` |
 | Geometric transform and line filter of N dimensions | `geometric_transform`, `generic_filter1d` |
+| Vectorized filter of N dimensions | `vectorized_filter` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_jac`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
@@ -583,6 +584,19 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   call reads the spline at the mapped coordinates, as SciPy does.
 - An empty output shape of `geometric_transform` means the shape of the
   input. The pinned cases agree with SciPy to `1.0e-10`.
+- The call `vectorized_filter` takes a trailing block where SciPy takes a
+  Python function. The block gets the windowed array of the input. Its
+  shape is the shape of the input followed by the shape of the window. It
+  fills the buffer of the result. Write
+  `vectorized_filter(a, [3, 3]) { x, o => o[0] = x.data[0] }`.
+
+- The block reduces the window axes itself, as the function of SciPy does.
+  The pinned cases agree with SciPy to `1.0e-10`.
+- The count of the values of the windowed array stays below the limit of
+  the elements. The check divides the limit by the count of the window. A
+  window below one is a fault of kind `F_VALUE`. An origin off the window
+  is a fault of kind `F_RANGE`. An unknown mode is a fault of kind
+  `F_VALUE`.
 - The call `generic_filter1d` takes a trailing block where SciPy takes a
   Python function. The block reads one line of the array and fills the
   buffer of the result. The line holds `n + size - 1` values, where `n` is
@@ -593,9 +607,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   output values times the count of the axes. It stays below the limit of
   the elements. The count of the lines of `generic_filter1d` times the
   length of a line stays below the cost limit of 1.0e9. A call above a
-  limit is a fault of kind `F_LIMIT`. A size below one is a fault of kind
-  `F_VALUE`. A bad axis, or an origin off the window, is a fault of kind
-  `F_RANGE`. An unknown mode is a fault of kind `F_VALUE`.
+  limit is a fault of kind `F_LIMIT`.
+
+- A size below one is a fault of kind `F_VALUE`. A bad axis, or an origin
+  off the window, is a fault of kind `F_RANGE`. An unknown mode is a fault
+  of kind `F_VALUE`.
 - `geometric_transform` faults on an output shape with a dimension below
   one. SciPy gives an array of no values there. It faults on a coordinate
   that is not a number, or a coordinate beyond 4.0e15. SciPy gives NaN or
@@ -1942,6 +1958,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   the cost before the first block runs. The line of a filter never grows
   above the length that the size names. So a hostile size cannot hold the
   process for hours, and a block cannot read outside the line.
+- `vectorized_filter` checks the window, the origin, the mode and the
+  count of the values before the first block runs. The check of the
+  windowed array divides the limit of the elements by the count of the
+  window. No product overflows. The border of the input is checked the
+  same way. A block reads the windowed array only.
 
 ## License
 
