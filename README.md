@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.166.0";
+import scientific from "rekanalar/goose-scientific@v0.167.0";
 ```
 
 ## API
@@ -93,6 +93,7 @@ import scientific from "rekanalar/goose-scientific@v0.166.0";
 | Sparse matrices of coordinates | `Coo`, `coo_from_triplets`, `coo_from_dense`, `coo_to_dense`, `coo_to_csr`, `coo_from_csr`, `coo_transpose`, `coo_get`, `coo_scale`, `coo_matvec` |
 | Sparse matrices of diagonals | `Dia`, `dia_from_dense`, `dia_to_dense`, `dia_from_csr`, `dia_to_csr`, `dia_from_coo`, `dia_to_coo`, `dia_get`, `dia_scale`, `dia_matvec`, `dia_transpose`, `dia_sum`, `dia_nnz`, `dia_diagonals`, `dia_from_diagonals` |
 | Sparse matrices of keys | `Dok`, `dok_new`, `dok_from_dense`, `dok_from_csr`, `dok_from_coo`, `dok_to_dense`, `dok_to_csr`, `dok_to_coo`, `dok_get`, `dok_set`, `dok_pop`, `dok_setdiag`, `dok_resize`, `dok_transpose`, `dok_scale`, `dok_matvec`, `dok_diagonal`, `dok_sum`, `dok_nnz`, `dok_keys` |
+| Sparse matrices of lists | `Lil`, `lil_new`, `lil_from_dense`, `lil_from_csr`, `lil_from_coo`, `lil_to_dense`, `lil_to_csr`, `lil_to_coo`, `lil_get`, `lil_set`, `lil_row`, `lil_setdiag`, `lil_resize`, `lil_transpose`, `lil_scale`, `lil_matvec`, `lil_diagonal`, `lil_sum`, `lil_nnz` |
 | Sparse matrices of blocks | `Bsr`, `bsr_from_entries`, `bsr_from_dense`, `bsr_to_dense`, `bsr_from_csr`, `bsr_to_csr`, `bsr_from_coo`, `bsr_to_coo`, `bsr_get`, `bsr_scale`, `bsr_matvec`, `bsr_transpose`, `bsr_sum`, `bsr_nnz`, `bsr_diagonal`, `bsr_blocks` |
 | Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_kronsum`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `bicg`, `cgs`, `qmr`, `tfqmr`, `gmres`, `lsqr`, `lsmr`, `Lsmr`, `minres`, `eigsh`, `csr_matvec_t` |
@@ -283,10 +284,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `csr_slice` takes the row and column ranges with the end excluded and
   no step. `csr_tril` and `csr_triu` take the diagonal `k`.
   `csr_multiply` takes two matrices of one shape and does not broadcast.
-- The sparse types are `Csr`, `Csc`, `Coo`, `Dia` and `Bsr`. They hold
-  the compressed rows, the compressed columns, the coordinates, the
-  diagonals and the blocks. The types `lil_array` and `dok_array` stay
-  out.
+- The sparse types are `Csr`, `Csc`, `Coo`, `Dia`, `Bsr`, `Dok` and `Lil`.
+  They hold the compressed rows, the compressed columns, the coordinates,
+  the diagonals, the blocks, the keys and the lists.
 - Build a matrix from a list of entries with `csr_from_triplets`, with
   `csc_from_triplets` or with `coo_from_triplets`. The first two add the
   entries of one place. The third keeps them. A sparse result keeps the
@@ -359,6 +359,25 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   index error. Build a matrix with `dok_new` to avoid the risk.
 - The table grows by a rebuild when it holds too many keys. A read and a
   write of a place that exists cost the same at every count of keys.
+- The type `Lil` holds one sorted list of columns and one list of values
+  for each row. One flat buffer holds both: the offsets of the rows, then
+  the entries. The columns of a row stand in ascending order, as in SciPy.
+- A set on `Lil` overwrites in place. It inserts a new column at its
+  sorted place. A value of zero removes the place. An insert and a
+  removal shift the later entries, so a set costs a pass over them. SciPy
+  shifts a list of Python in the same way.
+- `lil_setdiag` and `lil_resize` follow `Dok`. A short list leaves the
+  later places alone. A long list is cut. A zero removes its place. An
+  offset outside the matrix is a fault of kind `F_RANGE`. A larger shape
+  adds empty rows.
+- `lil_row` gives the columns and the values of one row. SciPy gives the
+  lists `rows` and `data`. A row outside the matrix is a fault of kind
+  `F_RANGE`.
+- SciPy wraps a negative place and stores a NaN or an infinite value.
+  `Lil` faults on both, as `Dok` does.
+- The fields of `Lil` are public. A matrix that a caller builds by hand
+  must keep the layout of the buffer. A forged field gives a wrong result
+  or an index error. Build a matrix with `lil_new` to avoid the risk.
 - The type `Coo` keeps the duplicate entries of one place, as SciPy does,
   and `nnz` counts them. The dense form, `coo_get` and the compressed
   rows add them up. `coo_get` and `coo_matvec` read every entry, so they
@@ -1807,6 +1826,15 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The hash of a place holds a random number of the matrix, taken from the
   system. A caller cannot choose places that collide. A long series of
   writes cannot make the lookup slow.
+- The format of lists checks a place and a row before it turns them into
+  whole numbers. A bad place is a fault of kind `F_RANGE`. The check comes
+  first, because the cast of such a number gives no defined value.
+- The values of a matrix of lists stay finite. `lil_sum` and `lil_scale`
+  check the sum and the products. A bad value is a fault of kind `F_VALUE`.
+- The buffer of a matrix of lists holds one offset for each row. A side of
+  `MAX_SPARSE_SIDE` would ask for gigabytes. The size `rows + 1 + 2 * n`
+  above `MAX_ELEMENTS` is a fault of kind `F_LIMIT`. The check comes
+  before the buffer grows, in `lil_new`, `lil_resize` and `lil_set`.
 - The table of a matrix of keys holds one and a half slots for each key.
   A count of keys above `MAX_SPARSE_NNZ` is a fault of kind `F_LIMIT`.
   The check comes before the table grows.

@@ -93,6 +93,7 @@ import array_sparse_coo;
 import array_sparse_dia;
 import array_sparse_bsr;
 import array_sparse_dok;
+import array_sparse_lil;
 import array_sparse_bicg;
 import array_sparse_lsmr;
 import array_matfun;
