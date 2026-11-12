@@ -97,6 +97,7 @@ import array_sparse_lil;
 import array_sparse_bmat;
 import array_sparse_lu;
 import array_sparse_expm;
+import array_sparse_lgmres;
 import array_sparse_bicg;
 import array_sparse_lsmr;
 import array_matfun;

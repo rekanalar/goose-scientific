@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.170.0";
+import scientific from "rekanalar/goose-scientific@v0.171.0";
 ```
 
 ## API
@@ -97,6 +97,7 @@ import scientific from "rekanalar/goose-scientific@v0.170.0";
 | Grid of sparse blocks | `Bmat`, `bmat_new`, `bmat_put`, `csr_bmat` |
 | Sparse LU factor | `Splu`, `sparse_lu`, `splu_solve`, `splu_solve_matrix`, `splu_l`, `splu_u`, `splu_perm_r`, `splu_perm_c`, `splu_nnz`, `lu_factor_limited` |
 | Sparse norm and exponential | `onenormest`, `expm_multiply`, `expm_multiply_range` |
+| Restarted sparse solvers | `lgmres`, `gcrotmk` |
 | Sparse diagonals by column | `spdiags` |
 | Sparse matrices of blocks | `Bsr`, `bsr_from_entries`, `bsr_from_dense`, `bsr_to_dense`, `bsr_from_csr`, `bsr_to_csr`, `bsr_from_coo`, `bsr_to_coo`, `bsr_get`, `bsr_scale`, `bsr_matvec`, `bsr_transpose`, `bsr_sum`, `bsr_nnz`, `bsr_diagonal`, `bsr_blocks` |
 | Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
@@ -244,6 +245,31 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   They give the solution and a count: zero on success. They take no
   preconditioner, no start vector and no callback. The path of the
   iteration may differ from SciPy, so only the solution matches.
+- `lgmres` and `gcrotmk` solve a square system and keep vectors across
+  the restarts. They give the solution and a count: zero on success. The
+  count holds the outer turns when the limit ran out. They take a start
+  vector and an absolute tolerance, so they give more than `gmres` does.
+
+  The path of the iteration may differ from SciPy, so only the solution
+  matches. The solutions agree to `1.0e-8` on the pinned systems.
+
+  A breakdown is no fault. The call gives the last iterate and a count
+  above zero. A system that the last turn solved gives a count of zero,
+  while SciPy gives the limit. A singular system may give a large finite
+  iterate, so the caller checks the residual.
+
+  The calls take no callback, no preconditioner `M`, no `CU` and no
+  `outer_v`. The flag `discard_c` has no visible effect, because the
+  package keeps no pair after the call.
+
+  `gmres` of SciPy takes no start vector and no absolute tolerance.
+  `lgmres` and `gcrotmk` take both.
+
+  The limit of turns may not pass `MAX_KRYLOV_ITER`, which is 1000000.
+  An inner size above the side acts as the side.
+
+  The cost grows with the limit and the inner size. The caller bounds
+  the limit.
 - `bicg`, `cgs`, `qmr` and `tfqmr` solve a square system from a start
   of zero. They give the solution and a count: zero on success. The
   count holds the turns when the limit ran out. A breakdown gives a
@@ -1992,6 +2018,27 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   covers the finite values and the diagonal of `U`. A forged factor gives
   a fault of kind `F_SHAPE`. The check runs before any call walks the
   buffer, and the counts are bounded before the length is computed.
+- `lgmres` and `gcrotmk` check the matrix, the right side and the start
+  vector before any product. The matrix is square, its layout holds, and
+  every stored value is finite. A matrix that is not square gives a fault
+  of kind `F_SHAPE`. A value that is not finite gives a fault of kind
+  `F_VALUE`. SciPy computes with it and returns NaN.
+
+  A right side or a start vector of the wrong length gives a fault of
+  kind `F_SHAPE`. A tolerance below zero or not finite gives a fault of
+  kind `F_VALUE`. SciPy accepts a negative tolerance and gives a count
+  that means nothing.
+
+  A limit of turns below one gives a fault of kind `F_RANGE`. An inner
+  size below one gives the same fault. SciPy crashes on both.
+
+  The count of stored vectors is bounded before any buffer grows. The
+  check divides the limit of elements by the side first, so no product
+  overflows. A system that needs more gives a fault of kind `F_LIMIT`.
+  SciPy has no such limit, so it can exhaust the memory.
+
+  A fault gives no result and a count of zero. A value that is not
+  finite in the iterate gives a fault of kind `F_VALUE`.
 - `onenormest`, `expm_multiply` and `expm_multiply_range` check the matrix
   before any product. The matrix is square, its layout holds, and every
   stored value is finite. A matrix that is not square gives a fault of

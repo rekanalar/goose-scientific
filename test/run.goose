@@ -39730,6 +39730,329 @@ fn test_sparse_expm_more() {
     assert(near(r.data[8], 2.718281828459045 * 1.0) && near(r.data[11], 7.38905609893065 * 4.0));
 }
 
+// ---- the sparse solvers lgmres and gcrotmk ----
+
+// lg_tri builds the tridiagonal matrix of side n with 4 on the diagonal and
+// -1 beside it.
+fn lg_tri(n: i64) -> scientific::Csr {
+    var ri: f64[>..] = [];
+    var ci: f64[>..] = [];
+    var v: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n {
+        ri.push(i as f64); ci.push(i as f64); v.push(4.0);
+        if i + 1 < n {
+            ri.push(i as f64); ci.push((i + 1) as f64); v.push(-1.0);
+            ri.push((i + 1) as f64); ci.push(i as f64); v.push(-1.0);
+        }
+        i += 1;
+    }
+    return expm_csr(n, ri, ci, v);
+}
+
+// lg_diag builds the diagonal matrix of side n with the value d.
+fn lg_diag(n: i64, d: f64) -> scientific::Csr {
+    var ri: f64[>..] = [];
+    var v: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n { ri.push(i as f64); v.push(d); i += 1; }
+    return expm_csr(n, ri, ri, v);
+}
+
+fn lg_ones(n: i64) -> f64[>..] {
+    var b: f64[>..] = [];
+    var i: i64 = 0;
+    while i < n { b.push(1.0); i += 1; }
+    return b;
+}
+
+// lg_rel gives the squared relative residual |b - A x|^2 / |b|^2. Both sums
+// use a scale, so a right side of any finite size gives a finite value.
+fn lg_rel(a: scientific::Csr&, b: f64[:], x: f64[:]) -> f64 {
+    var sc: f64 = 0.0;
+    var i: i64 = 0;
+    while i < b.len { if mathshim_abs(b[i]) > sc { sc = mathshim_abs(b[i]); } i += 1; }
+    let ax, f = scientific::csr_matvec(a, x);
+    assert(f.kind == scientific::F_NONE);
+    var num: f64 = 0.0;
+    var den: f64 = 0.0;
+    i = 0;
+    while i < b.len {
+        let r = (b[i] - ax.data[i]) / sc;
+        let q = b[i] / sc;
+        num += r * r;
+        den += q * q;
+        i += 1;
+    }
+    return num / den;
+}
+
+// lg_match checks a solution against the pinned one to 1e-8 and a count of
+// zero.
+fn lg_match(got: f64[:], c: i64, f: scientific::Fault, x: f64[:]) {
+    assert(f.kind == scientific::F_NONE && c == 0 && got.len == x.len);
+    var i: i64 = 0;
+    while i < x.len {
+        assert(mathshim_abs(got[i] - x[i]) <= 0.00000001 * (1.0 + mathshim_abs(x[i])));
+        i += 1;
+    }
+}
+
+// lg_pin checks both calls against the SciPy solution at a tight tolerance.
+fn lg_pin(n: i64, ri: f64[:], ci: f64[:], v: f64[:], b: f64[:], x: f64[:]) {
+    let a = expm_csr(n, ri, ci, v);
+    var e0: f64[>..] = [];
+    let s1, c1, f1 = scientific::lgmres(a, b, e0, 1.0e-12);
+    lg_match(s1.data, c1, f1, x);
+    let s2, c2, f2 = scientific::gcrotmk(a, b, e0, 1.0e-12);
+    lg_match(s2.data, c2, f2, x);
+    assert(lg_rel(a, b, s1.data) <= 1.0e-20 && lg_rel(a, b, s2.data) <= 1.0e-20);
+}
+
+// lg_pin_opts runs both calls with a small inner size and the option
+// combinations, so the kept vectors take part in the restarts.
+fn lg_pin_opts(n: i64, ri: f64[:], ci: f64[:], v: f64[:], b: f64[:], x: f64[:]) {
+    let a = expm_csr(n, ri, ci, v);
+    var e0: f64[>..] = [];
+    var store: i64 = 0;
+    while store < 2 {
+        var pre: i64 = 0;
+        while pre < 2 {
+            let s1, c1, f1 = scientific::lgmres(a, b, e0, 1.0e-12, 0.0, 1000, 3, 2, store == 0, pre == 1);
+            lg_match(s1.data, c1, f1, x);
+            pre += 1;
+        }
+        store += 1;
+    }
+    let s2, c2, f2 = scientific::lgmres(a, b, e0, 1.0e-12, 0.0, 1000, 3, 0);
+    lg_match(s2.data, c2, f2, x);
+    let s3, c3, f3 = scientific::lgmres(a, b, e0, 1.0e-12, 0.0, 1000, 2, 5);
+    lg_match(s3.data, c3, f3, x);
+    var disc: i64 = 0;
+    while disc < 2 {
+        var old: i64 = 0;
+        while old < 2 {
+            let s4, c4, f4 = scientific::gcrotmk(a, b, e0, 1.0e-12, 0.0, 1000, 3, 2, disc == 1, old == 0);
+            lg_match(s4.data, c4, f4, x);
+            old += 1;
+        }
+        disc += 1;
+    }
+    let s5, c5, f5 = scientific::gcrotmk(a, b, e0, 1.0e-12, 0.0, 1000, 3, 0);
+    lg_match(s5.data, c5, f5, x);
+    let s6, c6, f6 = scientific::gcrotmk(a, b, e0, 1.0e-12, 0.0, 1000, 4, 6, false, false);
+    lg_match(s6.data, c6, f6, x);
+    let s7, c7, f7 = scientific::gcrotmk(a, b, e0, 1.0e-12, 0.0, 1000, 2, 1, false, false);
+    lg_match(s7.data, c7, f7, x);
+}
+
+// lg_fault_both gives the same operands to both calls. Each call gives the
+// fault kind, an empty result and a count of zero.
+fn lg_fault_both(a: scientific::Csr&, b: f64[:], x0: f64[:], rtol: f64, atol: f64, maxiter: i64, m: i64, k: i64, want: i32) {
+    let s1, c1, f1 = scientific::lgmres(a, b, x0, rtol, atol, maxiter, m, k);
+    assert(f1.kind == want && s1.data.len == 0 && c1 == 0);
+    let s2, c2, f2 = scientific::gcrotmk(a, b, x0, rtol, atol, maxiter, m, k);
+    assert(f2.kind == want && s2.data.len == 0 && c2 == 0);
+}
+
+fn lg_sol6() -> f64[>..] {
+    var x: f64[>..] = [0.3658536585365853, 0.46341463414634143, 0.48780487804878037,
+                       0.48780487804878037, 0.46341463414634143, 0.3658536585365853];
+    return x;
+}
+
+// The pins 7 to 17: the zero right side, the start vector, the run-out count,
+// the scales, the tolerances, the options and the determinism.
+fn test_sparse_lgmres_more() {
+    let a = lg_tri(6);
+    let b = lg_ones(6);
+    let sol = lg_sol6();
+    var e0: f64[>..] = [];
+    var ones6 = lg_ones(6);
+    var zeros6: f64[>..] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+    // A zero right side gives the zero vector whatever the start vector holds.
+    let z1, zc1, zf1 = scientific::lgmres(a, zeros6, ones6);
+    assert(zf1.kind == scientific::F_NONE && zc1 == 0 && z1.data.len == 6);
+    var i: i64 = 0;
+    while i < 6 { assert(z1.data[i] == 0.0); i += 1; }
+    let z2, zc2, zf2 = scientific::gcrotmk(a, zeros6, ones6);
+    assert(zf2.kind == scientific::F_NONE && zc2 == 0 && z2.data.len == 6);
+    i = 0;
+    while i < 6 { assert(z2.data[i] == 0.0); i += 1; }
+    // A start vector that holds the solution gives it and a count of zero.
+    let s1, c1, f1 = scientific::lgmres(a, b, sol, 1.0e-8);
+    assert(f1.kind == scientific::F_NONE && c1 == 0);
+    i = 0;
+    while i < 6 { assert(mathshim_abs(s1.data[i] - sol[i]) <= 1.0e-12); i += 1; }
+    let s2, c2, f2 = scientific::gcrotmk(a, b, sol, 1.0e-8);
+    assert(f2.kind == scientific::F_NONE && c2 == 0);
+    i = 0;
+    while i < 6 { assert(mathshim_abs(s2.data[i] - sol[i]) <= 1.0e-12); i += 1; }
+    // A start vector of ones gives the same solution.
+    let s3, c3, f3 = scientific::lgmres(a, b, ones6, 1.0e-12);
+    lg_match(s3.data, c3, f3, sol);
+    let s4, c4, f4 = scientific::gcrotmk(a, b, ones6, 1.0e-12);
+    lg_match(s4.data, c4, f4, sol);
+    // The iterations run out: the last iterate and a count above zero.
+    let r1, rc1, rf1 = scientific::lgmres(a, b, e0, 1.0e-14, 0.0, 1, 1, 0);
+    assert(rf1.kind == scientific::F_NONE && rc1 == 1 && r1.data.len == 6);
+    assert(qt_finite_all(r1.data));
+    let r2, rc2, rf2 = scientific::gcrotmk(a, b, e0, 1.0e-14, 0.0, 1, 1, 1);
+    assert(rf2.kind == scientific::F_NONE && rc2 == 1 && r2.data.len == 6);
+    assert(qt_finite_all(r2.data));
+    // The scales: a right side near 1e-300 and near 1e300 converges.
+    var scale: i64 = 0;
+    while scale < 2 {
+        var f: f64 = 1.0e-300;
+        if scale == 1 { f = 1.0e300; }
+        var bs: f64[>..] = [];
+        i = 0;
+        while i < 6 { bs.push(f); i += 1; }
+        let t1, tc1, tf1 = scientific::lgmres(a, bs, e0, 1.0e-12);
+        assert(tf1.kind == scientific::F_NONE && tc1 == 0);
+        let t2, tc2, tf2 = scientific::gcrotmk(a, bs, e0, 1.0e-12);
+        assert(tf2.kind == scientific::F_NONE && tc2 == 0);
+        i = 0;
+        while i < 6 {
+            assert(mathshim_abs(t1.data[i] / f - sol[i]) <= 1.0e-8);
+            assert(mathshim_abs(t2.data[i] / f - sol[i]) <= 1.0e-8);
+            i += 1;
+        }
+        assert(lg_rel(a, bs, t1.data) <= 1.0e-20 && lg_rel(a, bs, t2.data) <= 1.0e-20);
+        scale += 1;
+    }
+    // A tolerance on the absolute residual only.
+    let u1, uc1, uf1 = scientific::lgmres(a, b, e0, 0.0, 1.0e-10);
+    assert(uf1.kind == scientific::F_NONE && uc1 == 0);
+    assert(lg_rel(a, b, u1.data) * 6.0 <= 1.0000001e-20);
+    let u2, uc2, uf2 = scientific::gcrotmk(a, b, e0, 0.0, 1.0e-10);
+    assert(uf2.kind == scientific::F_NONE && uc2 == 0);
+    assert(lg_rel(a, b, u2.data) * 6.0 <= 1.0000001e-20);
+    // The default tolerance on the side 30.
+    let a30 = lg_tri(30);
+    let b30 = lg_ones(30);
+    let d1, dc1, df1 = scientific::lgmres(a30, b30);
+    assert(df1.kind == scientific::F_NONE && dc1 == 0 && lg_rel(a30, b30, d1.data) <= 1.0e-10);
+    let d2, dc2, df2 = scientific::gcrotmk(a30, b30);
+    assert(df2.kind == scientific::F_NONE && dc2 == 0 && lg_rel(a30, b30, d2.data) <= 1.0e-10);
+    // The counts of kept vectors.
+    var kk: i64 = 0;
+    while kk < 6 {
+        let k1, kc1, kf1 = scientific::lgmres(a, b, e0, 1.0e-12, 0.0, 1000, 30, kk);
+        lg_match(k1.data, kc1, kf1, sol);
+        let k2, kc2, kf2 = scientific::gcrotmk(a, b, e0, 1.0e-12, 0.0, 1000, 20, kk);
+        lg_match(k2.data, kc2, kf2, sol);
+        kk += 1;
+    }
+    // Both rules of truncation and the flag to discard, on the side 30.
+    let g1, gc1, gf1 = scientific::gcrotmk(a30, b30, e0, 1.0e-10, 0.0, 1000, 3, 2, false, true);
+    assert(gf1.kind == scientific::F_NONE && gc1 == 0 && lg_rel(a30, b30, g1.data) <= 1.0e-18);
+    let g2, gc2, gf2 = scientific::gcrotmk(a30, b30, e0, 1.0e-10, 0.0, 1000, 3, 2, false, false);
+    assert(gf2.kind == scientific::F_NONE && gc2 == 0 && lg_rel(a30, b30, g2.data) <= 1.0e-18);
+    let g3, gc3, gf3 = scientific::gcrotmk(a30, b30, e0, 1.0e-10, 0.0, 1000, 3, 2, true, true);
+    assert(gf3.kind == scientific::F_NONE && gc3 == gc1 && g3.data.len == g1.data.len);
+    i = 0;
+    while i < g1.data.len { assert(g3.data[i] == g1.data[i]); i += 1; }
+    // Two calls on one input give one result.
+    let h1, hc1, hf1 = scientific::lgmres(a30, b30, e0, 1.0e-10, 0.0, 1000, 4, 2);
+    let h2, hc2, hf2 = scientific::lgmres(a30, b30, e0, 1.0e-10, 0.0, 1000, 4, 2);
+    assert(hc1 == hc2 && hf1.kind == hf2.kind);
+    i = 0;
+    while i < h1.data.len { assert(h1.data[i] == h2.data[i]); i += 1; }
+    // A zero matrix with a non-zero right side is a breakdown, not a fault.
+    let zm = expm_csr(3, [0.0], [0.0], [0.0]);
+    let m1, mc1, mf1 = scientific::lgmres(zm, [1.0, 1.0, 1.0], e0, 1.0e-5, 0.0, 5);
+    assert(mf1.kind == scientific::F_NONE && mc1 == 5 && m1.data.len == 3);
+    let m2, mc2, mf2 = scientific::gcrotmk(zm, [1.0, 1.0, 1.0], e0, 1.0e-5, 0.0, 5);
+    assert(mf2.kind == scientific::F_NONE && mc2 == 5 && m2.data.len == 3);
+    // One iteration may solve the system. The check follows the last
+    // iteration, so the count is zero.
+    let dg = lg_diag(4, 2.0);
+    let q1, qc1, qf1 = scientific::lgmres(dg, [1.0, 1.0, 1.0, 1.0], e0, 1.0e-5, 0.0, 1);
+    assert(qf1.kind == scientific::F_NONE && qc1 == 0);
+    let q2, qc2, qf2 = scientific::gcrotmk(dg, [1.0, 1.0, 1.0, 1.0], e0, 1.0e-5, 0.0, 1);
+    assert(qf2.kind == scientific::F_NONE && qc2 == 0);
+    // A large inner size and a large count of kept vectors clamp to the side.
+    let w1, wc1, wf1 = scientific::lgmres(a, b, e0, 1.0e-12, 0.0, 3, 1000000000000, 1099511627776);
+    lg_match(w1.data, wc1, wf1, sol);
+    let w2, wc2, wf2 = scientific::gcrotmk(a, b, e0, 1.0e-12, 0.0, 3, 1000000000000, 1099511627776);
+    lg_match(w2.data, wc2, wf2, sol);
+    // The largest count of iterations is valid.
+    let x1, xc1, xf1 = scientific::lgmres(a, b, e0, 1.0e-12, 0.0, scientific::MAX_KRYLOV_ITER);
+    lg_match(x1.data, xc1, xf1, sol);
+}
+
+// The faults of the operands and of the counts.
+fn test_sparse_lgmres_hostile() {
+    let a = lg_tri(6);
+    let b = lg_ones(6);
+    var e0: f64[>..] = [];
+    let nan = 0.0 / 0.0;
+    let inf = 1.0 / 0.0;
+    let wide, fw = scientific::csr_from_triplets(2, 3, [0.0], [2.0], [1.0]);
+    assert(fw.kind == scientific::F_NONE);
+    lg_fault_both(wide, [1.0, 2.0], e0, 1.0e-5, 0.0, 10, 3, 2, scientific::F_SHAPE);
+    // The right side and the start vector of the wrong length.
+    lg_fault_both(a, [1.0, 1.0, 1.0, 1.0, 1.0], e0, 1.0e-5, 0.0, 10, 3, 2, scientific::F_SHAPE);
+    lg_fault_both(a, b, [1.0, 1.0, 1.0, 1.0, 1.0], 1.0e-5, 0.0, 10, 3, 2, scientific::F_SHAPE);
+    // A value that is not finite in the matrix, the right side and the start
+    // vector.
+    let bad = expm_csr(3, [0.0, 1.0, 2.0], [0.0, 1.0, 2.0], [1.0, nan, 3.0]);
+    lg_fault_both(bad, [1.0, 1.0, 1.0], e0, 1.0e-5, 0.0, 10, 3, 2, scientific::F_VALUE);
+    let big = expm_csr(3, [0.0, 1.0, 2.0], [0.0, 1.0, 2.0], [1.0, inf, 3.0]);
+    lg_fault_both(big, [1.0, 1.0, 1.0], e0, 1.0e-5, 0.0, 10, 3, 2, scientific::F_VALUE);
+    lg_fault_both(a, [1.0, nan, 1.0, 1.0, 1.0, 1.0], e0, 1.0e-5, 0.0, 10, 3, 2, scientific::F_VALUE);
+    lg_fault_both(a, [1.0, inf, 1.0, 1.0, 1.0, 1.0], e0, 1.0e-5, 0.0, 10, 3, 2, scientific::F_VALUE);
+    lg_fault_both(a, b, [1.0, nan, 1.0, 1.0, 1.0, 1.0], 1.0e-5, 0.0, 10, 3, 2, scientific::F_VALUE);
+    // The tolerances.
+    lg_fault_both(a, b, e0, -1.0, 0.0, 10, 3, 2, scientific::F_VALUE);
+    lg_fault_both(a, b, e0, nan, 0.0, 10, 3, 2, scientific::F_VALUE);
+    lg_fault_both(a, b, e0, inf, 0.0, 10, 3, 2, scientific::F_VALUE);
+    lg_fault_both(a, b, e0, 1.0e-5, -1.0, 10, 3, 2, scientific::F_VALUE);
+    lg_fault_both(a, b, e0, 1.0e-5, nan, 10, 3, 2, scientific::F_VALUE);
+    // The counts.
+    lg_fault_both(a, b, e0, 1.0e-5, 0.0, 0, 3, 2, scientific::F_RANGE);
+    lg_fault_both(a, b, e0, 1.0e-5, 0.0, -1, 3, 2, scientific::F_RANGE);
+    lg_fault_both(a, b, e0, 1.0e-5, 0.0, scientific::MAX_KRYLOV_ITER + 1, 3, 2, scientific::F_LIMIT);
+    lg_fault_both(a, b, e0, 1.0e-5, 0.0, 10, 0, 2, scientific::F_RANGE);
+    lg_fault_both(a, b, e0, 1.0e-5, 0.0, 10, -5, 2, scientific::F_RANGE);
+    lg_fault_both(a, b, e0, 1.0e-5, 0.0, 10, 3, -1, scientific::F_RANGE);
+    // A matrix whose iterate overflows.
+    let hot = expm_csr(2, [0.0, 0.0, 1.0, 1.0], [0.0, 1.0, 0.0, 1.0], [1.0e308, 1.0e308, 1.0e308, 1.0e308]);
+    lg_fault_both(hot, [1.0, 1.0], e0, 1.0e-5, 0.0, 10, 3, 2, scientific::F_VALUE);
+}
+
+// The element limit. The check runs before any buffer grows, and a fault
+// gives no result.
+fn test_sparse_lgmres_limits() {
+    var e0: f64[>..] = [];
+    // The vectors stand above the element limit.
+    let a1 = lg_diag(100000, 2.0);
+    let b1 = lg_ones(100000);
+    lg_fault_both(a1, b1, e0, 1.0e-5, 0.0, 10, 5000, 3, scientific::F_LIMIT);
+    // The small matrices of the inner problem stand above the element limit
+    // while the vectors fit.
+    let a2 = lg_diag(4100, 2.0);
+    let b2 = lg_ones(4100);
+    lg_fault_both(a2, b2, e0, 1.0e-5, 0.0, 4100, 4100, 4100, scientific::F_LIMIT);
+    // The defaults fit on a side of 100000.
+    let s3, c3, f3 = scientific::lgmres(a1, b1, e0, 1.0e-5);
+    assert(f3.kind == scientific::F_NONE && c3 == 0 && s3.data.len == 100000);
+    assert(mathshim_abs(s3.data[0] - 0.5) <= 1.0e-12);
+}
+
+fn test_sparse_lgmres_pins() {
+    lg_pin(6, [0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 5.0, 5.0], [0.0, 1.0, 0.0, 1.0, 2.0, 1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0, 4.0, 5.0], [4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0], [1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [0.3658536585365853, 0.46341463414634143, 0.48780487804878037, 0.48780487804878037, 0.46341463414634143, 0.3658536585365853]);
+    lg_pin(30, [0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 7.0, 7.0, 7.0, 8.0, 8.0, 8.0, 9.0, 9.0, 9.0, 10.0, 10.0, 10.0, 11.0, 11.0, 11.0, 12.0, 12.0, 12.0, 13.0, 13.0, 13.0, 14.0, 14.0, 14.0, 15.0, 15.0, 15.0, 16.0, 16.0, 16.0, 17.0, 17.0, 17.0, 18.0, 18.0, 18.0, 19.0, 19.0, 19.0, 20.0, 20.0, 20.0, 21.0, 21.0, 21.0, 22.0, 22.0, 22.0, 23.0, 23.0, 23.0, 24.0, 24.0, 24.0, 25.0, 25.0, 25.0, 26.0, 26.0, 26.0, 27.0, 27.0, 27.0, 28.0, 28.0, 28.0, 29.0, 29.0], [0.0, 1.0, 0.0, 1.0, 2.0, 1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0, 4.0, 5.0, 6.0, 5.0, 6.0, 7.0, 6.0, 7.0, 8.0, 7.0, 8.0, 9.0, 8.0, 9.0, 10.0, 9.0, 10.0, 11.0, 10.0, 11.0, 12.0, 11.0, 12.0, 13.0, 12.0, 13.0, 14.0, 13.0, 14.0, 15.0, 14.0, 15.0, 16.0, 15.0, 16.0, 17.0, 16.0, 17.0, 18.0, 17.0, 18.0, 19.0, 18.0, 19.0, 20.0, 19.0, 20.0, 21.0, 20.0, 21.0, 22.0, 21.0, 22.0, 23.0, 22.0, 23.0, 24.0, 23.0, 24.0, 25.0, 24.0, 25.0, 26.0, 25.0, 26.0, 27.0, 26.0, 27.0, 28.0, 27.0, 28.0, 29.0, 28.0, 29.0], [4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0, -1.0, -1.0, 4.0], [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [0.36602540378443893, 0.4641016151377545, 0.4903810567665795, 0.497422611928564, 0.49930939094767646, 0.49981495186214203, 0.4999504165008914, 0.49998671414142354, 0.4999964400648024, 0.4999990461177862, 0.499999744406342, 0.4999999315075819, 0.49999998162398535, 0.49999999498835945, 0.499999998329453, 0.499999998329453, 0.49999999498835945, 0.49999998162398535, 0.4999999315075819, 0.499999744406342, 0.4999990461177862, 0.4999964400648024, 0.49998671414142354, 0.4999504165008914, 0.49981495186214203, 0.49930939094767646, 0.497422611928564, 0.4903810567665795, 0.4641016151377545, 0.3660254037844389]);
+    lg_pin(5, [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0], [0.0, 1.0, 3.0, 0.0, 1.0, 2.0, 1.0, 2.0, 3.0, 4.0, 0.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0], [4.0, 1.0, 2.0, 1.0, 5.0, 2.0, 3.0, 6.0, 1.0, 1.0, 2.0, 1.0, 7.0, 3.0, 1.0, 2.0, 8.0], [1.0, 2.0, 3.0, 4.0, 5.0], [0.013112884834663791, 0.3164196123147094, 0.20239452679589495, 0.3155644241733183, 0.5208095781071838]);
+    lg_pin(4, [0.0, 1.0, 2.0, 3.0], [1.0, 2.0, 3.0, 0.0], [1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0], [4.0, 0.9999999999999993, 2.0000000000000018, 3.0]);
+    lg_pin(4, [0.0, 1.0, 2.0, 3.0], [0.0, 1.0, 2.0, 3.0], [1.0, 2.0, 3.0, 4.0], [1.0, 1.0, 1.0, 1.0], [0.9999999999999997, 0.5000000000000002, 0.33333333333333354, 0.2499999999999995]);
+    lg_pin(1, [0.0], [0.0], [4.0], [2.0], [0.5]);
+    lg_pin_opts(20, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 6.0, 6.0, 7.0, 7.0, 7.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 11.0, 11.0, 11.0, 11.0, 11.0, 12.0, 12.0, 12.0, 12.0, 13.0, 13.0, 13.0, 13.0, 13.0, 14.0, 14.0, 14.0, 14.0, 14.0, 14.0, 14.0, 14.0, 14.0, 14.0, 15.0, 15.0, 16.0, 16.0, 16.0, 16.0, 16.0, 17.0, 17.0, 17.0, 17.0, 18.0, 18.0, 18.0, 18.0, 18.0, 18.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0], [0.0, 2.0, 4.0, 5.0, 9.0, 14.0, 17.0, 1.0, 14.0, 2.0, 6.0, 7.0, 15.0, 17.0, 3.0, 4.0, 12.0, 14.0, 15.0, 1.0, 2.0, 4.0, 5.0, 6.0, 11.0, 15.0, 17.0, 18.0, 0.0, 3.0, 5.0, 7.0, 8.0, 12.0, 16.0, 17.0, 18.0, 19.0, 5.0, 6.0, 9.0, 17.0, 19.0, 4.0, 7.0, 10.0, 0.0, 1.0, 2.0, 3.0, 7.0, 8.0, 11.0, 14.0, 17.0, 18.0, 2.0, 4.0, 5.0, 6.0, 8.0, 9.0, 13.0, 14.0, 18.0, 0.0, 1.0, 5.0, 8.0, 9.0, 10.0, 13.0, 14.0, 16.0, 17.0, 18.0, 3.0, 4.0, 10.0, 11.0, 17.0, 5.0, 12.0, 14.0, 15.0, 6.0, 11.0, 12.0, 13.0, 15.0, 0.0, 1.0, 2.0, 3.0, 5.0, 12.0, 14.0, 16.0, 17.0, 19.0, 15.0, 18.0, 0.0, 6.0, 9.0, 16.0, 19.0, 5.0, 11.0, 17.0, 19.0, 1.0, 9.0, 13.0, 14.0, 17.0, 18.0, 0.0, 5.0, 7.0, 9.0, 13.0, 18.0, 19.0], [6.0, -0.715, 0.512, 0.244, -2.008, 0.424, -0.011, 6.0, 0.981, 6.0, 0.659, -2.005, -0.149, -0.115, 5.657, 0.364, 0.903, -0.473, 1.343, 0.944, -0.535, 6.0, -2.244, 0.764, 0.733, -0.959, 0.968, 2.256, 0.145, 0.416, 5.299, -1.022, 1.036, -0.565, 0.622, -0.024, 0.556, 0.023, 1.029, 6.0, -0.215, -1.532, 1.239, -0.002, 6.0, -0.677, 0.69, -1.087, -0.94, 1.354, -1.138, 5.105, -1.258, 0.858, -1.008, -1.201, -1.155, -1.328, 0.187, 0.168, -1.804, 6.0, -1.091, 0.435, -0.334, -1.263, -0.852, 0.11, 0.103, -0.687, 6.0, 1.113, -1.66, -0.021, -1.579, 0.481, -0.217, 0.358, -0.63, 6.0, 0.121, 0.749, 5.235, 1.571, 1.655, 0.528, 0.369, 0.419, 6.0, 0.958, 0.074, 0.361, 0.411, 0.239, 1.172, 0.368, 6.0, 0.977, -0.142, -0.84, 6.0, -1.403, -0.653, 0.751, 0.247, 6.0, 0.444, -0.279, -1.583, 6.0, 0.602, -0.318, 0.679, -1.162, 0.285, 0.936, 6.0, -1.245, 0.211, -0.119, 2.186, 1.162, -1.758, 6.0], [1.244, -0.653, -2.693, 1.263, -0.954, -0.847, 1.274, -1.383, 0.225, 0.062, -0.855, 1.247, -0.448, 1.26, 1.054, -0.25, -1.467, 0.159, 2.052, 0.783], [0.09495361999332869, -0.16666972513301315, -0.5496399775544534, 0.2994684296283282, -0.4602215767423633, -0.23081720699932778, 0.19378216548328694, -0.2439654565064695, -0.14542001862077833, -0.21103979147707116, -0.11797975758592105, 0.23279220238586676, -0.17277776914218343, 0.18359077424802134, 0.35373939938614735, 0.044500974662513605, -0.272139255432677, 0.0468058851947181, 0.36850024802162573, 0.3027852897931934]);
+    lg_pin_opts(40, [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 7.0, 7.0, 7.0, 7.0, 8.0, 8.0, 8.0, 9.0, 9.0, 9.0, 10.0, 10.0, 10.0, 11.0, 11.0, 11.0, 12.0, 12.0, 12.0, 13.0, 13.0, 13.0, 14.0, 14.0, 14.0, 15.0, 15.0, 15.0, 16.0, 16.0, 16.0, 17.0, 17.0, 17.0, 18.0, 18.0, 18.0, 19.0, 19.0, 19.0, 20.0, 20.0, 20.0, 21.0, 21.0, 21.0, 22.0, 22.0, 22.0, 23.0, 23.0, 23.0, 24.0, 24.0, 24.0, 25.0, 25.0, 25.0, 26.0, 26.0, 26.0, 27.0, 27.0, 27.0, 28.0, 28.0, 28.0, 29.0, 29.0, 29.0, 30.0, 30.0, 30.0, 31.0, 31.0, 31.0, 32.0, 32.0, 32.0, 33.0, 33.0, 33.0, 34.0, 34.0, 34.0, 35.0, 35.0, 35.0, 36.0, 36.0, 36.0, 37.0, 37.0, 37.0, 38.0, 38.0, 38.0, 39.0, 39.0], [0.0, 1.0, 5.0, 0.0, 1.0, 2.0, 1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0, 4.0, 5.0, 6.0, 5.0, 6.0, 7.0, 2.0, 6.0, 7.0, 8.0, 7.0, 8.0, 9.0, 8.0, 9.0, 10.0, 9.0, 10.0, 11.0, 10.0, 11.0, 12.0, 11.0, 12.0, 13.0, 12.0, 13.0, 14.0, 13.0, 14.0, 15.0, 14.0, 15.0, 16.0, 15.0, 16.0, 17.0, 16.0, 17.0, 18.0, 17.0, 18.0, 19.0, 18.0, 19.0, 20.0, 19.0, 20.0, 21.0, 20.0, 21.0, 22.0, 21.0, 22.0, 23.0, 22.0, 23.0, 24.0, 23.0, 24.0, 25.0, 24.0, 25.0, 26.0, 25.0, 26.0, 27.0, 26.0, 27.0, 28.0, 27.0, 28.0, 29.0, 28.0, 29.0, 30.0, 29.0, 30.0, 31.0, 30.0, 31.0, 32.0, 31.0, 32.0, 33.0, 32.0, 33.0, 34.0, 33.0, 34.0, 35.0, 34.0, 35.0, 36.0, 35.0, 36.0, 37.0, 36.0, 37.0, 38.0, 37.0, 38.0, 39.0, 38.0, 39.0], [4.0, -1.0, 0.7, -1.0, 4.076923076923077, -1.0, -1.0, 4.153846153846154, -1.0, -1.0, 4.230769230769231, -1.0, -1.0, 4.3076923076923075, -1.0, -1.0, 4.384615384615385, -1.0, -1.0, 4.461538461538462, -1.0, -0.4, -1.0, 4.538461538461538, -1.0, -1.0, 4.615384615384615, -1.0, -1.0, 4.6923076923076925, -1.0, -1.0, 4.769230769230769, -1.0, -1.0, 4.846153846153847, -1.0, -1.0, 4.923076923076923, -1.0, -1.0, 5.0, -1.0, -1.0, 5.076923076923077, -1.0, -1.0, 5.153846153846154, -1.0, -1.0, 5.230769230769231, -1.0, -1.0, 5.3076923076923075, -1.0, -1.0, 5.384615384615385, -1.0, -1.0, 5.461538461538462, -1.0, -1.0, 5.538461538461538, -1.0, -1.0, 5.615384615384615, -1.0, -1.0, 5.6923076923076925, -1.0, -1.0, 5.769230769230769, -1.0, -1.0, 5.846153846153847, -1.0, -1.0, 5.923076923076923, -1.0, -1.0, 6.0, -1.0, -1.0, 6.076923076923077, -1.0, -1.0, 6.153846153846154, -1.0, -1.0, 6.230769230769231, -1.0, -1.0, 6.307692307692308, -1.0, -1.0, 6.384615384615385, -1.0, -1.0, 6.461538461538462, -1.0, -1.0, 6.538461538461538, -1.0, -1.0, 6.615384615384615, -1.0, -1.0, 6.6923076923076925, -1.0, -1.0, 6.769230769230769, -1.0, -1.0, 6.846153846153847, -1.0, -1.0, 6.923076923076923, -1.0, -1.0, 7.0], [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [0.28238941507445986, 0.42498449241940417, 0.45023966940474647, 0.4452418266463736, 0.43347575102196423, 0.4220383316019853, 0.4170000106178123, 0.43842325423164374, 0.39267119851782334, 0.3739053543120075, 0.36180777171500195, 0.3516394030978737, 0.3422908740672104, 0.3334849000025715, 0.325133625945947, 0.3171935086460224, 0.3096329186139927, 0.3024248348729837, 0.2955450510963269, 0.288971594107413, 0.28268442441367014, 0.2766652180299377, 0.2708971845238206, 0.26536490925884315, 0.2600542150468124, 0.2549520402450077, 0.25004633101944973, 0.2453259458722117, 0.24078057081993715, 0.2364006437890193, 0.2321772866344833, 0.2281022411359426, 0.2241677913872069, 0.22036656475064068, 0.21669051659781133, 0.21312454505031636, 0.20960451566202587, 0.2057367917387892, 0.1989012123958357, 0.17127160177083506]);
+}
+
+
 fn main() {
     test_schur_funm_ldl();
     test_eigvalsh_larger();
@@ -39942,6 +40265,10 @@ fn main() {
     test_sparse_expm_overflow();
     test_sparse_expm_round();
     test_sparse_expm_single();
+    test_sparse_lgmres_pins();
+    test_sparse_lgmres_more();
+    test_sparse_lgmres_hostile();
+    test_sparse_lgmres_limits();
     print("ok\n");
     return;
 }
