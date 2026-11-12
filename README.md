@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.169.0";
+import scientific from "rekanalar/goose-scientific@v0.170.0";
 ```
 
 ## API
@@ -96,6 +96,7 @@ import scientific from "rekanalar/goose-scientific@v0.169.0";
 | Sparse matrices of lists | `Lil`, `lil_new`, `lil_from_dense`, `lil_from_csr`, `lil_from_coo`, `lil_to_dense`, `lil_to_csr`, `lil_to_coo`, `lil_get`, `lil_set`, `lil_row`, `lil_setdiag`, `lil_resize`, `lil_transpose`, `lil_scale`, `lil_matvec`, `lil_diagonal`, `lil_sum`, `lil_nnz` |
 | Grid of sparse blocks | `Bmat`, `bmat_new`, `bmat_put`, `csr_bmat` |
 | Sparse LU factor | `Splu`, `sparse_lu`, `splu_solve`, `splu_solve_matrix`, `splu_l`, `splu_u`, `splu_perm_r`, `splu_perm_c`, `splu_nnz`, `lu_factor_limited` |
+| Sparse norm and exponential | `onenormest`, `expm_multiply`, `expm_multiply_range` |
 | Sparse diagonals by column | `spdiags` |
 | Sparse matrices of blocks | `Bsr`, `bsr_from_entries`, `bsr_from_dense`, `bsr_to_dense`, `bsr_from_csr`, `bsr_to_csr`, `bsr_from_coo`, `bsr_to_coo`, `bsr_get`, `bsr_scale`, `bsr_matvec`, `bsr_transpose`, `bsr_sum`, `bsr_nnz`, `bsr_diagonal`, `bsr_blocks` |
 | Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
@@ -472,6 +473,43 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   gives another factor and another solution.
 - `factorized` of SciPy is `sparse_lu` followed by `splu_solve`. The
   factor does not change, so many right sides can use it.
+- `onenormest` gives a lower bound of the one-norm of a `Csr` matrix. It
+  uses the block algorithm of Higham and Tisseur. SciPy draws the
+  columns of the block at random, so its estimate can differ between two
+  runs. The package draws them with its own generator of a fixed seed. Two
+  calls on one matrix give one value on every system and on every
+  supported version of Goose. The value can differ from the value of
+  SciPy when the exact one-norm is not reached.
+- `onenormest` gives the exact one-norm for a side of four or less. It
+  gives it too when the count of columns `t` reaches the side. SciPy
+  gives an estimate in the first case, and that estimate may be lower.
+  The vector `v` and the product `w` stay empty unless the caller asks
+  for them. `onenormest` takes a `Csr` matrix. It does not take an
+  operator.
+- `expm_multiply` multiplies the matrix exponential of a `Csr` matrix
+  with a vector or with a matrix of columns. The matrix stays sparse.
+
+  The package takes the mean of the diagonal as the shift, as SciPy does.
+  It scales by the one-norm of the shifted matrix. It applies a series of
+  order 20 once for each step of the scale.
+
+  SciPy takes the order and the scale from an estimate of the norms of the
+  powers. The results agree to `1.0e-10` on the pinned systems. Elsewhere
+  they may differ in the last digits. The argument `traceA` stays out.
+- `expm_multiply_range` gives one row for each time. The times follow
+  `numpy.linspace`, so they are absolute times. A right side of many
+  columns gives a result of the shape time, row, column. The count of
+  times is at least two and at most `MAX_EXPM_STEPS`, which is 4096.
+- The block path of the estimate uses the signs of the matrix. A matrix
+  and the matrix of its absolute values give different estimates there.
+  SciPy gives a different estimate for the two as well. The exact path
+  gives the same estimate for both.
+- A right side of zero columns gives a fault of kind `F_VALUE`. Every
+  dimension of an array of the package holds at least one element.
+- The scale of the exponential stands at `MAX_EXPM_SCALE`, which is
+  100000. A matrix or a time that needs a larger scale gives a fault of
+  kind `F_LIMIT`. SciPy has no such limit, but its time grows with the
+  norm.
 - `solve` with a vector on the right side gave a wrong answer when
   the elimination swapped rows. The forward substitution read the
   rows in the wrong order. The answer now equals LAPACK. `inv` took
@@ -1954,6 +1992,27 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   covers the finite values and the diagonal of `U`. A forged factor gives
   a fault of kind `F_SHAPE`. The check runs before any call walks the
   buffer, and the counts are bounded before the length is computed.
+- `onenormest`, `expm_multiply` and `expm_multiply_range` check the matrix
+  before any product. The matrix is square, its layout holds, and every
+  stored value is finite. A matrix that is not square gives a fault of
+  kind `F_SHAPE`. A value that is not finite gives a fault of
+  kind `F_VALUE`. SciPy computes with it and returns NaN. An estimate that
+  overflows gives the same fault.
+- The right side of the exponential goes through the shape check of the
+  package. A shape with fewer lengths than its count of dimensions gives
+  a fault of kind `F_SHAPE` and does not crash. The check of the column
+  count against `MAX_ELEMENTS` comes before the product. A large shape
+  cannot overflow the count.
+- The work is bounded. The estimate runs at most 100 rounds. Each round
+  uses at most two products for each column of the block. The exponential
+  runs at most `MAX_EXPM_SCALE` steps of 20 products.
+
+  `MAX_EXPM_STEPS` bounds the count of times. The time of the exponential
+  grows with the one-norm times the count of times. A caller with a matrix
+  from an untrusted source bounds the entries and the count of times first.
+  A call has no argument that sets the limits.
+- A result that is not finite gives a fault of kind `F_VALUE`. No call
+  gives a partial result after a fault.
 - `splu_core` and `lu_part` are helpers inside the package. They are
   public names, because Goose has no private names. They do not check
   the layout of a factor. A caller must use `splu_solve` and the read
