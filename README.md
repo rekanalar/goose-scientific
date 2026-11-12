@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.156.0";
+import scientific from "rekanalar/goose-scientific@v0.157.0";
 ```
 
 ## API
@@ -84,6 +84,7 @@ import scientific from "rekanalar/goose-scientific@v0.156.0";
 | Grey morphology, propagation and hit or miss | `grey_erosion`, `grey_dilation`, `grey_opening`, `grey_closing`, `morphological_gradient`, `morphological_laplace`, `white_tophat`, `black_tophat`, the forms with the suffix `_st`, `binary_propagation`, `binary_propagation_st`, `binary_hit_or_miss`, `binary_hit_or_miss_st` |
 | Chamfer and brute force distances and value positions | `distance_transform_cdt`, `distance_transform_cdt_indices`, `distance_transform_cdt_st`, `distance_transform_cdt_st_indices`, `distance_transform_bf`, `distance_transform_bf_indices`, `value_indices` |
 | Spline filters and interpolating transforms of N dimensions | `spline_filter1d`, `spline_filter`, `map_coordinates`, `affine_transform`, `shift`, `zoom`, `rotate` |
+| Geometric transform and line filter of N dimensions | `geometric_transform`, `generic_filter1d` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_jac`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
@@ -566,16 +567,39 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   and `prefilter` true returns a copy. `rotate` takes the plane as two axes.
   It rotates every plane of an array of three or more dimensions.
 - The calls take real arrays and give `f64`. They give no `output` argument
-  and no complex arrays. `geometric_transform` takes a function of the
-  caller and is not in the package. `map_coordinates` and the transforms
-  take `prefilter` and `cval`.
+  and no complex arrays. `map_coordinates` and the transforms take
+  `prefilter` and `cval`.
 - The cost of a transform is the count of output values. It is
   multiplied by `(order + 1)` once for each axis. A cost above 1.0e9 is
   a fault of kind `F_LIMIT`. A 512 by 512 `rotate` and a `zoom` of order 3
   took 1.4 seconds together.
-- Goose cannot pass a block on to another generic call. So each of the four
-  calls holds its own loop. `generic_filter1d` is not in the package,
-  because SciPy fills an output line there.
+- Goose cannot pass a block on to another generic call. So each of the
+  calls holds its own loop.
+- The call `geometric_transform` takes a trailing block where SciPy takes a
+  Python function. The block reads the coordinate of an output value and
+  writes the coordinate in the input. Write
+  `geometric_transform(a) { c, o => o[0] = c[0] * 2.0 }`. The buffer of the
+  input coordinate holds one value for each axis and starts at zero. The
+  call reads the spline at the mapped coordinates, as SciPy does.
+- An empty output shape of `geometric_transform` means the shape of the
+  input. The pinned cases agree with SciPy to `1.0e-10`.
+- The call `generic_filter1d` takes a trailing block where SciPy takes a
+  Python function. The block reads one line of the array and fills the
+  buffer of the result. The line holds `n + size - 1` values, where `n` is
+  the length of the axis. The line starts `size / 2 + origin` values before
+  the first value of the array. The border of the line follows the mode, as
+  SciPy does. The pinned cases agree with SciPy to `1.0e-10`.
+- The count of the coordinates of `geometric_transform` is the count of the
+  output values times the count of the axes. It stays below the limit of
+  the elements. The count of the lines of `generic_filter1d` times the
+  length of a line stays below the cost limit of 1.0e9. A call above a
+  limit is a fault of kind `F_LIMIT`. A size below one is a fault of kind
+  `F_VALUE`. A bad axis, or an origin off the window, is a fault of kind
+  `F_RANGE`. An unknown mode is a fault of kind `F_VALUE`.
+- `geometric_transform` faults on an output shape with a dimension below
+  one. SciPy gives an array of no values there. It faults on a coordinate
+  that is not a number, or a coordinate beyond 4.0e15. SciPy gives NaN or
+  an infinity there.
 - The time of a block is the time of the caller. The package checks only
   the count of values times the count of places, against the limit 2.0e8.
   A block that gives NaN or an infinity passes that value on. A block of
@@ -649,9 +673,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   faults, as `distance_transform_edt` does.
 - `value_indices` gives three arrays. The first holds the distinct values in
   ascending order. The second holds the count of positions of each value.
-  The third holds one row of coordinates for each position. SciPy gives a
-  dictionary of index tuples. A value that is not a whole number is a fault.
-  With `has_ignore` true the call skips `ignore_value`.
+  The third holds one row of coordinates for each position.
+- SciPy gives a dictionary of index tuples for `value_indices`. A value that
+  is not a whole number is a fault. With `has_ignore` true the call skips
+  `ignore_value`.
 - A measurement of an array of 512 by 512 took 0.04 seconds. The
   median sorts the values of each part, so it takes the longest.
 - A tie between two nearest points in `griddata` goes to the lower
@@ -1909,6 +1934,14 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The distance transform faults when the array holds no background value.
   SciPy returns values without meaning there. A sampling above `1.0e100`
   on an axis is a fault, so no squared distance overflows to an infinity.
+- `geometric_transform` checks the shape and the count of the coordinates
+  before the first block runs. The check divides the element limit by the
+  count of the axes, so no product overflows. A block that writes a
+  coordinate outside the array is read with the border rule, as SciPy does.
+- `generic_filter1d` checks the size, the axis, the origin, the mode and
+  the cost before the first block runs. The line of a filter never grows
+  above the length that the size names. So a hostile size cannot hold the
+  process for hours, and a block cannot read outside the line.
 
 ## License
 

@@ -604,8 +604,8 @@ fn affine_transform(a, matrix, offset: f64[:] = [], output_shape: i64[:] = [], o
     if output_shape.len == 0 {
         while d < a.ndim { oshape.push(a.shape[d]); d += 1; }
     } else {
-        while d < output_shape.len { oshape.push(output_shape[d]); d += 1; }
         if output_shape.len > 8 { return empty_arr(), fault(F_SHAPE, "affine_transform", "the output shape holds more than 8 axes"); }
+        while d < output_shape.len { oshape.push(output_shape[d]); d += 1; }
     }
     var off: f64[>..] = [];
     if !tr_floats(offset, a.ndim, 0.0, off) {
