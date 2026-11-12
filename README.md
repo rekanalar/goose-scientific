@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.158.0";
+import scientific from "rekanalar/goose-scientific@v0.159.0";
 ```
 
 ## API
@@ -90,6 +90,7 @@ import scientific from "rekanalar/goose-scientific@v0.158.0";
 | Adaptive quadrature and ODEs | `quad`, `fixed_quad`, `dblquad`, `tplquad`, `nquad`, `quad_vec`, `solve_ivp`, `solve_ivp_jac`, `solve_ivp_events`, `solve_ivp_dense`, `dense_eval`, `odeint` |
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `bessel`, `residue`, `residue_complex`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `welch_ex`, `stft`, `istft`, `resample` |
+| Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `gmres`, `lsqr`, `minres`, `eigsh` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Tridiagonal, banded and RQ forms | `eigvalsh_tridiagonal`, `eigh_tridiagonal`, `cholesky_banded`, `cho_solve_banded`, `solveh_banded`, `rq` |
@@ -250,11 +251,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `csr_slice` takes the row and column ranges with the end excluded and
   no step. `csr_tril` and `csr_triu` take the diagonal `k`.
   `csr_multiply` takes two matrices of one shape and does not broadcast.
-- The sparse type holds compressed rows only, in the type `Csr`. The
-  types `csc_array`, `coo_array`, `lil_array`, `dok_array`, `dia_array`
-  and `bsr_array` stay out. Build a matrix from a list of entries with
-  `csr_from_triplets`, which adds the entries of one place. A sparse
+- The sparse type holds compressed rows, in the type `Csr`, and the
+  compressed columns, in the type `Csc`. The types `coo_array`,
+  `lil_array`, `dok_array`, `dia_array` and `bsr_array` stay out. Build
+  a matrix from a list of entries with `csr_from_triplets` or with
+  `csc_from_triplets`, which add the entries of one place. A sparse
   result keeps the stored zeros that a sum or a product makes.
+- The type `Csc` holds the same values as the type `Csr` in the other
+  order. Every call that has no own rule converts to the compressed rows
+  and back. The calls `csc_from_csr` and `csc_to_csr` convert a matrix
+  without a copy of the values.
 - `csr_diags` takes one diagonal for each call. Add the results to get
   several diagonals. `kron`, `hstack`, `vstack`, slicing and `norm`
   stay out.
@@ -1657,6 +1663,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `eye` and `diagflat` check the size of the matrix before they build
   it. A count that reaches over the limit is a fault, so a bad count
   cannot grow the memory without bound.
+- The sparse calls check the sides, the count of the entries and the
+  places of the entries. An entry outside the matrix is a fault, so a
+  bad place cannot write outside the buffer. The compressed columns
+  sort the entries with a heap sort, so no data gives a slow case. The
+  duplicate entries of one place add up, as the duplicates of SciPy add
+  them up.
 - The formulas of the hyperbolic functions take a power of the number.
   A power that reaches over the size of a number gives an infinity,
   as NumPy gives it. No fault comes from the value.
