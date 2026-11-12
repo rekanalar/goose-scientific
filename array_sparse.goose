@@ -395,20 +395,19 @@ fn csr_sum(s, axis: i64) -> Arr, Fault {
     return line_arr(copy(out)), no_fault();
 }
 
-// spsolve solves a x = b for a square sparse matrix. The method turns
-// the matrix dense, so the side stays below 4097.
+// spsolve solves a x = b for a square sparse matrix. It factors the
+// matrix with sparse_lu, so the matrix stays sparse. The side stays at
+// 16384 or below.
 fn spsolve(s, b: f64[:]) -> Arr, Fault {
     if s.rows != s.cols || b.len != s.rows {
         return empty_arr(), fault(F_SHAPE, "spsolve", "the matrix is not square or the right side does not fit");
     }
-    if s.rows > 4096 {
-        return empty_arr(), fault(F_LIMIT, "spsolve", "the side is above 4096");
+    if s.rows > MAX_SPLU_SIDE {
+        return empty_arr(), fault(F_LIMIT, "spsolve", "the side is above 16384");
     }
-    let d, fd = csr_to_dense(s);
-    if fd.kind != F_NONE { return empty_arr(), fd; }
-    let rb, fb = from_values(b);
-    if fb.kind != F_NONE { return empty_arr(), fb; }
-    return solve(d, rb);
+    let f, ff = sparse_lu(s);
+    if ff.kind != F_NONE { return empty_arr(), ff; }
+    return splu_solve(f, b);
 }
 
 // cg solves a x = b for a symmetric positive definite sparse matrix by

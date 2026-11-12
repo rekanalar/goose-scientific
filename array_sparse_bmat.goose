@@ -148,7 +148,7 @@ fn bmat_new(grows: i64, gcols: i64) -> Bmat, Fault {
 // because the count of the block and the values that the block holds
 // would then differ.
 fn bmat_check_block(blk, tag: const u8[:]) -> Fault {
-    if blk.rows < 1 || blk.cols < 1 || blk.nnz < 0 {
+    if blk.rows < 1 || blk.cols < 1 || blk.nnz < 0 || blk.rows > MAX_SPARSE_SIDE || blk.cols > MAX_SPARSE_SIDE || blk.nnz > MAX_SPARSE_NNZ {
         return fault(F_SHAPE, tag, "the block holds a side or a count outside its range");
     }
     if blk.buf.len != blk.rows + 1 + 2 * blk.nnz {

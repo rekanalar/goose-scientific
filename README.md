@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.168.0";
+import scientific from "rekanalar/goose-scientific@v0.169.0";
 ```
 
 ## API
@@ -95,6 +95,7 @@ import scientific from "rekanalar/goose-scientific@v0.168.0";
 | Sparse matrices of keys | `Dok`, `dok_new`, `dok_from_dense`, `dok_from_csr`, `dok_from_coo`, `dok_to_dense`, `dok_to_csr`, `dok_to_coo`, `dok_get`, `dok_set`, `dok_pop`, `dok_setdiag`, `dok_resize`, `dok_transpose`, `dok_scale`, `dok_matvec`, `dok_diagonal`, `dok_sum`, `dok_nnz`, `dok_keys` |
 | Sparse matrices of lists | `Lil`, `lil_new`, `lil_from_dense`, `lil_from_csr`, `lil_from_coo`, `lil_to_dense`, `lil_to_csr`, `lil_to_coo`, `lil_get`, `lil_set`, `lil_row`, `lil_setdiag`, `lil_resize`, `lil_transpose`, `lil_scale`, `lil_matvec`, `lil_diagonal`, `lil_sum`, `lil_nnz` |
 | Grid of sparse blocks | `Bmat`, `bmat_new`, `bmat_put`, `csr_bmat` |
+| Sparse LU factor | `Splu`, `sparse_lu`, `splu_solve`, `splu_solve_matrix`, `splu_l`, `splu_u`, `splu_perm_r`, `splu_perm_c`, `splu_nnz`, `lu_factor_limited` |
 | Sparse diagonals by column | `spdiags` |
 | Sparse matrices of blocks | `Bsr`, `bsr_from_entries`, `bsr_from_dense`, `bsr_to_dense`, `bsr_from_csr`, `bsr_to_csr`, `bsr_from_coo`, `bsr_to_coo`, `bsr_get`, `bsr_scale`, `bsr_matvec`, `bsr_transpose`, `bsr_sum`, `bsr_nnz`, `bsr_diagonal`, `bsr_blocks` |
 | Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
@@ -438,10 +439,39 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `csr_diags` takes one diagonal for each call. Add the results to get
   several diagonals. `kron`, `hstack`, `vstack`, slicing and `norm`
   stay out.
-- `spsolve` turns the matrix dense. The side stays at 4096 or below.
-  The cost equals the cost of a dense solve. `cg` takes the
-  start zero and no preconditioner. `gmres`, `bicgstab`, `splu`,
-  `eigsh` and `svds` stay out.
+- `spsolve` factors the matrix with `sparse_lu`, so the matrix stays
+  sparse. The side stays at 16384 or below. A matrix that is not square
+  gives a fault of kind `F_SHAPE`. A singular matrix gives a fault of
+  kind `F_VALUE`. `cg` takes the start zero and no
+  preconditioner. `gmres`, `bicgstab`, `eigsh` and `svds` stay out.
+- `sparse_lu` gives the same solution as `splu` of SciPy. It does not
+  give the same factors.
+
+  SuperLU orders the columns and pivots with a
+  threshold. `sparse_lu` keeps the column order and pivots by the largest
+  absolute value in the column, as LAPACK does. So `splu_perm_c` is the
+  identity, and `L`, `U` and `splu_perm_r` can differ from SciPy. The
+  identity `L U = A[perm_r][:, perm_c]` holds. A matrix with a bad
+  column order can fill in more than it does in SciPy.
+- `lu_factor_limited` is `sparse_lu` with the two limits as arguments. One
+  limit bounds the stored values of `L` and `U`. The other bounds the
+  working rows. A caller can lower them to refuse a matrix that fills in.
+  The limits of the package stand, so a limit above them has no effect.
+- `splu_nnz` counts the stored values of `L`, with its unit diagonal,
+  plus those of `U`. A factor with a forged layout gives -1. The `nnz`
+  of SciPy differs. The SciPy count of a
+  tridiagonal matrix of side 5 is 30, and `L` and `U` hold 20 values.
+- Only an exact zero pivot makes a matrix singular, as in SciPy. A tiny
+  pivot passes. A solution that overflows gives a fault of kind `F_VALUE`.
+- The side of a factor stands at 16384 or below. The pivot search passes
+  over the rows at each step, so the time grows with the square of the
+  side. The merge of the rows grows with the fill-in. A caller that
+  takes a matrix from an untrusted source lowers the side first.
+- `spilu`, the incomplete factor, stays out. Its drop rule and its fill
+  factor come from SuperLU. No standard fixes the rule, and another rule
+  gives another factor and another solution.
+- `factorized` of SciPy is `sparse_lu` followed by `splu_solve`. The
+  factor does not change, so many right sides can use it.
 - `solve` with a vector on the right side gave a wrong answer when
   the elimination swapped rows. The forward substitution read the
   rows in the wrong order. The answer now equals LAPACK. `inv` took
@@ -1903,6 +1933,31 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The sum of the heights of the grid and the sum of the widths stand
   below `MAX_SPARSE_SIDE`. A running total stops at the first sum above
   the limit, so a sum cannot overflow.
+- `sparse_lu` checks every value of the matrix before the work starts. A
+  value that is not finite is a fault of kind `F_VALUE`. SciPy factors
+  it and returns NaN. The right side gets the same check, and so does
+  the solution.
+- `sparse_lu` checks the running count of `L` and `U` against
+  `MAX_SPARSE_NNZ` before each row merge. It checks the length of the
+  working rows against `MAX_ELEMENTS` before each append. A matrix with
+  a large fill-in gives a fault of kind `F_LIMIT` and does not grow the
+  buffers. The limits of `lu_factor_limited` cannot go above the limits
+  of the package.
+- `splu_solve_matrix` checks the count of the elements of the right side
+  before it multiplies the sides. A large shape cannot overflow the
+  count. Such a right side gives a fault of kind `F_LIMIT`. It also
+  checks that the shape holds as many lengths as its count of
+  dimensions. A shape that does not gives a fault of kind `F_SHAPE`.
+- The fields of `Splu` are public. Every solve and every read call checks
+  the layout first. The check covers the side, the counts, the buffer
+  length, the row pointers, the columns and the two permutations. It
+  covers the finite values and the diagonal of `U`. A forged factor gives
+  a fault of kind `F_SHAPE`. The check runs before any call walks the
+  buffer, and the counts are bounded before the length is computed.
+- `splu_core` and `lu_part` are helpers inside the package. They are
+  public names, because Goose has no private names. They do not check
+  the layout of a factor. A caller must use `splu_solve` and the read
+  calls, which check it first.
 - The fields of `Bmat` are public. A builder that a caller builds by hand
   has to keep the layout of the buffer. A forged field gives a wrong result
   or an index error. Build a builder with `bmat_new` to avoid the risk.
