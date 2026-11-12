@@ -34,6 +34,19 @@ fn csr_matvec_t(s, x: f64[:]) -> Arr, Fault {
     return line_arr(copy(out)), no_fault();
 }
 
+// krylov_norm_ok tells whether the norm of b is usable. It fails for a
+// value that is not finite, for an overflow of the norm, and for an
+// underflow of the norm to zero when b is not zero.
+fn krylov_norm_ok(b: f64[:]) -> bool {
+    let bn = krylov_norm(b);
+    if bn - bn != 0.0 { return false; }
+    if bn == 0.0 {
+        var i: i64 = 0;
+        while i < b.len { if b[i] != 0.0 { return false; } i += 1; }
+    }
+    return true;
+}
+
 // krylov_check checks the operands of a solver of the sparse matrices.
 fn krylov_check(s, b: f64[:], rtol: f64, tag: const u8[:]) -> Fault {
     if s.rows != s.cols || b.len != s.rows || b.len < 1 {
@@ -44,9 +57,8 @@ fn krylov_check(s, b: f64[:], rtol: f64, tag: const u8[:]) -> Fault {
     }
     // A norm that is not finite makes the first test pass, so the solver
     // would return zero as a solution. An overflow of the norm does the same.
-    let bn = krylov_norm(b);
-    if bn - bn != 0.0 {
-        return fault(F_VALUE, tag, "the right side holds a value that is not finite or too large");
+    if !krylov_norm_ok(b) {
+        return fault(F_VALUE, tag, "the right side holds a value that is not finite, too large or too small");
     }
     return no_fault();
 }

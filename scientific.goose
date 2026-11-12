@@ -91,6 +91,7 @@ import array_sparse;
 import array_sparse_csc;
 import array_sparse_coo;
 import array_sparse_bicg;
+import array_sparse_lsmr;
 import array_matfun;
 import array_carray;
 import array_cfactor;

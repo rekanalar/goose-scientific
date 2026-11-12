@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.161.0";
+import scientific from "rekanalar/goose-scientific@v0.162.0";
 ```
 
 ## API
@@ -92,7 +92,7 @@ import scientific from "rekanalar/goose-scientific@v0.161.0";
 | Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `bessel`, `residue`, `residue_complex`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `welch_ex`, `stft`, `istft`, `resample` |
 | Sparse matrices of coordinates | `Coo`, `coo_from_triplets`, `coo_from_dense`, `coo_to_dense`, `coo_to_csr`, `coo_from_csr`, `coo_transpose`, `coo_get`, `coo_scale`, `coo_matvec` |
 | Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
-| Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `bicg`, `cgs`, `qmr`, `tfqmr`, `gmres`, `lsqr`, `minres`, `eigsh`, `csr_matvec_t` |
+| Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `bicg`, `cgs`, `qmr`, `tfqmr`, `gmres`, `lsqr`, `lsmr`, `Lsmr`, `minres`, `eigsh`, `csr_matvec_t` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
 | Tridiagonal, banded and RQ forms | `eigvalsh_tridiagonal`, `eigh_tridiagonal`, `cholesky_banded`, `cho_solve_banded`, `solveh_banded`, `rq` |
 | DFT matrix and QR product | `dft`, `qr_multiply` |
@@ -243,7 +243,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   may differ from SciPy, so only the solution matches.
 
   A right side that is not finite is a fault. A tolerance that is not
-  finite is a fault too.
+  finite is a fault too. A right side whose norm falls to zero, or
+  grows past the largest number, is a fault. SciPy returns the zero
+  solution in that case.
 
   `bicg` and `qmr` use the product of the transposed matrix.
   `csr_matvec_t` gives that product.
@@ -253,6 +255,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `minres` takes a symmetric matrix and does not check the symmetry.
   It has no `shift`, no `x0` and no preconditioner. The path may differ
   from SciPy, so only the solution matches.
+- `lsmr` takes a matrix of any shape and solves the least squares
+  problem, with `damp`, `atol`, `btol`, `conlim` and `maxiter`. It gives
+  the type `Lsmr`. The type holds `x`, `istop`, `itn`, `normr`, `normar`,
+  `norma`, `conda` and `normx`, as SciPy gives them in a tuple.
+
+  It starts from zero, so it has no `x0` and no `show`. The default
+  limit is the lesser side of the matrix. A tolerance, the damping or a
+  right side that is not finite is a fault. A right side whose norm
+  falls to zero, or grows past the largest number, is a fault too.
+  SciPy returns the zero solution in that case.
+- A matrix so small that its norm falls to zero gives the zero
+  solution, as SciPy gives. Scale the matrix first.
 - `eigsh` takes the choices `LA`, `SA`, `LM` and `SM` and gives the
   values in rising order. It uses the Lanczos method with a full
   reorthogonalization, and a space above 256 vectors is a fault. It has
@@ -1691,6 +1705,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   matrix. A negative or fractional place is a fault.
 - The coordinates keep the duplicates of one place. The dense form and
   the compressed rows add them up, as SciPy adds them up.
+- The biconjugate gradient solvers and `lsmr` check the norm of the
+  right side before they start. A right side with a norm that is not
+  finite is a fault. A
+  right side with a norm that falls to zero is a fault too. A right
+  side with a norm that grows past the largest number is a fault too.
+  SciPy gives the zero solution in the last two cases, and the zero
+  solution reads as a correct answer.
 - The formulas of the hyperbolic functions take a power of the number.
   A power that reaches over the size of a number gives an infinity,
   as NumPy gives it. No fault comes from the value.
