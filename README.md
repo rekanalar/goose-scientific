@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.162.0";
+import scientific from "rekanalar/goose-scientific@v0.163.0";
 ```
 
 ## API
@@ -91,6 +91,7 @@ import scientific from "rekanalar/goose-scientific@v0.162.0";
 | Programs of optimization | `linprog`, `milp`, `nnls`, `linear_sum_assignment`, `approx_fprime`, `bisect`, `ridder` |
 | Signal design and analysis | `firwin`, `firwin2`, `remez`, `cheby1`, `cheby2`, `ellip`, `bessel`, `residue`, `residue_complex`, `residuez`, `invres`, `invresz`, `unique_roots`, `freqz`, `sosfreqz`, `sosfreqz_at`, `resample_poly`, `decimate`, `lfiltic`, `fftconvolve`, `medfilt`, `savgol_coeffs`, `savgol_filter`, `find_peaks`, `peak_prominences`, `periodogram`, `spectrogram`, `welch_psd`, `welch_ex`, `stft`, `istft`, `resample` |
 | Sparse matrices of coordinates | `Coo`, `coo_from_triplets`, `coo_from_dense`, `coo_to_dense`, `coo_to_csr`, `coo_from_csr`, `coo_transpose`, `coo_get`, `coo_scale`, `coo_matvec` |
+| Sparse matrices of diagonals | `Dia`, `dia_from_dense`, `dia_to_dense`, `dia_from_csr`, `dia_to_csr`, `dia_from_coo`, `dia_to_coo`, `dia_get`, `dia_scale`, `dia_matvec`, `dia_transpose`, `dia_sum`, `dia_nnz`, `dia_diagonals`, `dia_from_diagonals` |
 | Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
 | Sparse matrices of compressed rows | `Csr`, `csr_from_dense`, `csr_from_triplets`, `csr_to_dense`, `csr_eye`, `csr_diags`, `csr_transpose`, `csr_get`, `csr_scale`, `csr_matvec`, `csr_add`, `csr_sub`, `csr_matmul`, `csr_diagonal`, `csr_sum`, `csr_kron`, `csr_hstack`, `csr_vstack`, `csr_block_diag`, `csr_tril`, `csr_triu`, `csr_multiply`, `csr_slice`, `spsolve`, `cg`, `bicgstab`, `bicg`, `cgs`, `qmr`, `tfqmr`, `gmres`, `lsqr`, `lsmr`, `Lsmr`, `minres`, `eigsh`, `csr_matvec_t` |
 | Functions of matrices | `sqrtm`, `logm`, `sinm`, `cosm`, `tanm`, `sinhm`, `coshm`, `tanhm`, `signm`, `fractional_matrix_power`, `polar`, `cho_factor`, `cho_solve`, `funm`, `solve_sylvester`, `solve_continuous_lyapunov`, `solve_lyapunov`, `solve_discrete_lyapunov`, `eig_banded`, `eigvals_banded` |
@@ -278,12 +279,29 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   no step. `csr_tril` and `csr_triu` take the diagonal `k`.
   `csr_multiply` takes two matrices of one shape and does not broadcast.
 - The sparse types are `Csr` for compressed rows, `Csc` for compressed
-  columns and `Coo` for coordinates. The types `lil_array`, `dok_array`,
-  `dia_array` and `bsr_array` stay out. Build a matrix from a list of
-  entries with `csr_from_triplets`, with `csc_from_triplets` or with
-  `coo_from_triplets`. The first two add the entries of one place. The
-  third keeps them. A sparse result keeps the stored zeros that a sum or
-  a product makes.
+  columns, `Coo` for coordinates and `Dia` for diagonals. The types
+  `lil_array`, `dok_array` and `bsr_array` stay out. Build a matrix from
+  a list of entries with `csr_from_triplets`, with `csc_from_triplets` or
+  with `coo_from_triplets`. The first two add the entries of one place.
+  The third keeps them. A sparse result keeps the stored zeros that a sum
+  or a product makes.
+- The type `Dia` holds the offsets of the diagonals and the values of the
+  diagonals. The offsets rise and no two of them are the same. The values
+  of one diagonal lie in the order of the row. The first place of a
+  diagonal with the offset `k` is the row `max(0, -k)`.
+- A diagonal of `Dia` that holds no value is not kept. A zero that lies on
+  a kept diagonal stays in the diagonal, so `dia_nnz` counts the zeros.
+  SciPy counts the same zeros, unless its band stops before the last
+  column. The count of `dia_nnz` is then larger than the count of SciPy.
+- The conversion to the compressed rows and to the coordinates drops the
+  zeros of the diagonals, as SciPy drops them.
+- The transpose of `Dia` negates the offsets and sorts them again. The
+  transpose of SciPy lists the offsets in the other order. The values of
+  one diagonal keep their order in both.
+- `dia_from_diagonals` follows `scipy.sparse.diags`. The values of one
+  diagonal cover its places inside the matrix. The older
+  `scipy.sparse.spdiags` places the values by column, so it drops the
+  first values of an upper diagonal.
 - The type `Coo` keeps the duplicate entries of one place, as SciPy does,
   and `nnz` counts them. The dense form, `coo_get` and the compressed
   rows add them up. `coo_get` and `coo_matvec` read every entry, so they
@@ -1697,9 +1715,19 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   cannot grow the memory without bound.
 - The sparse calls check the sides, the count of the entries and the
   places of the entries. An entry outside the matrix is a fault, so a
-  bad place cannot write outside the buffer. The three sparse formats
+  bad place cannot write outside the buffer. The four sparse formats
   share one check of the entries. The compressed columns sort the
   entries with a heap sort, so no data gives a slow case.
+- The diagonal format checks its offsets before it builds the matrix. An
+  offset outside the matrix is a fault. Two equal offsets are a fault. A
+  count of the values that does not match the diagonals is a fault. A
+  value that is not finite is a fault, so a bad value cannot spread
+  through the matrix.
+- The diagonal format checks an offset before it turns it into a whole
+  number. An offset that lies outside the range of an integer is a fault.
+  The cast of such a number gives no defined value, so the check must come
+  first. An offset of that size would otherwise build the wrong diagonal
+  and read as a correct answer.
 - The duplicate entries of one place add up, as the duplicates of SciPy
   add them up. The coordinates take only whole places inside the
   matrix. A negative or fractional place is a fault.
