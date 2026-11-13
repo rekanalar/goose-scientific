@@ -65,8 +65,28 @@ fn bd_check(d: f64[:], e: f64[:], tag: const u8[:]) -> Fault {
 // Sturm sequence. The sequence holds the leading minors of the matrix
 // of T minus x on the diagonal. A zero term sits out of the count of
 // the sign changes, so that a value on a pole still counts the values
-// below it.
+// below it. A zero off diagonal value ends a block, and the count of
+// each block adds up. A matrix that falls into blocks has a leading
+// minor of zero, and the sequence of the whole matrix then holds no
+// sign change at all.
 fn bd_count(x: f64, d: f64[:], e: f64[:], n: i64) -> i64 {
+    var cnt: i64 = 0;
+    var a: i64 = 0;
+    while a < n {
+        var b: i64 = a;
+        while b < n - 1 && e[b] != 0.0 { b += 1; }
+        cnt += bd_count_block(x, d[a..b + 1], e[a..b], b - a + 1);
+        a = b + 1;
+    }
+    return cnt;
+}
+
+// bd_count_block gives the count of the eigenvalues below x of a block
+// that has no zero off diagonal value. The Sturm sequence holds the
+// leading minors of the matrix of T minus x on the diagonal. A zero term
+// sits out of the count of the sign changes, so that a value on a pole
+// still counts the values below it.
+fn bd_count_block(x: f64, d: f64[:], e: f64[:], n: i64) -> i64 {
     var m1: f64 = 1.0;
     var m2: f64 = 0.0;
     var sign: i64 = 1;
@@ -325,6 +345,12 @@ fn eigh_tridiagonal(d: f64[:], e: f64[:], eigvals_only: bool = false, select: co
         let kk1, kk2 = bd_first_ranks(d, e, n, select, select_range);
         k1 = kk1;
         k2 = kk2;
+    }
+    // A matrix with a negligible off diagonal value falls into blocks.
+    if bd_has_split(d, e, n) {
+        let sw, sz = bd_eigh_split(d, e, n, k1, k2, !eigvals_only);
+        if eigvals_only { return line_arr(copy(sw)), empty_arr(), no_fault(); }
+        return line_arr(copy(sw)), mat2(copy(sz), n, k2 - k1 + 1), no_fault();
     }
     var w: f64[>..] = [];
     var z: f64[>..] = [];

@@ -168,6 +168,7 @@ import transform_2_tests;
 import transform_3_tests;
 import transform_pins_tests;
 import transform_tests;
+import tridiag_blocks_tests;
 import ufunc_tests;
 import vectorized_hostile_tests;
 import vectorized_pins_tests;
@@ -402,6 +403,10 @@ fn run_all() {
     tplquad_tests::test_tplquad();
     transform_3_tests::test_transform_hostile();
     transform_pins_tests::test_transform_pins();
+    tridiag_blocks_tests::test_tridiag_blocks_vectors();
+    tridiag_blocks_tests::test_tridiag_blocks_select();
+    tridiag_blocks_tests::test_tridiag_blocks_wide();
+    tridiag_blocks_tests::test_tridiag_blocks_faults();
     ufunc_tests::test_ufunc();
     vectorized_hostile_tests::test_vectorized_hostile();
     vectorized_pins_tests::test_vectorized_pins();
@@ -1396,6 +1401,13 @@ fn run_group(g: const u8[:]) -> bool {
         transform_pins_tests::test_transform_pins();
         return true;
     }
+    if g == "tridiag_blocks" {
+        tridiag_blocks_tests::test_tridiag_blocks_vectors();
+        tridiag_blocks_tests::test_tridiag_blocks_select();
+        tridiag_blocks_tests::test_tridiag_blocks_wide();
+        tridiag_blocks_tests::test_tridiag_blocks_faults();
+        return true;
+    }
     if g == "ufunc" {
         ufunc_tests::test_ufunc();
         return true;
@@ -1958,6 +1970,10 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_transform_pins10" { transform_tests::test_transform_pins10(); return true; }
     if t == "test_transform_pins11" { transform_tests::test_transform_pins11(); return true; }
     if t == "test_transform_pins12" { transform_tests::test_transform_pins12(); return true; }
+    if t == "test_tridiag_blocks_vectors" { tridiag_blocks_tests::test_tridiag_blocks_vectors(); return true; }
+    if t == "test_tridiag_blocks_select" { tridiag_blocks_tests::test_tridiag_blocks_select(); return true; }
+    if t == "test_tridiag_blocks_wide" { tridiag_blocks_tests::test_tridiag_blocks_wide(); return true; }
+    if t == "test_tridiag_blocks_faults" { tridiag_blocks_tests::test_tridiag_blocks_faults(); return true; }
     if t == "test_ufunc" { ufunc_tests::test_ufunc(); return true; }
     if t == "test_vectorized_hostile" { vectorized_hostile_tests::test_vectorized_hostile(); return true; }
     if t == "test_vectorized_pins" { vectorized_pins_tests::test_vectorized_pins(); return true; }
@@ -2955,6 +2971,13 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_transform_pins" { transform_pins_tests::test_transform_pins(); return true; }
         return false;
     }
+    if g == "tridiag_blocks" {
+        if t == "test_tridiag_blocks_vectors" { tridiag_blocks_tests::test_tridiag_blocks_vectors(); return true; }
+        if t == "test_tridiag_blocks_select" { tridiag_blocks_tests::test_tridiag_blocks_select(); return true; }
+        if t == "test_tridiag_blocks_wide" { tridiag_blocks_tests::test_tridiag_blocks_wide(); return true; }
+        if t == "test_tridiag_blocks_faults" { tridiag_blocks_tests::test_tridiag_blocks_faults(); return true; }
+        return false;
+    }
     if g == "ufunc" {
         if t == "test_ufunc" { ufunc_tests::test_ufunc(); return true; }
         return false;
@@ -2984,5 +3007,5 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
 }
 
 fn print_groups() {
-    print("groups: assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis linalg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves nan nd_interpolator ndimage ndimage_pins nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
+    print("groups: assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis linalg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves nan nd_interpolator ndimage ndimage_pins nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
 }

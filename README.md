@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.172.0";
+import scientific from "rekanalar/goose-scientific@v0.172.1";
 ```
 
 ## API
@@ -343,9 +343,6 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   SciPy gives an error of ARPACK. A repeated value above the size of
   the space may lose a copy of it.
 
-  `eigh_tridiagonal` gives the wrong vectors for a repeated eigenvalue.
-  The vectors of an equal value stand parallel to each other. The call
-  `svds` splits the matrix of its iteration into blocks, so it holds.
 - `csr_hstack` and `csr_vstack` join two matrices, not a list. Call them
   again for more. `csr_kron` and `csr_block_diag` take two matrices.
 - `csr_kronsum` follows `scipy.sparse.kronsum`: `kron(I_m, a) + kron(b, I_n)`.
@@ -1080,6 +1077,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `invhilbert` takes no `exact` flag. `pascal` and `invpascal` take no
   `exact` flag either. Each gives floating point values.
 - `ishermitian` reads a real matrix. The complex form stays out.
+- `eigh_tridiagonal` splits a matrix into blocks. A split sits at an
+  off diagonal value that is zero or negligible. Negligible means at most
+  the machine epsilon times the scale of its place. The scale of the
+  place is the sum of the two nearby diagonal values. The scale of the
+  whole matrix does not enter the rule. A coupling that a large value
+  elsewhere hides stays, because it can carry the values next to it.
+- `eigh_tridiagonal` solves each block alone, so the vectors of a
+  repeated value stand orthonormal. LAPACK splits the same way. A matrix
+  whose whole spectrum lies below 1e-15 gives inexact values.
+- `eigvalsh_tridiagonal` solves the whole matrix. It counts the values
+  below a bound block by block. A count of the whole matrix holds no
+  sign change when a block starts, so it would miss every value.
 - `eigvalsh_tridiagonal` and `eigh_tridiagonal` hold real values only.
   The values come from the bisection. The vectors come from the inverse
   iteration. SciPy runs the routines of LAPACK. The values agree to the
@@ -1954,6 +1963,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Security
 
+- `eigh_tridiagonal` splits a matrix into blocks at a coupling that is
+  zero or negligible. The rule uses the scale of the place of the
+  coupling alone. A large value elsewhere does not hide a coupling. A
+  hostile matrix then cannot make the package drop a coupling and
+  answer with the values of another matrix.
 - `cdist` and `pdist` check the size of the result before they build
   it. A result above `MAX_ELEMENTS` is a fault, so a large set cannot
   exhaust memory.

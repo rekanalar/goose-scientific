@@ -84,6 +84,7 @@ import array_root;
 import array_root_krylov;
 import array_global;
 import array_banded;
+import array_banded_blocks;
 import array_banded_solve;
 import array_balance;
 import array_expmf;

@@ -212,10 +212,11 @@ fn svds(s, k: i64 = 6, which: const u8[:] = "LM", tol: f64 = 0.0, v0: f64[:] = [
         var be: f64[>..] = [];
         let last, fl = svds_lanczos(s, c, wide, d, m, start, vs, al, be);
         if fl.kind != F_NONE { return svds_empty(fl); }
-        wv = [];
-        zv = [];
-        let fe = svds_eig(al, be, m, wv, zv);
+        let we, ze, fe = eigh_tridiagonal(al, be);
         if fe.kind != F_NONE { return svds_empty(fe); }
+        if we.data.len != m || ze.data.len != m * m { return svds_empty(fault(F_VALUE, tag, "the Ritz pairs do not fit the matrix")); }
+        wv = copy(we.data);
+        zv = copy(ze.data);
         if !lg_finite(wv, m) { return svds_empty(fault(F_VALUE, tag, "a Ritz value is not finite")); }
         base = 0;
         if which == "LM" { base = m - k; }
