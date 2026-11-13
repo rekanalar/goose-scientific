@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.174.0";
+import scientific from "rekanalar/goose-scientific@v0.175.0";
 ```
 
 ## API
@@ -52,6 +52,7 @@ import scientific from "rekanalar/goose-scientific@v0.174.0";
 | Eigenvalues | `eigvals`, `eig`, `eigvalsh`, `eigh` |
 | Singular values | `svd`, `svdvals`, `lstsq`, `matrix_rank`, `cond`, `pinv(a, rtol=-1)` |
 | Polynomials | `polyval`, `polyfit`, `roots` |
+| Orthogonal bases | `legval`, `chebval`, `hermval`, `hermeval`, `lagval`, `leg2poly`, `cheb2poly`, `herm2poly`, `herme2poly`, `lag2poly`, `poly2leg`, `poly2cheb`, `poly2herm`, `poly2herme`, `poly2lag`, `legder`, `chebder`, `hermder`, `hermeder`, `lagder`, `legint`, `chebint`, `hermint`, `hermeint`, `lagint`, `legroots`, `chebroots`, `hermroots`, `hermeroots`, `lagroots` |
 | Complex numbers | `Cplx`, `c_add`, `c_sub`, `c_mul`, `c_div`, `c_abs`, `c_conj`, `c_scale`, `c_value`, `roots_of` |
 | Polynomial type | `polynomial`, `polynomial_call`, `polynomial_degree`, `polynomial_add`, `polynomial_sub`, `polynomial_mul`, `polynomial_pow`, `polynomial_divmod`, `polynomial_der`, `polynomial_integ`, `polynomial_roots`, `polynomial_fromroots`, `polynomial_fit`, `polynomial_cutdeg`, `polynomial_linspace` |
 | Transforms | `fft`, `ifft`, `fft2`, `fft2c`, `ifft2`, `fftn`, `ifftn`, `fftn_ex`, `ifftn_ex`, `fftfreq`, `rfftfreq`, `fftshift`, `ifftshift`, `rfft`, `irfft` |
@@ -144,6 +145,34 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- The series of the five orthogonal bases hold their coefficients from
+  the lowest degree to the highest. `numpy.polynomial` holds them so.
+  The monomial calls of this package run from the highest power.
+- `legval`, `chebval`, `hermval`, `hermeval` and `lagval` give the value
+  of a series at a point. `leg2poly` and the four others give the
+  monomial coefficients of a series. `poly2leg` and the four others give
+  the series of a monomial polynomial. The conversions drop the
+  trailing zero coefficients, as NumPy does.
+- `legder`, `chebder`, `hermder`, `hermeder` and `lagder` give the
+  derivative of order `m`. An order of zero gives the series. An order
+  at the length of the series gives the zero series of length one.
+- `legint`, `chebint`, `hermint`, `hermeint` and `lagint` give the
+  integral of order `m`. The constants of the list `k` pad with zeros.
+  The integral at `lbnd` equals the constant. More constants than the
+  order give a fault.
+- `legroots`, `chebroots`, `hermroots`, `hermeroots` and `lagroots` give
+  the roots of a series as the real parts and the imaginary parts. The
+  order is by the real part, then the imaginary part. A series of degree
+  zero gives no root. The degree stays at 512 or below.
+- The package holds no `fit`, `fromroots`, `vander`, `gauss` or
+  `weight` of these bases. It holds no grid and no evaluation of two
+  dimensions. It holds no class object with a domain and a window, so
+  the caller maps the point itself.
+- The conversion between a basis and the monomials loses digits as the
+  degree grows. A round trip at degree 12 loses up to 7e-10 for the
+  Hermite basis. This is the conditioning of the monomial basis. The
+  roots of a series keep their digits, because they come from the
+  companion matrix of the family.
 - The tests live in group files under `test/suite`. A run of one group
   or one test uses the `SCIENTIFIC_SUITES` or `SCIENTIFIC_TESTS`
   variable. The file `test/README.md` says how to run them and how to
@@ -279,13 +308,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   an earlier solve and give the pairs that stay. A pair holds two
   vectors of n values in one flat buffer. One pair takes `2 * n + 1`
   values: a flag, then the first vector, then the second one. The flag
-  is 1.0 when the optional vector is there, and 0.0 when it is not. For
-  `lgmres` the flag stands for the second vector, and for `gcrotmk` for
-  the first one. The count of pairs may not pass `MAX_KEPT_PAIRS`, which
-  is 64. The pairs of `gcrotmk` must come from a solve of the same
-  matrix, where the first vector equals the matrix times the second one.
-  Pairs that break this rule may make the iteration diverge. The call
-  then gives a fault. SciPy does not check the rule.
+  is 1.0 when the optional vector is there, and 0.0 when it is not.
+
+  For `lgmres` the flag stands for the second vector, and for
+  `gcrotmk` for the first one. The count of pairs may not pass
+  `MAX_KEPT_PAIRS`, which is 64.
+
+  The pairs of `gcrotmk` must come from a solve of the same matrix.
+  The first vector of a pair must equal the matrix times the second
+  one. Pairs that break this rule may make the iteration diverge. The
+  call then gives a fault. SciPy does not check the rule.
 
   `gmres` of SciPy takes no start vector and no absolute tolerance.
   `lgmres` and `gcrotmk` take both.
@@ -2019,6 +2051,20 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Security
 
+- The calls of the five orthogonal bases check a series before they
+  build a buffer. A series of more than 1001 coefficients gives a
+  fault. So do an order above 1000 and a degree above 512. A bad input
+  cannot grow the memory without bound.
+- The roots of a series come from the eigenvalues of the companion
+  matrix of the family. The build of that matrix checks every value of
+  it. A coefficient near the limit of the number format gives a fault.
+  So a bad value cannot spread through the matrix.
+- A scale of zero in a derivative or an integral gives a fault. NumPy
+  returns zeros there. The fault names the caller error, which zeros
+  hide.
+- The result of every call of the five bases is checked for a value
+  that is not finite. The call gives a fault, so a caller never reads
+  NaN as a value.
 - `eigh_tridiagonal` splits a matrix into blocks at a coupling that is
   zero or negligible. The rule uses the scale of the place of the
   coupling alone. A large value elsewhere does not hide a coupling. A

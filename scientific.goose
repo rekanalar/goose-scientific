@@ -175,6 +175,10 @@ import array_fftn;
 import array_moves;
 import constants;
 import array_constants;
+import array_poly_bases;
+import array_poly_calculus;
+import array_poly_roots;
+import array_poly_bases_calls;
 import mathshim_float;
 
 // The kinds of a fault. A fault holds a kind, the name of the check
