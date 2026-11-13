@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.176.0";
+import scientific from "rekanalar/goose-scientific@v0.177.0";
 ```
 
 ## API
@@ -47,6 +47,7 @@ import scientific from "rekanalar/goose-scientific@v0.176.0";
 | Search | `searchsorted`, `histogram`, `histogram_edges`, `bincount`, `digitize` |
 | Order statistics | `median`, `percentile`, `quantile`, `mode`, `average`, `median_axis`, `quantile_axis`, `percentile_axis`, `average_axis` |
 | Products | `matmul`, `dot`, `inner`, `outer`, `kron`, `trace`, `norm` |
+| Norms and tensors | `vector_norm(a, ord=2.0, axis=[], keepdims=false)`, `matrix_norm(a, ord="fro", keepdims=false)`, `tensorinv(a, ind=2)`, `tensorsolve(a, b, axes=[])` |
 | Solving | `solve`, `inv`, `det`, `slogdet`, `matrix_power` |
 | Decompositions | `cholesky`, `qr`, `schur`, `ldl` |
 | Eigenvalues | `eigvals`, `eig`, `eigvalsh`, `eigh` |
@@ -145,6 +146,33 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 ```
 
 ## Limits
+
+- `vector_norm` takes a real order. The order 0 counts the values that
+  are not zero. An infinity takes the largest absolute value, and a
+  minus infinity takes the smallest. A negative order gives the power
+  of the sum of the powers, as NumPy does. An empty list of axes gives
+  the norm of the whole array. A norm of the whole array gives an
+  array of one element, where NumPy gives a number.
+- `matrix_norm` takes the name of an order: `fro`, `nuc`, `inf`,
+  `-inf`, `1`, `-1`, `2` or `-2`. It takes no axis, so the last two
+  axes drop. The orders `nuc`, `2` and `-2` use `svdvals`, which is
+  slower than the other orders. A matrix norm of a complex array stays
+  out of scope.
+- `tensorinv` takes a place above zero and below the count of the
+  axes. NumPy 2.5.4 takes the same places. The matrix of the tensor
+  has the same count of rows and columns.
+- `tensorsolve` reads the right side as a flat list of values. The
+  axes that the caller names move to the right and keep the order of
+  the list. A matrix with no inverse is a fault, where NumPy raises
+  an error.
+- `tensorinv` and `tensorsolve` test the singular values of the matrix.
+  The limit is the side times the unit roundoff times the largest singular
+  value. A matrix with a smaller singular value is a fault. NumPy
+  inverts some of those matrices and returns large values.
+- The orders `nuc`, `2` and `-2` of `matrix_norm` scale badly. A value
+  above 1e154 gives an infinity, and a value below 1e-162 gives zero.
+  NumPy scales the matrix and gives the right norm. The norm of one
+  matrix gives an array of one element, where NumPy gives a number.
 
 - The series of the five orthogonal bases hold their coefficients from
   the lowest degree to the highest. `numpy.polynomial` holds them so.
@@ -2089,6 +2117,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   way.
 
 ## Security
+
+- `vector_norm`, `matrix_norm`, `tensorinv` and `tensorsolve` check
+  every operand against its own shape before they read a value. A
+  forged array gives a fault and not a crash.
+- The four calls refuse an array with a value that is not finite, and
+  an order of NaN. A caller never reads NaN as a norm. NumPy lets
+  those values through.
+- `tensorinv` and `tensorsolve` give a fault for a matrix with no
+  inverse, and for a result that is not finite. They test the
+  singular values first. A rank-deficient matrix with a tiny LU pivot
+  gives a fault and not a large wrong answer. `inv` and `solve`
+  do not make that test and still return such an answer.
 
 - The calls of the five orthogonal bases check a series before they
   build a buffer. A series of more than 1001 coefficients gives a

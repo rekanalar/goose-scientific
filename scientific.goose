@@ -185,6 +185,8 @@ import array_block;
 import array_split_sections;
 import array_sort_complex;
 import mathshim_float;
+import array_norms;
+import array_tensor;
 
 // The kinds of a fault. A fault holds a kind, the name of the check
 // and a short detail.
@@ -291,6 +293,17 @@ fn check_stack(ndim: i64, shape: i64[:], len: i64, width: i64, tag: const u8[:])
         return fault(F_SHAPE, tag, "an operand holds a buffer that does not match its shape");
     }
     return no_fault();
+}
+
+// all_finite tells whether every value of a buffer is finite. NaN and
+// the infinities are not finite.
+fn all_finite(data: f64[:]) -> bool {
+    var i: i64 = 0;
+    while i < data.len {
+        if data[i] - data[i] != 0.0 { return false; }
+        i += 1;
+    }
+    return true;
 }
 
 // fill builds an array of a shape where every element holds one value.

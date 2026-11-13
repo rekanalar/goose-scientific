@@ -1,0 +1,235 @@
+#!/usr/bin/env python3
+"""Write the pins of the tests of the norms and the tensors.
+
+The script needs NumPy 2.5.4. It runs from the maintainer. The user of
+the package installs nothing.
+
+The file it writes holds numbers only. Every family of cases holds the
+inputs and the expected results. A ragged list is two buffers: the
+values joined end to end, and the length of each part. The order of the
+norm of a vector is a number, because an infinity has no literal in the
+pins. The test turns the number into the order.
+"""
+import numpy as np
+
+OUT = "test/suite/norms_tensors_pins.goose"
+
+# The order of the norm of a vector and the number that stands for it.
+ORDERS = [(2.0, 0), (1.0, 1), (0.0, 2), (3.0, 3), (0.5, 4),
+           (-1.0, 5), (np.inf, 6), (-np.inf, 7), (-2.0, 8)]
+
+# The eight names of the order of the norm of a matrix. NumPy takes the
+# numbers for the two infinities, and this package takes the names.
+MATRIX_ORDERS = [("fro", "fro"), ("nuc", "nuc"), ("inf", np.inf),
+                 ("-inf", -np.inf), ("1", 1), ("-1", -1), ("2", 2), ("-2", -2)]
+
+
+def emit(lines, name, values):
+    lines.append("const %s: f64[>..] = [%s];" %
+                 (name, ", ".join(repr(float(v)) for v in values)))
+
+
+def ragged(lines, name, parts):
+    """Write a ragged list as the values and the length of each part."""
+    flat = [v for p in parts for v in p]
+    emit(lines, name + "_D", flat)
+    emit(lines, name + "_L", [len(p) for p in parts])
+
+
+def shape_of(a):
+    """The shape of a NumPy array, as a list of numbers."""
+    return [float(n) for n in a.shape]
+
+
+def result_shape(a):
+    """The shape of a result. The package holds no array of no
+    dimension, so an empty shape holds one dimension of one."""
+    if len(a.shape) == 0:
+        return [1.0]
+    return shape_of(a)
+
+
+def vector_cases():
+    """The cases of the norm of a vector: the values, the order, the
+    axes and the flag that keeps the dimensions."""
+    cases = []
+    v = np.array([3.0, -4.0])
+    for _, code in ORDERS:
+        cases.append((v, code, [], False))
+    z = np.array([0.0, 0.0, 3.0])
+    cases.append((z, 2, [], False))
+    cases.append((z, 5, [], False))
+    m = np.array([[1.0, 2.0], [3.0, 4.0]])
+    cases.append((m, 0, [0], False))
+    cases.append((m, 0, [1], False))
+    cases.append((m, 1, [-1], False))
+    cases.append((m, 0, [], False))
+    cases.append((m, 0, [], True))
+    t = np.arange(18.0).reshape(2, 3, 3)
+    cases.append((t, 0, [1, 2], False))
+    cases.append((t, 0, [1, 2], True))
+    cases.append((t, 0, [0], False))
+    cases.append((t, 0, [0], True))
+    cases.append((t, 0, [0, 1], False))
+    cases.append((t, 0, [], False))
+    cases.append((t, 0, [], True))
+    cases.append((t, 3, [2], False))
+    w = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    cases.append((w, 0, [], False))
+    cases.append((w, 1, [], False))
+    cases.append((w, 4, [], False))
+    return cases
+
+
+def matrix_cases():
+    """The cases of the norm of a matrix: the values, the name of the
+    order and the flag that keeps the dimensions."""
+    cases = []
+    m = np.array([[1.0, 2.0], [3.0, 4.0]])
+    for k in range(8):
+        cases.append((m, k, False))
+    w = np.array([[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]])
+    for k in range(8):
+        cases.append((w, k, False))
+    s = np.arange(8.0).reshape(2, 2, 2) - 4.0
+    for k in range(8):
+        cases.append((s, k, False))
+    for k in range(8):
+        cases.append((s, k, True))
+    b = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
+    for k in range(8):
+        cases.append((b, k, False))
+    o = np.array([[2.5]])
+    for k in range(8):
+        cases.append((o, k, False))
+    return cases
+
+
+def tensorinv_cases():
+    """The cases of the inverse of a tensor: the values and the place."""
+    rng = np.random.default_rng(11)
+    cases = []
+    for shape, ind in [((3, 3), 1), ((2, 2, 4), 2), ((2, 2, 2, 2), 2),
+                       ((2, 3, 3, 2), 2), ((2, 2, 2, 2, 2, 2), 3)]:
+        prod = 1
+        for n in shape[ind:]:
+            prod *= n
+        m = rng.normal(size=(prod, prod))
+        cases.append((m.reshape(shape), ind))
+    return cases
+
+
+def tensorsolve_cases():
+    """The cases of the solution of a tensor equation: the tensor, the
+    right side and the axes."""
+    rng = np.random.default_rng(23)
+    cases = []
+    a1 = rng.normal(size=(3, 3))
+    cases.append((a1, np.array([1.0, 2.0, 3.0]), []))
+    a2 = rng.normal(size=(6, 2, 3))
+    cases.append((a2, rng.normal(size=6), []))
+    a3 = rng.normal(size=(2, 3, 6))
+    cases.append((a3, rng.normal(size=(2, 3)), []))
+    a4 = np.eye(24).reshape((6, 4, 2, 3, 4))
+    cases.append((a4, rng.normal(size=(4, 6)), []))
+    a5 = rng.normal(size=(2, 6, 3, 4))
+    b5 = rng.normal(size=(2, 6))
+    cases.append((a5, b5, []))
+    cases.append((a5, b5, [0, 1]))
+    cases.append((a5, b5, [1, 0]))
+    return cases
+
+
+def main():
+    lines = ["// Generated by test/gen_norms_tensors.py. Do not edit by hand.",
+             "",
+             "// The pins of the tests of the norms and the tensors. They come",
+             "// from NumPy 2.5.4.",
+             "namespace norms_tensors_pins;",
+             ""]
+
+    vc = vector_cases()
+    # The values of the inputs, one part for each case.
+    parts = []
+    for c in vc:
+        parts.append(list(c[0].ravel()))
+    ragged(lines, "VN_IN", parts)
+    ragged(lines, "VN_SH", [shape_of(c[0]) for c in vc])
+    emit(lines, "VN_ORD", [c[1] for c in vc])
+    ragged(lines, "VN_AX", [[float(a) for a in c[2]] for c in vc])
+    emit(lines, "VN_KEEP", [1.0 if c[3] else 0.0 for c in vc])
+    outs = []
+    oshapes = []
+    for c in vc:
+        order = [o for o in ORDERS if o[1] == c[1]][0][0]
+        axis = tuple(c[2]) if len(c[2]) else None
+        with np.errstate(divide="ignore"):
+            r = np.linalg.vector_norm(c[0], axis=axis, keepdims=c[3], ord=order)
+        outs.append(list(np.atleast_1d(r).ravel()))
+        oshapes.append(result_shape(r))
+    ragged(lines, "VN_OUT", outs)
+    ragged(lines, "VN_OUT_SH", oshapes)
+
+    mc = matrix_cases()
+    parts = []
+    for c in mc:
+        parts.append(list(c[0].ravel()))
+    ragged(lines, "MN_IN", parts)
+    ragged(lines, "MN_SH", [shape_of(c[0]) for c in mc])
+    emit(lines, "MN_ORD", [c[1] for c in mc])
+    emit(lines, "MN_KEEP", [1.0 if c[2] else 0.0 for c in mc])
+    outs = []
+    oshapes = []
+    for c in mc:
+        r = np.linalg.matrix_norm(c[0], ord=MATRIX_ORDERS[c[1]][1], keepdims=c[2])
+        outs.append(list(np.atleast_1d(r).ravel()))
+        oshapes.append(result_shape(r))
+    ragged(lines, "MN_OUT", outs)
+    ragged(lines, "MN_OUT_SH", oshapes)
+
+    tc = tensorinv_cases()
+    parts = []
+    for c in tc:
+        parts.append(list(c[0].ravel()))
+    ragged(lines, "TI_IN", parts)
+    ragged(lines, "TI_SH", [shape_of(c[0]) for c in tc])
+    emit(lines, "TI_IND", [c[1] for c in tc])
+    outs = []
+    oshapes = []
+    for c in tc:
+        r = np.linalg.tensorinv(c[0], ind=c[1])
+        outs.append(list(r.ravel()))
+        oshapes.append(result_shape(r))
+    ragged(lines, "TI_OUT", outs)
+    ragged(lines, "TI_OUT_SH", oshapes)
+
+    sc = tensorsolve_cases()
+    parts = []
+    for c in sc:
+        parts.append(list(c[0].ravel()))
+    ragged(lines, "TS_A", parts)
+    ragged(lines, "TS_A_SH", [shape_of(c[0]) for c in sc])
+    parts = []
+    for c in sc:
+        parts.append(list(c[1].ravel()))
+    ragged(lines, "TS_B", parts)
+    ragged(lines, "TS_B_SH", [shape_of(c[1]) for c in sc])
+    ragged(lines, "TS_AX", [[float(a) for a in c[2]] for c in sc])
+    outs = []
+    oshapes = []
+    for c in sc:
+        axis = tuple(c[2]) if len(c[2]) else None
+        r = np.linalg.tensorsolve(c[0], c[1], axes=axis)
+        outs.append(list(r.ravel()))
+        oshapes.append(result_shape(r))
+    ragged(lines, "TS_OUT", outs)
+    ragged(lines, "TS_OUT_SH", oshapes)
+
+    open(OUT, "w").write("\n".join(lines) + "\n")
+    print("wrote %s" % OUT)
+    print("vector cases %d, matrix cases %d, inverse cases %d, solve cases %d"
+          % (len(vc), len(mc), len(tc), len(sc)))
+
+
+if __name__ == "__main__":
+    main()
