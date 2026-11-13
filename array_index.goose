@@ -396,12 +396,61 @@ fn put_along_axis(a, index, values, axis: i64) -> Fault {
 // rest of the buffer holds the elements of the pieces in their order.
 struct Parts { count: i64, ndim: i64, axis: i64, shape: i64[..8], buf: f64[>..] }
 
+// parts_check checks the pieces of a cut. The buffer holds the length
+// of every piece along the axis in two places each, and the count of
+// its elements in the other place. The rest of the buffer holds the
+// elements of the pieces in their order. A forged set of pieces gives
+// a fault and not a crash of the program.
+fn parts_check(p, tag: const u8[:]) -> Fault {
+    if p.count < 0 {
+        return fault(F_SHAPE, tag, "the count of the pieces is not right");
+    }
+    if p.ndim < 1 || p.ndim > MAX_DIMS {
+        return fault(F_SHAPE, tag, "the pieces hold a count of dimensions that is not right");
+    }
+    if p.ndim > p.shape.len {
+        return fault(F_SHAPE, tag, "the shape of the pieces holds fewer dimensions than the count");
+    }
+    if p.axis < 0 || p.axis >= p.ndim {
+        return fault(F_RANGE, tag, "the axis of the cut stands outside the shape");
+    }
+    // The buffer holds two values for every piece, and then the values
+    // of the pieces.
+    if p.count > p.buf.len / 2 {
+        return fault(F_SHAPE, tag, "the buffer of the pieces holds too few values");
+    }
+    // The count of the values of every piece must fit in the buffer.
+    var room: i64 = p.buf.len - p.count * 2;
+    var total: i64 = 0;
+    var i: i64 = 0;
+    while i < p.count {
+        let w = p.buf[i * 2];
+        let c = p.buf[i * 2 + 1];
+        if !whole_place(w) || !whole_place(c) {
+            return fault(F_VALUE, tag, "a piece holds a count that is not a whole number");
+        }
+        if w < 0.0 || c < 0.0 {
+            return fault(F_SHAPE, tag, "a piece holds a count that is not right");
+        }
+        // The count of a piece must fit in the room that is left. The
+        // check uses a difference, so no sum can overflow.
+        if c as i64 > room - total {
+            return fault(F_SHAPE, tag, "the values of the pieces lie outside the buffer");
+        }
+        total += c as i64;
+        i += 1;
+    }
+    return no_fault();
+}
+
 // part gives the piece of a number. A number outside the count of
 // the pieces is a fault.
 fn part(p, index: i64) -> Arr, Fault {
     if index < 0 || index >= p.count {
         return empty_arr(), fault(F_RANGE, "part", "the number stands outside the pieces");
     }
+    let f = parts_check(p, "part");
+    if f.kind != F_NONE { return empty_arr(), f; }
     let width = p.buf[index * 2] as i64;
     let total = p.buf[index * 2 + 1] as i64;
     var offset: i64 = 0;
@@ -419,12 +468,23 @@ fn part(p, index: i64) -> Arr, Fault {
     return Arr { ndim: p.ndim, shape: s, data: d }, no_fault();
 }
 
+// cut_check checks an array before a cut. The array must agree with its
+// own shape, and the axis must lie inside the shape. A forged array
+// gives a fault and not a crash of the program.
+fn cut_check(a, axis: i64, tag: const u8[:]) -> Fault {
+    let f = check_stack(a.ndim, a.shape, a.data.len, 1, tag);
+    if f.kind != F_NONE { return f; }
+    if axis < 0 || axis >= a.ndim {
+        return fault(F_RANGE, tag, "the axis stands outside the shape");
+    }
+    return no_fault();
+}
+
 // split cuts an array along one axis into pieces of an equal count.
 // A count that does not cut the axis is a fault, as in NumPy.
 fn split(a, pieces: i64, axis: i64) -> Parts, Fault {
-    if axis < 0 || axis >= a.ndim {
-        return empty_parts(), fault(F_RANGE, "split", "the axis stands outside the shape");
-    }
+    let fc = cut_check(a, axis, "split");
+    if fc.kind != F_NONE { return empty_parts(), fc; }
     if pieces < 1 {
         return empty_parts(), fault(F_VALUE, "split", "the count of pieces holds a value below one");
     }
@@ -439,9 +499,8 @@ fn split(a, pieces: i64, axis: i64) -> Parts, Fault {
 // equal as the axis allows. The first pieces of the cut hold one
 // element more, as NumPy does.
 fn array_split(a, pieces: i64, axis: i64) -> Parts, Fault {
-    if axis < 0 || axis >= a.ndim {
-        return empty_parts(), fault(F_RANGE, "array_split", "the axis stands outside the shape");
-    }
+    let fc = cut_check(a, axis, "array_split");
+    if fc.kind != F_NONE { return empty_parts(), fc; }
     if pieces < 1 {
         return empty_parts(), fault(F_VALUE, "array_split", "the count of pieces holds a value below one");
     }
@@ -451,6 +510,8 @@ fn array_split(a, pieces: i64, axis: i64) -> Parts, Fault {
 // cut_axis does the work of the two cuts. The flag tells whether the
 // pieces may hold different counts.
 fn cut_axis(a, pieces: i64, axis: i64, uneven: bool) -> Parts, Fault {
+    let fc = cut_check(a, axis, "cut");
+    if fc.kind != F_NONE { return empty_parts(), fc; }
     let width = a.shape[axis];
     let inner = product_after_of(a.shape, axis);
     let outer = product_before_of(a.shape, axis);
@@ -466,9 +527,21 @@ fn cut_axis(a, pieces: i64, axis: i64, uneven: bool) -> Parts, Fault {
         sizes.push(size);
         p += 1;
     }
+    return cut_sizes(a, sizes, axis);
+}
+
+// cut_sizes gathers the pieces of a cut. The sizes give the count of
+// the values of every piece along the axis.
+fn cut_sizes(a, sizes: i64[:], axis: i64) -> Parts, Fault {
+    let fc = cut_check(a, axis, "cut");
+    if fc.kind != F_NONE { return empty_parts(), fc; }
+    let pieces = sizes.len;
+    let width = a.shape[axis];
+    let inner = product_after_of(a.shape, axis);
+    let outer = product_before_of(a.shape, axis);
     var d: f64[>..] = [];
     var start: i64 = 0;
-    p = 0;
+    var p: i64 = 0;
     while p < pieces {
         let size = sizes[p];
         var o: i64 = 0;
@@ -498,10 +571,7 @@ fn cut_axis(a, pieces: i64, axis: i64, uneven: bool) -> Parts, Fault {
     }
     p = 0;
     while p < d.len { buf.push(d[p]); p += 1; }
-    var shape: i64[..8] = [];
-    var q: i64 = 0;
-    while q < a.ndim { shape.push(a.shape[q]); q += 1; }
-    return Parts { count: pieces, ndim: a.ndim, axis: axis, shape: shape, buf: buf }, no_fault();
+    return Parts { count: pieces, ndim: a.ndim, axis: axis, shape: same_shape(a), buf: buf }, no_fault();
 }
 
 // empty_parts gives the pieces of no array.

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.175.0";
+import scientific from "rekanalar/goose-scientific@v0.176.0";
 ```
 
 ## API
@@ -61,6 +61,7 @@ import scientific from "rekanalar/goose-scientific@v0.175.0";
 | Shapes of another array | `empty`, `full_like`, `zeros_like`, `ones_like`, `trim_zeros`, `insert` |
 | Writes | `putmask`, `place`, `put_along_axis` |
 | Cuts | `split`, `array_split`, `hsplit`, `vsplit`, `part` |
+| Layout and the memory of the arrays | `packbits`, `unpackbits`, `copyto`, `copyto_where`, `require`, `Blocks`, `block_new`, `block_put`, `block_build`, `sort_complex`, `rollaxis`, `as_strided` |
 | Triangles | `tril`, `triu` |
 | Between the points | `interp`, `gradient`, `pad_value` |
 | Root finding | `brentq`, `brenth`, `newton`, `halley`, `secant`, `toms748`, `fsolve`, `root`, `root_scalar` |
@@ -2048,6 +2049,44 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   needs more gives a fault of kind `F_LIMIT`.
 - A pair of side 512 takes about 50 seconds on a current machine. The
   work grows with the cube of the side.
+- `packbits` and `unpackbits` work on one axis. The default axis is the
+  last axis. NumPy lays the whole array flat when no axis is named. The
+  caller reaches that form with `flatten`.
+- The package holds the type of 64-bit floating point numbers only.
+  `packbits` reads a value as a bit when the value is not zero.
+  `unpackbits` reads a value as a byte when the value is a whole number
+  from 0 to 255. NumPy refuses an array of floats for both calls.
+- `as_strided` gives a copy. NumPy gives a view that shares the memory
+  of the buffer. A write into the result of this package does not reach
+  the buffer of the caller.
+- `as_strided` takes the steps in bytes. Every step has to be a whole
+  number of 8 bytes. A place of the result that lies outside the buffer
+  gives a fault of kind `F_RANGE`. NumPy reads the memory outside the
+  buffer and gives values that hold the old content of that memory.
+- `split` takes a list of places when it gets one. The count of the
+  pieces is the count of the places plus one.
+  The last piece runs to the end of the axis.
+  A place that lies outside the axis gives a fault of kind `F_RANGE`.
+  NumPy cuts at the end of the axis instead.
+- `copyto` and `copyto_where` write into the buffer of the array of the
+  caller. A caller that shares that array shares the change. The source
+  and the mask spread over the shape of the destination.
+- `require` gives a copy that owns its buffer and lies in row-major
+  order. The order `F` gives a fault of kind `F_VALUE`.
+  The package holds one order of the memory.
+- `block_build` needs a block in every place of the grid.
+  The blocks of a row must agree on the axes before the last one.
+  The rows must agree on the width of the last axis.
+  A block that breaks the rule gives a fault of kind `F_SHAPE`.
+- The rows of a grid follow each other along the axis before the last
+  one. The axes before that come first. NumPy joins the blocks in the
+  same order.
+- Every block that goes into a grid checks the records of the grid
+  first. A grid of 4096 blocks takes about 2.5 seconds to fill.
+- The unpack of a count of zero gives an axis of no bit. NumPy gives an
+  empty array. A call of the package that checks the shape refuses that
+  array. The cut of a list of places leaves an empty piece in the same
+  way.
 
 ## Security
 
@@ -2622,6 +2661,41 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   windowed array divides the limit of the elements by the count of the
   window. No product overflows. The border of the input is checked the
   same way. A block reads the windowed array only.
+- The calls of the layout check the shape, the axis, the count and the
+  values before any buffer grows. The count of the elements of a result
+  is checked against `MAX_ELEMENTS` with a quotient, so no product
+  overflows.
+- The calls of the layout check the array against its own shape before
+  they read a value. A caller that forges an array gets a fault of kind
+  `F_SHAPE` and not a crash of the program.
+- `unpackbits` checks every byte before it reads one. A byte that is not
+  a whole number from 0 to 255 gives a fault of kind `F_VALUE`. The
+  count of the bits is checked against the limit of the elements before
+  the buffer grows.
+- `as_strided` checks every step and every place of the result.
+  A place that lies outside the buffer gives a fault of kind `F_RANGE`.
+  So a hostile step never reads the memory outside the buffer.
+- `copyto` and `copyto_where` check the shape and the buffer of the
+  destination and the mask before they write.
+  The source spreads under the broadcast rule.
+  A source of a shape that does not fit gives a fault of kind `F_SHAPE`.
+- The builder of the grid checks the sides of the grid and the count of
+  the blocks. A grid holds at most 4096 blocks.
+  The buffer of the builder is checked against the limit of the elements.
+- The builder of the grid checks every record of its buffer before it
+  reads one. A record that lies outside the buffer gives a fault. So does
+  a place that lies outside the grid. So does a shape that does not give
+  the count of the values of the block. A forged grid never crashes the
+  program.
+  The count of the values of the result is checked against the limit of
+  the elements before the result grows.
+- The pieces of a cut check their buffer before they read one. A count
+  of pieces that the buffer cannot hold gives a fault. Values that lie
+  outside the buffer give a fault too. A forged set of pieces never
+  crashes the program.
+- Every cut checks the array against its own shape before it reads a
+  value. A caller that forges an array gets a fault of kind `F_SHAPE`
+  and not a crash of the program.
 
 ## License
 
