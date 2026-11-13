@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.171.0";
+import scientific from "rekanalar/goose-scientific@v0.172.0";
 ```
 
 ## API
@@ -97,6 +97,7 @@ import scientific from "rekanalar/goose-scientific@v0.171.0";
 | Grid of sparse blocks | `Bmat`, `bmat_new`, `bmat_put`, `csr_bmat` |
 | Sparse LU factor | `Splu`, `sparse_lu`, `splu_solve`, `splu_solve_matrix`, `splu_l`, `splu_u`, `splu_perm_r`, `splu_perm_c`, `splu_nnz`, `lu_factor_limited` |
 | Sparse norm and exponential | `onenormest`, `expm_multiply`, `expm_multiply_range` |
+| Partial singular values of a sparse matrix | `svds`, `SVDS_BOTH`, `SVDS_VALUES`, `SVDS_LEFT`, `SVDS_RIGHT` |
 | Restarted sparse solvers | `lgmres`, `gcrotmk` |
 | Sparse diagonals by column | `spdiags` |
 | Sparse matrices of blocks | `Bsr`, `bsr_from_entries`, `bsr_from_dense`, `bsr_to_dense`, `bsr_from_csr`, `bsr_to_csr`, `bsr_from_coo`, `bsr_to_coo`, `bsr_get`, `bsr_scale`, `bsr_matvec`, `bsr_transpose`, `bsr_sum`, `bsr_nnz`, `bsr_diagonal`, `bsr_blocks` |
@@ -310,6 +311,41 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   reorthogonalization, and a space above 256 vectors is a fault. It has
   no `M`, no `sigma`, no `v0` and no `ncv`. The vectors may differ in
   sign from SciPy. Give it a symmetric matrix.
+- `svds` gives the `k` largest or the `k` smallest singular values of a
+  sparse matrix, with their vectors. It gives `u` of `rows` by `k`, the
+  values, and `vt` of `k` by `cols`. The values stand in rising order. It
+  takes `k`, `which`, `tol`, a start vector, `ncv`, `maxiter` and a mode.
+  The mode is `SVDS_BOTH`, `SVDS_VALUES`, `SVDS_LEFT` or `SVDS_RIGHT`.
+
+  The call uses the Lanczos method with a full reorthogonalization. It
+  never builds the dense matrix and never builds the normal matrix. The
+  matrix is used through its product with a vector and its product with
+  the transpose. A space above 512 vectors is a fault of kind `F_LIMIT`.
+
+  The choice `SM` gives the smallest values of the matrix. It converges
+  slowly on a large matrix, because the smallest values of the normal
+  matrix sit inside its range. A call that does not converge within the
+  rebuilds gives a fault of kind `F_LIMIT`. Scale the matrix, or use a
+  shift, when the caller needs the smallest values of a large matrix.
+
+  The values agree with SciPy to `1.0e-8` on the pinned matrices. The
+  vectors agree up to a sign. A value that stands far below the largest
+  one loses accuracy in its vector. The normal operator squares the
+  matrix, so the vector of a small value is less exact. The call takes
+  the value from the norm of the product of the matrix with the vector.
+  So the value stays right, and only the vector loses accuracy.
+
+  The call takes no solver choice, no random generator, no options and
+  no linear operator. It takes no callback. A start vector of zero
+  length means the fixed start of the package.
+
+  A matrix of zeros gives the values of zero and orthonormal vectors.
+  SciPy gives an error of ARPACK. A repeated value above the size of
+  the space may lose a copy of it.
+
+  `eigh_tridiagonal` gives the wrong vectors for a repeated eigenvalue.
+  The vectors of an equal value stand parallel to each other. The call
+  `svds` splits the matrix of its iteration into blocks, so it holds.
 - `csr_hstack` and `csr_vstack` join two matrices, not a list. Call them
   again for more. `csr_kron` and `csr_block_diag` take two matrices.
 - `csr_kronsum` follows `scipy.sparse.kronsum`: `kron(I_m, a) + kron(b, I_n)`.
@@ -474,7 +510,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   sparse. The side stays at 16384 or below. A matrix that is not square
   gives a fault of kind `F_SHAPE`. A singular matrix gives a fault of
   kind `F_VALUE`. `cg` takes the start zero and no
-  preconditioner. `gmres`, `bicgstab`, `eigsh` and `svds` stay out.
+  preconditioner. `gmres`, `bicgstab` and `eigsh` stay out.
+
+  The call `svds` holds the singular values of a sparse matrix.
 - `sparse_lu` gives the same solution as `splu` of SciPy. It does not
   give the same factors.
 
@@ -2022,6 +2060,28 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   covers the finite values and the diagonal of `U`. A forged factor gives
   a fault of kind `F_SHAPE`. The check runs before any call walks the
   buffer, and the counts are bounded before the length is computed.
+- `svds` checks the matrix, the counts, the tolerance, the choice, the
+  start vector and the mode before any product. The matrix has no square
+  test. Its layout has to hold, and every stored value has to be finite.
+  A value that is not finite gives a fault of kind `F_VALUE`. SciPy
+  computes with it and returns NaN.
+
+  A count above a limit gives a fault of kind `F_LIMIT`. The check runs
+  before any buffer grows. The count of the values must stand below the
+  smaller side of the matrix. The size of the space must stand above the
+  count of the values. It must also stand below the smaller side.
+
+  A start vector of the wrong length gives a fault of kind `F_SHAPE`. A
+  start vector of zeros gives a fault of kind `F_VALUE`. SciPy accepts
+  it and gives a result that means nothing.
+
+  A start vector with a scale near the largest double is scaled to norm
+  one before the iteration starts. A norm of that vector would overflow
+  and give a wrong result without any fault.
+
+  A matrix of zeros gives no fault. The values are zero and the vectors
+  stand orthonormal. The call takes the vectors from the unit vectors of
+  a fixed order. So every run gives the same result.
 - `lgmres` and `gcrotmk` check the matrix, the right side and the start
   vector before any product. The matrix is square, its layout holds, and
   every stored value is finite. A matrix that is not square gives a fault

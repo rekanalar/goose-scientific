@@ -131,6 +131,8 @@ import array_sparse_bmat;
 import array_sparse_lu;
 import array_sparse_expm;
 import array_sparse_lgmres;
+import array_sparse_svds;
+import array_sparse_svds_call;
 import array_sparse_lgmres_calls;
 import array_sparse_bicg;
 import array_sparse_lsmr;
