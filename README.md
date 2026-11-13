@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.173.1";
+import scientific from "rekanalar/goose-scientific@v0.174.0";
 ```
 
 ## API
@@ -98,7 +98,7 @@ import scientific from "rekanalar/goose-scientific@v0.173.1";
 | Sparse LU factor | `Splu`, `sparse_lu`, `splu_solve`, `splu_solve_matrix`, `splu_l`, `splu_u`, `splu_perm_r`, `splu_perm_c`, `splu_nnz`, `lu_factor_limited` |
 | Sparse norm and exponential | `onenormest`, `expm_multiply`, `expm_multiply_range` |
 | Partial singular values of a sparse matrix | `svds`, `SVDS_BOTH`, `SVDS_VALUES`, `SVDS_LEFT`, `SVDS_RIGHT` |
-| Restarted sparse solvers | `lgmres`, `gcrotmk` |
+| Restarted sparse solvers | `lgmres`, `gcrotmk`, `lgmres_pairs`, `gcrotmk_pairs`, `Kept`, `kept_empty` |
 | Extreme eigenpairs of a sparse symmetric matrix | `lobpcg` |
 | Sparse diagonals by column | `spdiags` |
 | Sparse matrices of blocks | `Bsr`, `bsr_from_entries`, `bsr_from_dense`, `bsr_to_dense`, `bsr_from_csr`, `bsr_to_csr`, `bsr_from_coo`, `bsr_to_coo`, `bsr_get`, `bsr_scale`, `bsr_matvec`, `bsr_transpose`, `bsr_sum`, `bsr_nnz`, `bsr_diagonal`, `bsr_blocks` |
@@ -264,9 +264,28 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   while SciPy gives the limit. A singular system may give a large finite
   iterate, so the caller checks the residual.
 
-  The calls take no callback, no preconditioner `M`, no `CU` and no
-  `outer_v`. The flag `discard_c` has no visible effect, because the
-  package keeps no pair after the call.
+  A trailing block on `lgmres` or `gcrotmk` gets the solution at the
+  start of each outer turn. The call gives the block the vector before
+  the stop check. The block reads a view of the vector, so it cannot
+  change it. A call without a block gives the result of the earlier
+  release.
+
+  The parameter `precond` takes a sparse matrix that stands for the
+  preconditioner `M` of SciPy. `lgmres` uses it on the left, and
+  `gcrotmk` uses it on the right, as SciPy does. The matrix has to be
+  square and to have the side of the system.
+
+  The calls `lgmres_pairs` and `gcrotmk_pairs` take the kept pairs of
+  an earlier solve and give the pairs that stay. A pair holds two
+  vectors of n values in one flat buffer. One pair takes `2 * n + 1`
+  values: a flag, then the first vector, then the second one. The flag
+  is 1.0 when the optional vector is there, and 0.0 when it is not. For
+  `lgmres` the flag stands for the second vector, and for `gcrotmk` for
+  the first one. The count of pairs may not pass `MAX_KEPT_PAIRS`, which
+  is 64. The pairs of `gcrotmk` must come from a solve of the same
+  matrix, where the first vector equals the matrix times the second one.
+  Pairs that break this rule may make the iteration diverge. The call
+  then gives a fault. SciPy does not check the rule.
 
   `gmres` of SciPy takes no start vector and no absolute tolerance.
   `lgmres` and `gcrotmk` take both.
@@ -2166,6 +2185,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   every stored value is finite. A matrix that is not square gives a fault
   of kind `F_SHAPE`. A value that is not finite gives a fault of kind
   `F_VALUE`. SciPy computes with it and returns NaN.
+
+  The calls check the preconditioner and the kept pairs too. A
+  preconditioner of the wrong side gives a fault of kind `F_SHAPE`. A
+  kept pair of the wrong length gives the same fault. A value that is
+  not finite gives a fault of kind `F_VALUE`. More than 64 pairs give a
+  fault of kind `F_LIMIT`.
 
   A right side or a start vector of the wrong length gives a fault of
   kind `F_SHAPE`. A tolerance below zero or not finite gives a fault of

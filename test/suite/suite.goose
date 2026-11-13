@@ -72,6 +72,7 @@ import interpolate_tests;
 import istft_tests;
 import ivp_t_tests;
 import lfilter_axis_tests;
+import lgmres_options_tests;
 import linalg_tests;
 import lobpcg_tests;
 import logic_tests;
@@ -270,6 +271,15 @@ fn run_all() {
     istft_tests::test_istft();
     ivp_t_tests::test_ivp_t_eval();
     lfilter_axis_tests::test_lfilter_axis();
+    lgmres_options_tests::test_lgmres_options_callback();
+    lgmres_options_tests::test_lgmres_options_callback_once();
+    lgmres_options_tests::test_lgmres_options_precond();
+    lgmres_options_tests::test_lgmres_options_precond_third();
+    lgmres_options_tests::test_lgmres_options_precond_faults();
+    lgmres_options_tests::test_lgmres_options_pairs_lgmres();
+    lgmres_options_tests::test_lgmres_options_pairs_gcrotmk();
+    lgmres_options_tests::test_lgmres_options_pairs_many();
+    lgmres_options_tests::test_lgmres_options_pairs_faults();
     linalg_tests::test_linalg();
     lobpcg_tests::test_lobpcg_standard();
     lobpcg_tests::test_lobpcg_default_tolerance();
@@ -797,6 +807,18 @@ fn run_group(g: const u8[:]) -> bool {
     }
     if g == "lfilter_axis" {
         lfilter_axis_tests::test_lfilter_axis();
+        return true;
+    }
+    if g == "lgmres_options" {
+        lgmres_options_tests::test_lgmres_options_callback();
+        lgmres_options_tests::test_lgmres_options_callback_once();
+        lgmres_options_tests::test_lgmres_options_precond();
+        lgmres_options_tests::test_lgmres_options_precond_third();
+        lgmres_options_tests::test_lgmres_options_precond_faults();
+        lgmres_options_tests::test_lgmres_options_pairs_lgmres();
+        lgmres_options_tests::test_lgmres_options_pairs_gcrotmk();
+        lgmres_options_tests::test_lgmres_options_pairs_many();
+        lgmres_options_tests::test_lgmres_options_pairs_faults();
         return true;
     }
     if g == "linalg" {
@@ -1648,6 +1670,15 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_istft" { istft_tests::test_istft(); return true; }
     if t == "test_ivp_t_eval" { ivp_t_tests::test_ivp_t_eval(); return true; }
     if t == "test_lfilter_axis" { lfilter_axis_tests::test_lfilter_axis(); return true; }
+    if t == "test_lgmres_options_callback" { lgmres_options_tests::test_lgmres_options_callback(); return true; }
+    if t == "test_lgmres_options_callback_once" { lgmres_options_tests::test_lgmres_options_callback_once(); return true; }
+    if t == "test_lgmres_options_precond" { lgmres_options_tests::test_lgmres_options_precond(); return true; }
+    if t == "test_lgmres_options_precond_third" { lgmres_options_tests::test_lgmres_options_precond_third(); return true; }
+    if t == "test_lgmres_options_precond_faults" { lgmres_options_tests::test_lgmres_options_precond_faults(); return true; }
+    if t == "test_lgmres_options_pairs_lgmres" { lgmres_options_tests::test_lgmres_options_pairs_lgmres(); return true; }
+    if t == "test_lgmres_options_pairs_gcrotmk" { lgmres_options_tests::test_lgmres_options_pairs_gcrotmk(); return true; }
+    if t == "test_lgmres_options_pairs_many" { lgmres_options_tests::test_lgmres_options_pairs_many(); return true; }
+    if t == "test_lgmres_options_pairs_faults" { lgmres_options_tests::test_lgmres_options_pairs_faults(); return true; }
     if t == "test_linalg" { linalg_tests::test_linalg(); return true; }
     if t == "test_lobpcg_standard" { lobpcg_tests::test_lobpcg_standard(); return true; }
     if t == "test_lobpcg_default_tolerance" { lobpcg_tests::test_lobpcg_default_tolerance(); return true; }
@@ -2419,6 +2450,18 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_lfilter_axis" { lfilter_axis_tests::test_lfilter_axis(); return true; }
         return false;
     }
+    if g == "lgmres_options" {
+        if t == "test_lgmres_options_callback" { lgmres_options_tests::test_lgmres_options_callback(); return true; }
+        if t == "test_lgmres_options_callback_once" { lgmres_options_tests::test_lgmres_options_callback_once(); return true; }
+        if t == "test_lgmres_options_precond" { lgmres_options_tests::test_lgmres_options_precond(); return true; }
+        if t == "test_lgmres_options_precond_third" { lgmres_options_tests::test_lgmres_options_precond_third(); return true; }
+        if t == "test_lgmres_options_precond_faults" { lgmres_options_tests::test_lgmres_options_precond_faults(); return true; }
+        if t == "test_lgmres_options_pairs_lgmres" { lgmres_options_tests::test_lgmres_options_pairs_lgmres(); return true; }
+        if t == "test_lgmres_options_pairs_gcrotmk" { lgmres_options_tests::test_lgmres_options_pairs_gcrotmk(); return true; }
+        if t == "test_lgmres_options_pairs_many" { lgmres_options_tests::test_lgmres_options_pairs_many(); return true; }
+        if t == "test_lgmres_options_pairs_faults" { lgmres_options_tests::test_lgmres_options_pairs_faults(); return true; }
+        return false;
+    }
     if g == "linalg" {
         if t == "test_linalg" { linalg_tests::test_linalg(); return true; }
         return false;
@@ -3109,5 +3152,5 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
 }
 
 fn print_groups() {
-    print("groups: assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves nan nd_interpolator ndimage ndimage_pins nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
+    print("groups: assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves nan nd_interpolator ndimage ndimage_pins nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
 }

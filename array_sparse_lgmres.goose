@@ -1,4 +1,4 @@
-// The helpers of the restarted Krylov solvers: the norms, the Arnoldi step and the solution.
+// The core of lgmres and the helpers of the restarted Krylov solvers.
 //
 // The restarted Krylov solvers lgmres and gcrotmk.
 //
@@ -14,9 +14,9 @@
 // GCROT(m,k) method of Hicken and Zingg. It keeps k pairs of vectors across
 // the restarts and solves the inner problem with a flexible GMRES.
 //
-// The package takes no callback, no preconditioner and no list of kept
-// vectors. The path of the iteration may differ from SciPy. The solutions
-// agree when the tolerance is tight.
+// Both calls take a preconditioner, a callback and a list of kept vectors.
+// The path of the iteration may differ from SciPy. The solutions agree when
+// the tolerance is tight.
 namespace scientific;
 
 import mathshim;
@@ -28,6 +28,159 @@ const MAX_KRYLOV_ITER: i64 = 1000000;
 // A diagonal entry below this share of the largest one counts as zero in the
 // triangular solve of the inner problem.
 const KRYLOV_RANK_TOL: f64 = 1.0e-14;
+
+fn lgmres_run<F>(s, b: f64[:], x0: f64[:], rtol: f64, atol: f64, maxiter: i64, inner_m: i64, outer_k: i64,
+                 store_outer_av: bool, prepend_outer_v: bool, mp, ov_in, want_pairs: bool) -> Arr, i64, Kept, Fault {
+    let f = lg_check(s, b, x0, rtol, atol, maxiter, "lgmres");
+    if f.kind != F_NONE { return empty_arr(), 0, kept_empty(), f; }
+    if inner_m < 1 { return empty_arr(), 0, kept_empty(), fault(F_RANGE, "lgmres", "the inner size is below one"); }
+    if outer_k < 0 { return empty_arr(), 0, kept_empty(), fault(F_RANGE, "lgmres", "the count of kept vectors is below zero"); }
+    let n = s.rows;
+    let fp = precond_check(mp, n, "lgmres");
+    if fp.kind != F_NONE { return empty_arr(), 0, kept_empty(), fp; }
+    let fq = kept_check(ov_in, n, "lgmres");
+    if fq.kind != F_NONE { return empty_arr(), 0, kept_empty(), fq; }
+    var pmode: i64 = PRE_NONE;
+    if precond_present(mp) { pmode = PRE_LEFT; }
+    let cnt = ov_in.count;
+    var m_eff = inner_m;
+    if m_eff > n { m_eff = n; }
+    var k_eff = outer_k;
+    if k_eff > maxiter { k_eff = maxiter; }
+    if k_eff > n { k_eff = n; }
+    // The buffer holds the pairs of the caller, plus one slot for the new
+    // correction, plus the slot that the trim leaves free.
+    var kcap = k_eff + 1;
+    if cnt + 1 > kcap { kcap = cnt + 1; }
+    let mt = m_eff + kcap;
+    let fs = lg_storage_check(n, mt, 2 * kcap, "lgmres");
+    if fs.kind != F_NONE { return empty_arr(), 0, kept_empty(), fs; }
+    let bn = lg_norm(b, 0, n);
+    if bn - bn != 0.0 { return empty_arr(), 0, kept_empty(), fault(F_VALUE, "lgmres", "the norm of the right side overflows"); }
+    if bn == 0.0 { return line_arr(nd_zeros(n)), 0, kept_copy(ov_in), no_fault(); }
+    let ld = mt + 1;
+    var x: f64[>..] = nd_zeros(n);
+    var i: i64 = 0;
+    while i < x0.len { x[i] = x0[i]; i += 1; }
+    var vs: f64[>..] = nd_zeros(ld * n);
+    var zs: f64[>..] = nd_zeros(mt * n);
+    var h: f64[>..] = nd_zeros(ld * mt);
+    var hr: f64[>..] = nd_zeros(ld * mt);
+    var cs: f64[>..] = nd_zeros(mt);
+    var sn: f64[>..] = nd_zeros(mt);
+    var g: f64[>..] = nd_zeros(ld);
+    var w: f64[>..] = nd_zeros(n);
+    var y: f64[>..] = nd_zeros(mt);
+    var r: f64[>..] = nd_zeros(n);
+    // The scratch of the left preconditioner holds the product before the
+    // preconditioner multiplies it. A call without that preconditioner needs
+    // no scratch.
+    var pt: f64[>..] = [];
+    if pmode == PRE_LEFT { pt = nd_zeros(n); }
+    var dx: f64[>..] = nd_zeros(n);
+    var ax: f64[>..] = nd_zeros(n);
+    var ov: f64[>..] = nd_zeros(kcap * n);
+    var oav: f64[>..] = nd_zeros(kcap * n);
+    var no_cc: f64[>..] = [];
+    var no_bm: f64[>..] = [];
+    var tol = rtol * bn;
+    if atol > tol { tol = atol; }
+    var factor: f64 = 1.0;
+    var nout: i64 = 0;
+    var kout: i64 = 0;
+    // The kept vectors of the caller come first. A missing product is formed
+    // here, in the units of the preconditioned system.
+    var p0: i64 = 0;
+    while p0 < cnt {
+        let fa = kept_first_off(p0, n);
+        let fb = kept_second_off(p0, n);
+        i = 0;
+        while i < n { ov[p0 * n + i] = ov_in.buf[fa + i]; i += 1; }
+        if store_outer_av {
+            if ov_in.buf[kept_base(p0, n)] == 1.0 {
+                i = 0;
+                while i < n { oav[p0 * n + i] = ov_in.buf[fb + i]; i += 1; }
+            } else {
+                expm_block_product(s, ov, p0 * n, n, oav, p0 * n);
+                if pmode == PRE_LEFT {
+                    i = 0;
+                    while i < n { w[i] = oav[p0 * n + i]; i += 1; }
+                    precond_apply(mp, w, 0, n, oav, p0 * n);
+                }
+            }
+        }
+        p0 += 1;
+    }
+    nout = cnt;
+    while kout < maxiter {
+        let rn = lg_residual(s, b, x, r, n);
+        if rn - rn != 0.0 { return empty_arr(), 0, kept_empty(), fault(F_VALUE, "lgmres", "the iterate holds a value that is not finite"); }
+        F(x[0..n]);
+        if rn <= tol { return line_arr(copy(x)), 0, lg_pack(ov, oav, nout, n, store_outer_av, want_pairs), no_fault(); }
+        // With a preconditioner the start direction is M r, and the inner
+        // solution scales back by its norm.
+        var r0n = rn;
+        if pmode == PRE_LEFT {
+            precond_apply(mp, r, 0, n, w, 0);
+            r0n = lg_norm(w, 0, n);
+            if r0n - r0n != 0.0 { return empty_arr(), 0, kept_empty(), fault(F_VALUE, "lgmres", "the preconditioner gave a value that is not finite"); }
+            if r0n == 0.0 { return empty_arr(), 0, kept_empty(), fault(F_VALUE, "lgmres", "the preconditioner maps the residual to zero"); }
+            i = 0;
+            while i < n { vs[i] = w[i] / r0n; i += 1; }
+        } else {
+            i = 0;
+            while i < n { vs[i] = r[i] / rn; i += 1; }
+        }
+        i = 0;
+        while i < ld { g[i] = 0.0; i += 1; }
+        g[0] = 1.0;
+        var ptol = tol / rn;
+        if factor < ptol { ptol = factor; }
+        let used, res, fa = lg_arnoldi(s, n, m_eff + nout, mt, ptol, m_eff, vs, zs, h, hr, cs, sn, g, w,
+                                       ov, oav, nout, store_outer_av, prepend_outer_v, no_cc, 0, no_bm, 1, mp, pmode, pt);
+        if fa.kind != F_NONE { return empty_arr(), 0, kept_empty(), fa; }
+        lg_solve(hr, g, used, ld, y);
+        i = 0;
+        while i < used { y[i] = y[i] * r0n; i += 1; }
+        if !lg_finite(y, used) {
+            return empty_arr(), 0, kept_empty(), fault(F_VALUE, "lgmres", "the inner solution holds a value that is not finite");
+        }
+        if res > ptol {
+            factor = 1.5 * factor;
+            if factor > 1.0 { factor = 1.0; }
+        } else {
+            factor = 0.25 * factor;
+            if factor < 1.0e-16 { factor = 1.0e-16; }
+        }
+        lg_zdir(zs, y, used, n, dx);
+        let nx = lg_norm(dx, 0, n);
+        if nx - nx != 0.0 { return empty_arr(), 0, kept_empty(), fault(F_VALUE, "lgmres", "the correction holds a value that is not finite"); }
+        if nx > 0.0 && k_eff > 0 {
+            i = 0;
+            while i < n { ov[nout * n + i] = dx[i] / nx; i += 1; }
+            if store_outer_av {
+                lg_hy(h, vs, y, used, ld, n, ax);
+                i = 0;
+                while i < n { oav[nout * n + i] = ax[i] / nx; i += 1; }
+            }
+            nout += 1;
+        }
+        // Only outer_k vectors stay, the newest ones. The oldest go first,
+        // as SciPy drops them.
+        if nout > k_eff {
+            kept_drop_oldest(ov, oav, nout, nout - k_eff, n);
+            nout = k_eff;
+        }
+        i = 0;
+        while i < n { x[i] = x[i] + dx[i]; i += 1; }
+        kout += 1;
+    }
+    // The last iteration may have solved the system. The check follows it.
+    let rl = lg_residual(s, b, x, r, n);
+    if rl - rl != 0.0 { return empty_arr(), 0, kept_empty(), fault(F_VALUE, "lgmres", "the iterate holds a value that is not finite"); }
+    if rl <= tol { return line_arr(copy(x)), 0, lg_pack(ov, oav, nout, n, store_outer_av, want_pairs), no_fault(); }
+    return line_arr(copy(x)), maxiter, lg_pack(ov, oav, nout, n, store_outer_av, want_pairs), no_fault();
+}
 
 // lg_norm gives the two-norm of n values that start at off. It divides by
 // the largest absolute value first, so no square overflows or underflows.
@@ -121,7 +274,10 @@ fn lg_storage_check(n: i64, mt: i64, kvec: i64, tag: const u8[:]) -> Fault {
 // For lgmres, a direction may be a kept correction vector. The first inner
 // steps or the last ones use them, as prepend says. For gcrotmk, nc kept
 // vectors c stand in cc, and the step removes their part from w. The part
-// goes to the matrix bm with the stride kst.
+// goes to the matrix bm with the stride kst. The matrix mp is the
+// preconditioner. With PRE_LEFT the product w becomes mp times the product.
+// With PRE_RIGHT the direction z is mp times the basis vector. With
+// PRE_NONE the call applies no preconditioner.
 //
 // The call gives the count of the steps and the residual of the inner
 // problem. h holds the Hessenberg matrix by columns of mt + 1 values. hr
@@ -130,7 +286,7 @@ fn lg_arnoldi(s, n: i64, ml: i64, mt: i64, ptol: f64, inner_m: i64,
               vs: f64[>..]&, zs: f64[>..]&, h: f64[>..]&, hr: f64[>..]&,
               cs: f64[>..]&, sn: f64[>..]&, g: f64[>..]&, w: f64[>..]&,
               ov: f64[:], oav: f64[:], nout: i64, use_av: bool, prepend: bool,
-              cc: f64[:], nc: i64, bm: f64[>..]&, kst: i64) -> i64, f64, Fault {
+              cc: f64[:], nc: i64, bm: f64[>..]&, kst: i64, mp, pmode: i64, pt: f64[>..]&) -> i64, f64, Fault {
     let ld = mt + 1;
     var j: i64 = 0;
     var used: i64 = 0;
@@ -153,11 +309,20 @@ fn lg_arnoldi(s, n: i64, ml: i64, mt: i64, ptol: f64, inner_m: i64,
             // run is the first basis vector itself.
             var src: i64 = j;
             if prepend && j == nout { src = 0; }
-            while i < n { zs[j * n + i] = vs[src * n + i]; i += 1; }
+            if pmode == PRE_RIGHT {
+                precond_apply(mp, vs, src * n, n, zs, j * n);
+            } else {
+                while i < n { zs[j * n + i] = vs[src * n + i]; i += 1; }
+            }
         }
         if from_outer && use_av {
             i = 0;
             while i < n { w[i] = oav[oi * n + i]; i += 1; }
+        } else if pmode == PRE_LEFT {
+            // The product goes into the scratch, and the preconditioner
+            // moves it to w. No copy of the vector is needed.
+            expm_block_product(s, zs, j * n, n, pt, 0);
+            precond_apply(mp, pt, 0, n, w, 0);
         } else {
             expm_block_product(s, zs, j * n, n, w, 0);
         }
