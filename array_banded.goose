@@ -69,13 +69,17 @@ fn bd_check(d: f64[:], e: f64[:], tag: const u8[:]) -> Fault {
 // each block adds up. A matrix that falls into blocks has a leading
 // minor of zero, and the sequence of the whole matrix then holds no
 // sign change at all.
-fn bd_count(x: f64, d: f64[:], e: f64[:], n: i64) -> i64 {
+fn bd_count(x: f64, d: f64[:], e: f64[:], n: i64, local: bool) -> i64 {
     var cnt: i64 = 0;
     var a: i64 = 0;
     while a < n {
         var b: i64 = a;
         while b < n - 1 && e[b] != 0.0 { b += 1; }
-        cnt += bd_count_block(x, d[a..b + 1], e[a..b], b - a + 1);
+        if local {
+            cnt += bd_count_block_local(x, d[a..b + 1], e[a..b], b - a + 1);
+        } else {
+            cnt += bd_count_block(x, d[a..b + 1], e[a..b], b - a + 1);
+        }
         a = b + 1;
     }
     return cnt;
@@ -113,10 +117,42 @@ fn bd_count_block(x: f64, d: f64[:], e: f64[:], n: i64) -> i64 {
     return cnt;
 }
 
-// bd_rank bisects for the eigenvalue of the rank k, where the ranks
+// bd_count_block_local counts like bd_count_block on a block of any scale.
+// It scales the block and the bound x by the same power of two. A scale
+// changes no sign of the sequence. A bound far above the block counts
+// all values, so the bound stays in the range of minus 8 to 8.
+fn bd_count_block_local(x: f64, d: f64[:], e: f64[:], n: i64) -> i64 {
+    let k = bd_exp(d, e, n);
+    if k == 0 { return bd_count_block(x, d, e, n); }
+    var xs = bd_mul2(x, k);
+    if !(xs <= 8.0) { xs = 8.0; }
+    if xs < -8.0 { xs = -8.0; }
+    let ds = bd_scaled(d, n, k);
+    let es = bd_scaled(e, n - 1, k);
+    return bd_count_block(xs, ds, es, n);
+}
+
+// bd_rank_all gives the eigenvalues of the ranks k1 to k2 of a matrix of
+// any scale. The matrix is scaled once, and the solver of bd_rank_unit
+// runs on the copy of the scale one.
+fn bd_rank_all(d: f64[:], e: f64[:], n: i64, k1: i64, k2: i64) -> f64[>..] {
+    let sc = bd_exp(d, e, n);
+    var out: f64[>..] = [];
+    var k = k1;
+    if sc == 0 {
+        while k <= k2 { out.push(bd_rank_unit(d, e, n, k)); k += 1; }
+        return out;
+    }
+    let ds = bd_scaled(d, n, sc);
+    let es = bd_scaled(e, n - 1, sc);
+    while k <= k2 { out.push(bd_mul2(bd_rank_unit(ds, es, n, k), -sc)); k += 1; }
+    return out;
+}
+
+// bd_rank_unit bisects for the eigenvalue of the rank k, where the ranks
 // start at zero and the smallest value holds rank zero. The bounds of
 // Gershgorin give the search range.
-fn bd_rank(d: f64[:], e: f64[:], n: i64, k: i64) -> f64 {
+fn bd_rank_unit(d: f64[:], e: f64[:], n: i64, k: i64) -> f64 {
     var lo: f64 = 0.0;
     var hi: f64 = 0.0;
     var first = true;
@@ -136,7 +172,7 @@ fn bd_rank(d: f64[:], e: f64[:], n: i64, k: i64) -> f64 {
     if big < 1.0 { big = 1.0; }
     while hi - lo > 4.0 * 2.220446049250313e-16 * big {
         let mid = (lo + hi) / 2.0;
-        if bd_count(mid, d, e, n) > k { hi = mid; } else { lo = mid; }
+        if bd_count(mid, d, e, n, false) > k { hi = mid; } else { lo = mid; }
     }
     return (lo + hi) / 2.0;
 }
@@ -233,11 +269,22 @@ fn bd_orthogonal(v: f64[>..]&, prev: f64[:], np: i64, n: i64) {
     }
 }
 
-// bd_vector gives the eigenvector of the value lam. The inverse
+// bd_vector gives the eigenvector of the value lam of a matrix of any
+// scale. The solver of bd_vector_unit runs on a copy of the scale one.
+// The vector does not change by a scale.
+fn bd_vector(d: f64[:], e: f64[:], n: i64, lam: f64, piv: f64, prev: f64[:], np: i64, out: f64[>..]&) -> f64 {
+    let sc = bd_exp(d, e, n);
+    if sc == 0 { return bd_vector_unit(d, e, n, lam, piv, prev, np, out); }
+    let ds = bd_scaled(d, n, sc);
+    let es = bd_scaled(e, n - 1, sc);
+    return bd_mul2(bd_vector_unit(ds, es, n, bd_mul2(lam, sc), bd_mul2(piv, sc), prev, np, out), -sc);
+}
+
+// bd_vector_unit gives the eigenvector of the value lam. The inverse
 // iteration runs with several start vectors, and the result with the
 // smallest residual wins. The vectors of prev hold the earlier results
 // of the same matrix, and the turn takes their part out.
-fn bd_vector(d: f64[:], e: f64[:], n: i64, lam: f64, piv: f64, prev: f64[:], np: i64, out: f64[>..]&) -> f64 {
+fn bd_vector_unit(d: f64[:], e: f64[:], n: i64, lam: f64, piv: f64, prev: f64[:], np: i64, out: f64[>..]&) -> f64 {
     var best: f64[>..] = [];
     var bestres: f64 = 1.0e30;
     var pattern: i64 = 0;
@@ -293,8 +340,8 @@ fn bd_first_ranks(d: f64[:], e: f64[:], n: i64, select: const u8[:], sr: f64[:])
     if select == "i" {
         return sr[0] as i64, sr[1] as i64;
     }
-    let lo = bd_count(sr[0], d, e, n);
-    let hi = bd_count(sr[1], d, e, n);
+    let lo = bd_count(sr[0], d, e, n, true);
+    let hi = bd_count(sr[1], d, e, n, true);
     return lo, hi - 1;
 }
 
@@ -315,13 +362,12 @@ fn eigvalsh_tridiagonal(d: f64[:], e: f64[:], select: const u8[:] = "a", select_
         k1 = kk1;
         k2 = kk2;
     }
-    var out: f64[>..] = [];
-    var k = k1;
-    while k <= k2 {
-        out.push(bd_rank(d, e, n, k));
-        k += 1;
+    // A matrix that falls into blocks solves each block at its own scale.
+    if bd_has_split(d, e, n) {
+        let sw, sz = bd_eigh_split(d, e, n, k1, k2, false);
+        return line_arr(copy(sw)), no_fault();
     }
-    return line_arr(copy(out)), no_fault();
+    return line_arr(bd_rank_all(d, e, n, k1, k2)), no_fault();
 }
 
 // eigh_tridiagonal gives the eigenvalues and the eigenvectors of the
@@ -352,13 +398,14 @@ fn eigh_tridiagonal(d: f64[:], e: f64[:], eigvals_only: bool = false, select: co
         if eigvals_only { return line_arr(copy(sw)), empty_arr(), no_fault(); }
         return line_arr(copy(sw)), mat2(copy(sz), n, k2 - k1 + 1), no_fault();
     }
+    let wall = bd_rank_all(d, e, n, k1, k2);
     var w: f64[>..] = [];
     var z: f64[>..] = [];
     var prev: f64[>..] = [];
     var np: i64 = 0;
     var k = k1;
     while k <= k2 {
-        let lam = bd_rank(d, e, n, k);
+        let lam = wall[k - k1];
         w.push(lam);
         if !eigvals_only {
             var vec: f64[>..] = [];

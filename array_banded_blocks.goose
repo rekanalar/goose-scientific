@@ -20,8 +20,11 @@ const BD_EPS: f64 = 2.220446049250313e-16;
 // story of the values next to it.
 fn bd_split_at(d: f64[:], e: f64[:], i: i64) -> bool {
     if e[i] == 0.0 { return true; }
-    let sc = mathshim::abs_of(d[i]) + mathshim::abs_of(d[i + 1]);
-    return mathshim::abs_of(e[i]) <= BD_EPS * sc;
+    // The scale of the place is the half sum of the two diagonal values,
+    // and the limit is twice that. The half sum of two values near the
+    // limit of the number format does not overflow.
+    let sc = mathshim::abs_of(d[i]) * 0.5 + mathshim::abs_of(d[i + 1]) * 0.5;
+    return mathshim::abs_of(e[i]) <= BD_EPS * sc * 2.0;
 }
 
 // bd_has_split tells whether the matrix falls into more than one block.
@@ -57,19 +60,12 @@ fn bd_blocks(d: f64[:], e: f64[:], n: i64) -> i64[>..], i64[>..] {
 // bd_block_values gives the values of the block of the rows a to a plus
 // len minus one. A block of one row gives its diagonal value.
 fn bd_block_values(d: f64[:], e: f64[:], a: i64, len: i64) -> f64[>..] {
-    var out: f64[>..] = [];
     if len == 1 {
-        out.push(d[a]);
-        return out;
+        var one: f64[>..] = [];
+        one.push(d[a]);
+        return one;
     }
-    let dblk = d[a..a + len];
-    let eblk = e[a..a + len - 1];
-    var k: i64 = 0;
-    while k < len {
-        out.push(bd_rank(dblk, eblk, len, k));
-        k += 1;
-    }
-    return out;
+    return bd_rank_all(d[a..a + len], e[a..a + len - 1], len, 0, len - 1);
 }
 
 // bd_block_vectors gives the vectors of the block of the rows a to a plus

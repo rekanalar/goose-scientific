@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.173.0";
+import scientific from "rekanalar/goose-scientific@v0.173.1";
 ```
 
 ## API
@@ -1116,11 +1116,16 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   whole matrix does not enter the rule. A coupling that a large value
   elsewhere hides stays, because it can carry the values next to it.
 - `eigh_tridiagonal` solves each block alone, so the vectors of a
-  repeated value stand orthonormal. LAPACK splits the same way. A matrix
-  whose whole spectrum lies below 1e-15 gives inexact values.
-- `eigvalsh_tridiagonal` solves the whole matrix. It counts the values
-  below a bound block by block. A count of the whole matrix holds no
-  sign change when a block starts, so it would miss every value.
+  repeated value stand orthonormal. LAPACK splits the same way.
+- `eigvalsh_tridiagonal` and `eigh_tridiagonal` scale each block by an
+  exact power of two before they solve it. The values match SciPy to a
+  relative 1e-12 for any scale from 1e-300 to 1e300. Below about 1e-308
+  the input holds few digits, and the values lose digits as in SciPy.
+  A small value of a block keeps an absolute error near the machine
+  epsilon times the largest value of it. SciPy shares it.
+- `eigvalsh_tridiagonal` counts the values below a bound block by block.
+  A count of the whole matrix holds no sign change when a block starts,
+  so it would miss every value.
 - `eigvalsh_tridiagonal` and `eigh_tridiagonal` hold real values only.
   The values come from the bisection. The vectors come from the inverse
   iteration. SciPy runs the routines of LAPACK. The values agree to the
@@ -2000,6 +2005,11 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   coupling alone. A large value elsewhere does not hide a coupling. A
   hostile matrix then cannot make the package drop a coupling and
   answer with the values of another matrix.
+- The scale of the place of a coupling is the half sum of the two
+  diagonal values next to it. The half sum of two values near the limit
+  of the number format does not overflow. A sum that overflows makes
+  every coupling negligible. The package would then drop the coupling
+  and answer with the values of another matrix.
 - `cdist` and `pdist` check the size of the result before they build
   it. A result above `MAX_ELEMENTS` is a fault, so a large set cannot
   exhaust memory.
