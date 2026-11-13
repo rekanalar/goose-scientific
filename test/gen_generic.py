@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the filters that take
+# Prints the SciPy values that test/suite/generic_pins_tests.goose pins for the filters that take
 # a block. The output is Goose source.
 #   python3 test/gen_generic.py > pins.goose
 import numpy as np
@@ -22,7 +22,7 @@ rng = np.random.default_rng(303)
 A = {1: np.round(rng.normal(size=9), 3),
      2: np.round(rng.normal(size=(5, 6)), 3),
      3: np.round(rng.normal(size=(3, 4, 5)), 3)}
-# The arrays of ni_arr in test/run.goose come from the generator of the rank
+# The arrays of ni_arr in test/suite/generic_pins_tests.goose come from the generator of the rank
 # filters, so the pins read them from a seed of that generator.
 rng0 = np.random.default_rng(300)
 A = {1: np.round(rng0.normal(size=9), 3),

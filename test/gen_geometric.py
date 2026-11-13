@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for geometric_transform
+# Prints the SciPy values that test/suite/geometric_pins_tests.goose pins for geometric_transform
 # and generic_filter1d. The output is Goose source.
 #   python3 test/gen_geometric.py > pins.goose
 import numpy as np

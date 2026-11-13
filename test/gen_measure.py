@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the measurements of
+# Prints the SciPy values that test/suite/measure_pins_tests.goose pins for the measurements of
 # labeled regions. The output is Goose source.
 #   python3 test/gen_measure.py > pins.goose
 import numpy as np

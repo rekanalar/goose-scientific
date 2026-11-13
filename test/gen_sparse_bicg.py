@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the biconjugate
+# Prints the SciPy values that test/suite/sparse_bicg_tests.goose pins for the biconjugate
 # gradient solvers. The output is Goose source.
 #   python3 test/gen_sparse_bicg.py > pins.goose
 import numpy as np

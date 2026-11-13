@@ -1,4 +1,4 @@
-# Prints the NumPy values that test/run.goose pins for the eigenvalues and the
+# Prints the NumPy values that test/suite/ceig_tests.goose and test/suite/ceigh_hostile_tests.goose pins for the eigenvalues and the
 # eigenvectors of complex matrices. Run it with NumPy 2.5.4:
 #   python3 test/gen_ceig.py
 import numpy as np

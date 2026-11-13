@@ -1,4 +1,4 @@
-"""Print the SciPy values that test/run.goose pins for solve_discrete_are
+"""Print the SciPy values that test/suite/dare_singular_tests.goose pins for solve_discrete_are
 with a singular r. Run it with a Python that holds SciPy 1.18.1."""
 import numpy as np
 from scipy.linalg import solve_discrete_are as dare

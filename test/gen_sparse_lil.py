@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the sparse matrices of
+# Prints the SciPy values that test/suite/sparse_lil_tests.goose pins for the sparse matrices of
 # lists. The output is Goose source.
 #   python3 test/gen_sparse_lil.py > pins.goose
 import random

@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for distance_transform_cdt,
+# Prints the SciPy values that test/suite/dist_pins_tests.goose pins for distance_transform_cdt,
 # distance_transform_bf and value_indices. The output is Goose source.
 #   python3 test/gen_dist.py > pins.goose
 import numpy as np

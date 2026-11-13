@@ -1,8 +1,8 @@
-# Prints the SciPy values that test/run.goose pins for the sparse one-norm
+# Prints the SciPy values that test/suite/sparse_expm_tests.goose pins for the sparse one-norm
 # estimate and the matrix exponential. The output is Goose source: the
 # function test_sparse_expm_pins with one call for each pinned system. The
 # helpers expm_est_pin, expm_est_vec_pin, expm_pin and expm_range_pin live
-# in test/run.goose.
+# in test/suite/sparse_expm_tests.goose.
 #
 # SciPy draws the columns of the block at random, so its own estimate can
 # differ between two runs. The estimate of the package uses a fixed

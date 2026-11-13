@@ -142,6 +142,10 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Limits
 
+- The tests live in group files under `test/suite`. A run of one group
+  or one test uses the `SCIENTIFIC_SUITES` or `SCIENTIFIC_TESTS`
+  variable. The file `test/README.md` says how to run them and how to
+  add a test.
 - `eigh` and `eig` gave wrong eigenvectors for a symmetric matrix.
   They did not solve the eigenproblem, and they sat in rows. The old form
   held the eigenvector i in the row i, with a wrong rotation. The new

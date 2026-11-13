@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the grey morphology,
+# Prints the SciPy values that test/suite/grey_pins_tests.goose pins for the grey morphology,
 # binary_propagation and binary_hit_or_miss. The output is Goose source.
 #   python3 test/gen_grey.py > pins.goose
 import numpy as np

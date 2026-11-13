@@ -1,6 +1,6 @@
-# Prints the SciPy values that test/run.goose pins for the linear filters of
+# Prints the SciPy values that test/suite/ndimage_pins_tests.goose pins for the linear filters of
 # N dimensions. The output is Goose source: the bodies of the pinned tests.
-# Run it with SciPy and paste the output between the markers of run.goose:
+# Run it with SciPy and paste the output into the group file:
 #   python3 test/gen_ndimage.py > pins.goose
 import numpy as np
 from scipy.ndimage import (correlate1d, convolve1d, uniform_filter1d,

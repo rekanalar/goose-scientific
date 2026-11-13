@@ -1,4 +1,4 @@
-"""Print the NumPy values that test/run.goose pins for the complex factors.
+"""Print the NumPy values that test/suite/cfactor_tests.goose pins for the complex factors.
 
 The script prints the two factors of the QR decomposition and the singular
 values of the pinned matrices. It also prints twenty random complex matrices

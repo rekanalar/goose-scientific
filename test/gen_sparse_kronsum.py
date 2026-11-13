@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for csr_kronsum. The output
+# Prints the SciPy values that test/suite/sparse_kronsum_tests.goose and test/suite/sparse_tests.goose pins for csr_kronsum. The output
 # is Goose source.
 #   python3 test/gen_sparse_kronsum.py > pins.goose
 import numpy as np

@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the sparse matrices of
+# Prints the SciPy values that test/suite/sparse_dok_tests.goose pins for the sparse matrices of
 # keys. The output is Goose source.
 #   python3 test/gen_sparse_dok.py > pins.goose
 import random

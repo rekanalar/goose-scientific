@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the sparse matrices of
+# Prints the SciPy values that test/suite/sparse_dia_2_tests.goose pins for the sparse matrices of
 # diagonals. The output is Goose source.
 #   python3 test/gen_sparse_dia.py > pins.goose
 import numpy as np

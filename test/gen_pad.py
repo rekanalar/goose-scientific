@@ -1,4 +1,4 @@
-"""Print the NumPy values that test/run.goose pins for pad_axes.
+"""Print the NumPy values that test/suite/random_tests.goose pins for pad_axes.
 Run it with a Python that holds NumPy 2.5.4."""
 import numpy as np
 

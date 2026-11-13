@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for lsmr. The output is
+# Prints the SciPy values that test/suite/sparse_lsmr_tests.goose pins for lsmr. The output is
 # Goose source.
 #   python3 test/gen_sparse_lsmr.py > pins.goose
 import numpy as np

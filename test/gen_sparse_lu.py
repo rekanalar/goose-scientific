@@ -1,7 +1,7 @@
-# Prints the SciPy values that test/run.goose pins for the sparse LU factor.
+# Prints the SciPy values that test/suite/sparse_lu_tests.goose pins for the sparse LU factor.
 # The output is Goose source: the function test_sparse_lu_pins with one call
 # for each pinned system. The helpers lu_pin and lu_pin_inverse live in
-# test/run.goose. The factors themselves differ from
+# test/suite/sparse_lu_tests.goose. The factors themselves differ from
 # SuperLU, so the pins hold the solutions, and the test checks the identity
 # L U = A[perm_r][:, perm_c] itself.
 #   python3 test/gen_sparse_lu.py > pins.goose

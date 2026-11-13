@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the sparse matrices of
+# Prints the SciPy values that test/suite/sparse_bsr_2_tests.goose pins for the sparse matrices of
 # blocks. The output is Goose source.
 #   python3 test/gen_sparse_bsr.py > pins.goose
 import numpy as np

@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for vectorized_filter.
+# Prints the SciPy values that test/suite/vectorized_pins_tests.goose pins for vectorized_filter.
 # The output is Goose source.
 #   python3 test/gen_vectorized.py > pins.goose
 import numpy as np

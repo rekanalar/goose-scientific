@@ -1,0 +1,713 @@
+// The tests of the group sparse_dia. Run them with SCIENTIFIC_SUITES=sparse_dia.
+namespace sparse_dia_2_tests;
+
+import scientific from "../..";
+import os;
+import common;
+import common_3;
+import sparse_dia_tests;
+
+fn test_sparse_dia_pins21() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([2, 8], [2.724, 0.0, 0.0, 0.0, 0.0, 0.0, 3.515, -1.019, -1.289, 0.0, 0.0, 0.0, 0.0, 1.68, 0.0, 0.0]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 8);
+    assert(qc.ndiag == 5 && scientific::dia_nnz(qc) == 8);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [5] && common_3::ms_same(qo, [-1.0, 0.0, 4.0, 6.0, 7.0]));
+    assert(qv.shape == [8] && common_3::ms_same(qv, [-1.289, 2.724, 0.0, 0.0, 1.68, 3.515, 0.0, -1.019]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [2.724, 0.0, 0.0, 0.0, 0.0, 0.0, 3.515, -1.019, -1.289, 0.0, 0.0, 0.0, 0.0, 1.68, 0.0, 0.0]));
+    assert(common_3::dia_same(qc, 2, 8, [2.724, 0.0, 0.0, 0.0, 0.0, 0.0, 3.515, -1.019, -1.289, 0.0, 0.0, 0.0, 0.0, 1.68, 0.0, 0.0]));
+    let qm, qn = scientific::dia_matvec(qc, [1.84, 0.275, -1.745, 1.357, 0.192, 0.459, 1.545, -0.322]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [10.770953, -1.60064]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 8);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [2.724, -1.289, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.68, 3.515, 0.0, -1.019, 0.0]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 8);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [6.8100000000000005, 0.0, 0.0, 0.0, 0.0, 0.0, 8.7875, -2.5475, -3.2224999999999997, 0.0, 0.0, 0.0, 0.0, 4.2, 0.0, 0.0]));
+    assert(common::near(scientific::dia_sum(qc), 5.611000000000001));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 5);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 5);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 8);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [2.724, 0.0, 0.0, 0.0, 0.0, 0.0, 3.515, -1.019, -1.289, 0.0, 0.0, 0.0, 0.0, 1.68, 0.0, 0.0]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 8);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [2.724, 0.0, 0.0, 0.0, 0.0, 0.0, 3.515, -1.019, -1.289, 0.0, 0.0, 0.0, 0.0, 1.68, 0.0, 0.0]));
+    let qu2, qw2 = scientific::dia_from_diagonals(2, 8, [-1.0, 0.0, 4.0, 6.0, 7.0], [-1.289, 2.724, 0.0, 0.0, 1.68, 3.515, 0.0, -1.019]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 8);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [2.724, 0.0, 0.0, 0.0, 0.0, 0.0, 3.515, -1.019, -1.289, 0.0, 0.0, 0.0, 0.0, 1.68, 0.0, 0.0]));
+}
+
+fn test_sparse_dia_pins22() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([6, 1], [-2.647, 0.0, 0.0, 0.0, 0.272, 2.539]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 3);
+    assert(qc.ndiag == 3 && scientific::dia_nnz(qc) == 3);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [3] && common_3::ms_same(qo, [-5.0, -4.0, 0.0]));
+    assert(qv.shape == [3] && common_3::ms_same(qv, [2.539, 0.272, -2.647]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [-2.647, 0.0, 0.0, 0.0, 0.272, 2.539]));
+    assert(common_3::dia_same(qc, 6, 1, [-2.647, 0.0, 0.0, 0.0, 0.272, 2.539]));
+    let qm, qn = scientific::dia_matvec(qc, [0.792]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [-2.096424, 0.0, 0.0, 0.0, 0.21542400000000003, 2.010888]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 3);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [-2.647, 0.0, 0.0, 0.0, 0.272, 2.539]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 3);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [-6.6175, 0.0, 0.0, 0.0, 0.68, 6.3475]));
+    assert(common::near(scientific::dia_sum(qc), 0.16400000000000015));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 3);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 3);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 3);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [-2.647, 0.0, 0.0, 0.0, 0.272, 2.539]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 3);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [-2.647, 0.0, 0.0, 0.0, 0.272, 2.539]));
+    let qu2, qw2 = scientific::dia_from_diagonals(6, 1, [-5.0, -4.0, 0.0], [2.539, 0.272, -2.647]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 3);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [-2.647, 0.0, 0.0, 0.0, 0.272, 2.539]));
+}
+
+fn test_sparse_dia_pins23() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([8, 4], [2.743, 3.452, -0.23, 0.0, 0.0, -3.445, -2.867, 0.0, 0.0, 0.0, 0.627, 0.0, 0.0, 0.0, 0.0, 0.0, 2.414, -2.437, -0.941, 0.0, -3.548, 2.34, 2.776, 0.0, 0.0, -1.742, 0.0, 0.0, 2.985, 0.0, 0.0, -1.435]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 25);
+    assert(qc.ndiag == 8 && scientific::dia_nnz(qc) == 25);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [8] && common_3::ms_same(qo, [-7.0, -5.0, -4.0, -3.0, -2.0, 0.0, 1.0, 2.0]));
+    assert(qv.shape == [25] && common_3::ms_same(qv, [2.985, -3.548, -1.742, 0.0, 2.414, 2.34, 0.0, -1.435, 0.0, -2.437, 2.776, 0.0, 0.0, 0.0, -0.941, 0.0, 2.743, -3.445, 0.627, 0.0, 3.452, -2.867, 0.0, -0.23, 0.0]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [2.743, 3.452, -0.23, 0.0, 0.0, -3.445, -2.867, 0.0, 0.0, 0.0, 0.627, 0.0, 0.0, 0.0, 0.0, 0.0, 2.414, -2.437, -0.941, 0.0, -3.548, 2.34, 2.776, 0.0, 0.0, -1.742, 0.0, 0.0, 2.985, 0.0, 0.0, -1.435]));
+    assert(common_3::dia_same(qc, 8, 4, [2.743, 3.452, -0.23, 0.0, 0.0, -3.445, -2.867, 0.0, 0.0, 0.0, 0.627, 0.0, 0.0, 0.0, 0.0, 0.0, 2.414, -2.437, -0.941, 0.0, -3.548, 2.34, 2.776, 0.0, 0.0, -1.742, 0.0, 0.0, 2.985, 0.0, 0.0, -1.435]));
+    let qm, qn = scientific::dia_matvec(qc, [-1.767, -1.456, -0.246, -1.225]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [-9.816412999999999, 5.721202, -0.154242, 0.0, -0.4857800000000001, 2.1793800000000005, 2.536352, -3.5166199999999996]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 25);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [2.743, 0.0, 0.0, 0.0, 2.414, -3.548, 0.0, 2.985, 3.452, -3.445, 0.0, 0.0, -2.437, 2.34, -1.742, 0.0, -0.23, -2.867, 0.627, 0.0, -0.941, 2.776, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.435]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 25);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [6.8575, 8.629999999999999, -0.5750000000000001, 0.0, 0.0, -8.612499999999999, -7.1675, 0.0, 0.0, 0.0, 1.5675, 0.0, 0.0, 0.0, 0.0, 0.0, 6.035, -6.092499999999999, -2.3525, 0.0, -8.870000000000001, 5.85, 6.9399999999999995, 0.0, 0.0, -4.355, 0.0, 0.0, 7.4624999999999995, 0.0, 0.0, -3.5875000000000004]));
+    assert(common::near(scientific::dia_sum(qc), 0.6920000000000003));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 15);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 15);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 25);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [2.743, 3.452, -0.23, 0.0, 0.0, -3.445, -2.867, 0.0, 0.0, 0.0, 0.627, 0.0, 0.0, 0.0, 0.0, 0.0, 2.414, -2.437, -0.941, 0.0, -3.548, 2.34, 2.776, 0.0, 0.0, -1.742, 0.0, 0.0, 2.985, 0.0, 0.0, -1.435]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 25);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [2.743, 3.452, -0.23, 0.0, 0.0, -3.445, -2.867, 0.0, 0.0, 0.0, 0.627, 0.0, 0.0, 0.0, 0.0, 0.0, 2.414, -2.437, -0.941, 0.0, -3.548, 2.34, 2.776, 0.0, 0.0, -1.742, 0.0, 0.0, 2.985, 0.0, 0.0, -1.435]));
+    let qu2, qw2 = scientific::dia_from_diagonals(8, 4, [-7.0, -5.0, -4.0, -3.0, -2.0, 0.0, 1.0, 2.0], [2.985, -3.548, -1.742, 0.0, 2.414, 2.34, 0.0, -1.435, 0.0, -2.437, 2.776, 0.0, 0.0, 0.0, -0.941, 0.0, 2.743, -3.445, 0.627, 0.0, 3.452, -2.867, 0.0, -0.23, 0.0]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 25);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [2.743, 3.452, -0.23, 0.0, 0.0, -3.445, -2.867, 0.0, 0.0, 0.0, 0.627, 0.0, 0.0, 0.0, 0.0, 0.0, 2.414, -2.437, -0.941, 0.0, -3.548, 2.34, 2.776, 0.0, 0.0, -1.742, 0.0, 0.0, 2.985, 0.0, 0.0, -1.435]));
+}
+
+fn test_sparse_dia_pins24() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([8, 5], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.719, 0.0, 0.0, 0.0, 3.018, 0.0, 1.398, -2.335, 3.152, 0.0, 0.0, 0.0, 0.0, 0.0, 2.44, 0.0, 0.0, -1.794, 0.0, 3.659, -1.132, 0.0, 0.0, -3.916, 0.0, 0.0, 2.061, 0.0]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 27);
+    assert(qc.ndiag == 7 && scientific::dia_nnz(qc) == 27);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [7] && common_3::ms_same(qo, [-7.0, -5.0, -4.0, -2.0, -1.0, 0.0, 1.0]));
+    assert(qv.shape == [27] && common_3::ms_same(qv, [-3.916, 0.0, 3.659, 0.0, 3.152, 2.44, -1.132, 2.061, 0.0, 3.018, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.794, 0.0, 0.0, 0.719, 1.398, 0.0, 0.0, 0.0, 0.0, -2.335]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.719, 0.0, 0.0, 0.0, 3.018, 0.0, 1.398, -2.335, 3.152, 0.0, 0.0, 0.0, 0.0, 0.0, 2.44, 0.0, 0.0, -1.794, 0.0, 3.659, -1.132, 0.0, 0.0, -3.916, 0.0, 0.0, 2.061, 0.0]));
+    assert(common_3::dia_same(qc, 8, 5, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.719, 0.0, 0.0, 0.0, 3.018, 0.0, 1.398, -2.335, 3.152, 0.0, 0.0, 0.0, 0.0, 0.0, 2.44, 0.0, 0.0, -1.794, 0.0, 3.659, -1.132, 0.0, 0.0, -3.916, 0.0, 0.0, 2.061, 0.0]));
+    let qm, qn = scientific::dia_matvec(qc, [-1.444, 0.984, -0.757, -0.906, -0.129]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [0.0, 0.0, -0.544283, 2.004339, -4.551488, 2.632386, 4.45738, 3.787438]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 27);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [0.0, 0.0, 0.0, 0.0, 3.152, 0.0, 0.0, -3.916, 0.0, 0.0, 0.0, 3.018, 0.0, 2.44, 3.659, 0.0, 0.0, 0.0, 0.719, 0.0, 0.0, 0.0, -1.132, 0.0, 0.0, 0.0, 0.0, 1.398, 0.0, 0.0, 0.0, 2.061, 0.0, 0.0, 0.0, -2.335, 0.0, -1.794, 0.0, 0.0]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 27);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.7974999999999999, 0.0, 0.0, 0.0, 7.545, 0.0, 3.4949999999999997, -5.8375, 7.880000000000001, 0.0, 0.0, 0.0, 0.0, 0.0, 6.1, 0.0, 0.0, -4.485, 0.0, 9.147499999999999, -2.8299999999999996, 0.0, 0.0, -9.79, 0.0, 0.0, 5.1525, 0.0]));
+    assert(common::near(scientific::dia_sum(qc), 7.27));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 11);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 11);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 27);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.719, 0.0, 0.0, 0.0, 3.018, 0.0, 1.398, -2.335, 3.152, 0.0, 0.0, 0.0, 0.0, 0.0, 2.44, 0.0, 0.0, -1.794, 0.0, 3.659, -1.132, 0.0, 0.0, -3.916, 0.0, 0.0, 2.061, 0.0]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 27);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.719, 0.0, 0.0, 0.0, 3.018, 0.0, 1.398, -2.335, 3.152, 0.0, 0.0, 0.0, 0.0, 0.0, 2.44, 0.0, 0.0, -1.794, 0.0, 3.659, -1.132, 0.0, 0.0, -3.916, 0.0, 0.0, 2.061, 0.0]));
+    let qu2, qw2 = scientific::dia_from_diagonals(8, 5, [-7.0, -5.0, -4.0, -2.0, -1.0, 0.0, 1.0], [-3.916, 0.0, 3.659, 0.0, 3.152, 2.44, -1.132, 2.061, 0.0, 3.018, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.794, 0.0, 0.0, 0.719, 1.398, 0.0, 0.0, 0.0, 0.0, -2.335]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 27);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.719, 0.0, 0.0, 0.0, 3.018, 0.0, 1.398, -2.335, 3.152, 0.0, 0.0, 0.0, 0.0, 0.0, 2.44, 0.0, 0.0, -1.794, 0.0, 3.659, -1.132, 0.0, 0.0, -3.916, 0.0, 0.0, 2.061, 0.0]));
+}
+
+fn test_sparse_dia_pins25() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([6, 4], [0.0, -3.142, 0.0, 0.0, -0.125, 0.0, 0.0, 1.447, 0.0, 0.0, -2.097, -0.667, -1.826, 0.0, 0.0, 0.0, -3.178, 0.0, 0.0, 0.0, -2.693, -0.811, 0.0, 0.0]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 19);
+    assert(qc.ndiag == 7 && scientific::dia_nnz(qc) == 19);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [7] && common_3::ms_same(qo, [-5.0, -4.0, -3.0, -1.0, 0.0, 1.0, 2.0]));
+    assert(qv.shape == [19] && common_3::ms_same(qv, [-2.693, -3.178, -0.811, -1.826, 0.0, 0.0, -0.125, 0.0, 0.0, 0.0, 0.0, 0.0, -2.097, 0.0, -3.142, 0.0, -0.667, 0.0, 1.447]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [0.0, -3.142, 0.0, 0.0, -0.125, 0.0, 0.0, 1.447, 0.0, 0.0, -2.097, -0.667, -1.826, 0.0, 0.0, 0.0, -3.178, 0.0, 0.0, 0.0, -2.693, -0.811, 0.0, 0.0]));
+    assert(common_3::dia_same(qc, 6, 4, [0.0, -3.142, 0.0, 0.0, -0.125, 0.0, 0.0, 1.447, 0.0, 0.0, -2.097, -0.667, -1.826, 0.0, 0.0, 0.0, -3.178, 0.0, 0.0, 0.0, -2.693, -0.811, 0.0, 0.0]));
+    let qm, qn = scientific::dia_matvec(qc, [-0.647, -1.895, 0.722, 1.81]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [5.95409, 2.699945, -2.721304, 1.181422, 2.056166, 3.279216]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 19);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [0.0, -0.125, 0.0, -1.826, -3.178, -2.693, -3.142, 0.0, 0.0, 0.0, 0.0, -0.811, 0.0, 0.0, -2.097, 0.0, 0.0, 0.0, 0.0, 1.447, -0.667, 0.0, 0.0, 0.0]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 19);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [0.0, -7.8549999999999995, 0.0, 0.0, -0.3125, 0.0, 0.0, 3.6175, 0.0, 0.0, -5.2425, -1.6675, -4.565, 0.0, 0.0, 0.0, -7.945, 0.0, 0.0, 0.0, -6.7325, -2.0275000000000003, 0.0, 0.0]));
+    assert(common::near(scientific::dia_sum(qc), -13.092));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 9);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 9);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 19);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [0.0, -3.142, 0.0, 0.0, -0.125, 0.0, 0.0, 1.447, 0.0, 0.0, -2.097, -0.667, -1.826, 0.0, 0.0, 0.0, -3.178, 0.0, 0.0, 0.0, -2.693, -0.811, 0.0, 0.0]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 19);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [0.0, -3.142, 0.0, 0.0, -0.125, 0.0, 0.0, 1.447, 0.0, 0.0, -2.097, -0.667, -1.826, 0.0, 0.0, 0.0, -3.178, 0.0, 0.0, 0.0, -2.693, -0.811, 0.0, 0.0]));
+    let qu2, qw2 = scientific::dia_from_diagonals(6, 4, [-5.0, -4.0, -3.0, -1.0, 0.0, 1.0, 2.0], [-2.693, -3.178, -0.811, -1.826, 0.0, 0.0, -0.125, 0.0, 0.0, 0.0, 0.0, 0.0, -2.097, 0.0, -3.142, 0.0, -0.667, 0.0, 1.447]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 19);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [0.0, -3.142, 0.0, 0.0, -0.125, 0.0, 0.0, 1.447, 0.0, 0.0, -2.097, -0.667, -1.826, 0.0, 0.0, 0.0, -3.178, 0.0, 0.0, 0.0, -2.693, -0.811, 0.0, 0.0]));
+}
+
+fn test_sparse_dia_pins26() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([2, 5], [0.0, 3.807, 0.0, -3.757, 2.777, 0.0, 0.0, 0.0, 0.0, 2.499]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 5);
+    assert(qc.ndiag == 3 && scientific::dia_nnz(qc) == 5);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [3] && common_3::ms_same(qo, [1.0, 3.0, 4.0]));
+    assert(qv.shape == [5] && common_3::ms_same(qv, [3.807, 0.0, -3.757, 2.499, 2.777]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [0.0, 3.807, 0.0, -3.757, 2.777, 0.0, 0.0, 0.0, 0.0, 2.499]));
+    assert(common_3::dia_same(qc, 2, 5, [0.0, 3.807, 0.0, -3.757, 2.777, 0.0, 0.0, 0.0, 0.0, 2.499]));
+    let qm, qn = scientific::dia_matvec(qc, [0.728, -1.669, -0.825, 1.461, -1.441]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [-15.844517, -3.6010590000000002]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 5);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [0.0, 0.0, 3.807, 0.0, 0.0, 0.0, -3.757, 0.0, 2.777, 2.499]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 5);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [0.0, 9.5175, 0.0, -9.3925, 6.942500000000001, 0.0, 0.0, 0.0, 0.0, 6.2475000000000005]));
+    assert(common::near(scientific::dia_sum(qc), 5.3260000000000005));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 4);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 4);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 5);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [0.0, 3.807, 0.0, -3.757, 2.777, 0.0, 0.0, 0.0, 0.0, 2.499]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 5);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [0.0, 3.807, 0.0, -3.757, 2.777, 0.0, 0.0, 0.0, 0.0, 2.499]));
+    let qu2, qw2 = scientific::dia_from_diagonals(2, 5, [1.0, 3.0, 4.0], [3.807, 0.0, -3.757, 2.499, 2.777]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 5);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [0.0, 3.807, 0.0, -3.757, 2.777, 0.0, 0.0, 0.0, 0.0, 2.499]));
+}
+
+fn test_sparse_dia_pins27() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([1, 1], [0.0]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 0);
+    assert(qc.ndiag == 0 && scientific::dia_nnz(qc) == 0);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [0] && common_3::ms_same(qo, []));
+    assert(qv.shape == [0] && common_3::ms_same(qv, []));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [0.0]));
+    assert(common_3::dia_same(qc, 1, 1, [0.0]));
+    let qm, qn = scientific::dia_matvec(qc, [-0.389]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [0.0]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 0);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [0.0]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 0);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [0.0]));
+    assert(common::near(scientific::dia_sum(qc), 0.0));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 0);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 0);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 0);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [0.0]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 0);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [0.0]));
+    let qu2, qw2 = scientific::dia_from_diagonals(1, 1, [], []);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 0);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [0.0]));
+}
+
+fn test_sparse_dia_pins28() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([8, 2], [0.0, 0.0, 0.0, 0.0, 0.0, 1.583, 0.0, 0.0, 0.0, -3.426, 0.0, -3.003, 0.0, 0.0, 0.0, -2.845]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 8);
+    assert(qc.ndiag == 4 && scientific::dia_nnz(qc) == 8);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [4] && common_3::ms_same(qo, [-6.0, -4.0, -3.0, -1.0]));
+    assert(qv.shape == [8] && common_3::ms_same(qv, [0.0, -2.845, 0.0, -3.003, 0.0, -3.426, 0.0, 1.583]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [0.0, 0.0, 0.0, 0.0, 0.0, 1.583, 0.0, 0.0, 0.0, -3.426, 0.0, -3.003, 0.0, 0.0, 0.0, -2.845]));
+    assert(common_3::dia_same(qc, 8, 2, [0.0, 0.0, 0.0, 0.0, 0.0, 1.583, 0.0, 0.0, 0.0, -3.426, 0.0, -3.003, 0.0, 0.0, 0.0, -2.845]));
+    let qm, qn = scientific::dia_matvec(qc, [1.186, 1.633]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [0.0, 0.0, 2.585039, 0.0, -5.594658, -4.903899, 0.0, -4.645885000000001]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 8);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.583, 0.0, -3.426, -3.003, 0.0, -2.845]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 8);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [0.0, 0.0, 0.0, 0.0, 0.0, 3.9575, 0.0, 0.0, 0.0, -8.565000000000001, 0.0, -7.5075, 0.0, 0.0, 0.0, -7.112500000000001]));
+    assert(common::near(scientific::dia_sum(qc), -7.691000000000001));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 4);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 4);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 8);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [0.0, 0.0, 0.0, 0.0, 0.0, 1.583, 0.0, 0.0, 0.0, -3.426, 0.0, -3.003, 0.0, 0.0, 0.0, -2.845]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 8);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [0.0, 0.0, 0.0, 0.0, 0.0, 1.583, 0.0, 0.0, 0.0, -3.426, 0.0, -3.003, 0.0, 0.0, 0.0, -2.845]));
+    let qu2, qw2 = scientific::dia_from_diagonals(8, 2, [-6.0, -4.0, -3.0, -1.0], [0.0, -2.845, 0.0, -3.003, 0.0, -3.426, 0.0, 1.583]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 8);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [0.0, 0.0, 0.0, 0.0, 0.0, 1.583, 0.0, 0.0, 0.0, -3.426, 0.0, -3.003, 0.0, 0.0, 0.0, -2.845]));
+}
+
+fn test_sparse_dia_pins29() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([2, 5], [-0.793, 0.0, 0.0, 0.0, -3.557, 0.0, 0.717, 0.0, -0.286, 0.0]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 5);
+    assert(qc.ndiag == 3 && scientific::dia_nnz(qc) == 5);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [3] && common_3::ms_same(qo, [0.0, 2.0, 4.0]));
+    assert(qv.shape == [5] && common_3::ms_same(qv, [-0.793, 0.717, 0.0, -0.286, -3.557]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [-0.793, 0.0, 0.0, 0.0, -3.557, 0.0, 0.717, 0.0, -0.286, 0.0]));
+    assert(common_3::dia_same(qc, 2, 5, [-0.793, 0.0, 0.0, 0.0, -3.557, 0.0, 0.717, 0.0, -0.286, 0.0]));
+    let qm, qn = scientific::dia_matvec(qc, [-1.493, -0.379, -1.636, 0.8, -0.853]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [4.21807, -0.500543]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 5);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [-0.793, 0.0, 0.0, 0.717, 0.0, 0.0, 0.0, -0.286, -3.557, 0.0]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 5);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [-1.9825000000000002, 0.0, 0.0, 0.0, -8.8925, 0.0, 1.7925, 0.0, -0.715, 0.0]));
+    assert(common::near(scientific::dia_sum(qc), -3.9189999999999996));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 4);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 4);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 5);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [-0.793, 0.0, 0.0, 0.0, -3.557, 0.0, 0.717, 0.0, -0.286, 0.0]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 5);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [-0.793, 0.0, 0.0, 0.0, -3.557, 0.0, 0.717, 0.0, -0.286, 0.0]));
+    let qu2, qw2 = scientific::dia_from_diagonals(2, 5, [0.0, 2.0, 4.0], [-0.793, 0.717, 0.0, -0.286, -3.557]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 5);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [-0.793, 0.0, 0.0, 0.0, -3.557, 0.0, 0.717, 0.0, -0.286, 0.0]));
+}
+
+fn test_sparse_dia_pins30() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([6, 8], [0.0, 0.0, 0.0, 0.0, 0.0, 1.139, 0.0, 0.0, 2.425, 0.0, -2.834, 0.0, 3.19, 0.0, 0.0, 0.0, 0.0, -1.932, 0.0, -0.944, 1.697, -2.017, 0.0, 0.0, 0.0, 0.0, 0.0, -0.198, 2.63, -0.536, 0.0, 0.0, -1.014, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.371, 0.0, 0.0, 2.024, 0.0, 0.0, -2.562, 0.0]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 38);
+    assert(qc.ndiag == 9 && scientific::dia_nnz(qc) == 38);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [9] && common_3::ms_same(qo, [-5.0, -4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 5.0]));
+    assert(qv.shape == [38] && common_3::ms_same(qv, [3.371, -1.014, 0.0, 0.0, 0.0, 0.0, 2.024, 2.425, -1.932, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.198, 0.0, 0.0, 0.0, -2.834, -0.944, 2.63, 0.0, -2.562, 0.0, 0.0, 1.697, -0.536, 0.0, 0.0, 0.0, 3.19, -2.017, 0.0, 0.0, 1.139, 0.0, 0.0]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [0.0, 0.0, 0.0, 0.0, 0.0, 1.139, 0.0, 0.0, 2.425, 0.0, -2.834, 0.0, 3.19, 0.0, 0.0, 0.0, 0.0, -1.932, 0.0, -0.944, 1.697, -2.017, 0.0, 0.0, 0.0, 0.0, 0.0, -0.198, 2.63, -0.536, 0.0, 0.0, -1.014, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.371, 0.0, 0.0, 2.024, 0.0, 0.0, -2.562, 0.0]));
+    assert(common_3::dia_same(qc, 6, 8, [0.0, 0.0, 0.0, 0.0, 0.0, 1.139, 0.0, 0.0, 2.425, 0.0, -2.834, 0.0, 3.19, 0.0, 0.0, 0.0, 0.0, -1.932, 0.0, -0.944, 1.697, -2.017, 0.0, 0.0, 0.0, 0.0, 0.0, -0.198, 2.63, -0.536, 0.0, 0.0, -1.014, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.371, 0.0, 0.0, 2.024, 0.0, 0.0, -2.562, 0.0]));
+    let qm, qn = scientific::dia_matvec(qc, [-0.261, 1.735, 1.936, 1.738, -0.336, 1.66, -1.581, 0.197]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [1.8907399999999999, -7.191389, -8.911104, -2.117564, 0.264654, 6.688402999999999]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 38);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [0.0, 2.425, 0.0, 0.0, -1.014, 3.371, 0.0, 0.0, -1.932, 0.0, 0.0, 0.0, 0.0, -2.834, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.944, -0.198, 0.0, 2.024, 0.0, 3.19, 1.697, 2.63, 0.0, 0.0, 1.139, 0.0, -2.017, -0.536, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.562, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 38);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [0.0, 0.0, 0.0, 0.0, 0.0, 2.8475, 0.0, 0.0, 6.0625, 0.0, -7.085, 0.0, 7.975, 0.0, 0.0, 0.0, 0.0, -4.83, 0.0, -2.36, 4.2425, -5.0424999999999995, 0.0, 0.0, 0.0, 0.0, 0.0, -0.495, 6.574999999999999, -1.34, 0.0, 0.0, -2.535, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.4275, 0.0, 0.0, 5.0600000000000005, 0.0, 0.0, -6.404999999999999, 0.0]));
+    assert(common::near(scientific::dia_sum(qc), 4.439));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 15);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 15);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 38);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [0.0, 0.0, 0.0, 0.0, 0.0, 1.139, 0.0, 0.0, 2.425, 0.0, -2.834, 0.0, 3.19, 0.0, 0.0, 0.0, 0.0, -1.932, 0.0, -0.944, 1.697, -2.017, 0.0, 0.0, 0.0, 0.0, 0.0, -0.198, 2.63, -0.536, 0.0, 0.0, -1.014, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.371, 0.0, 0.0, 2.024, 0.0, 0.0, -2.562, 0.0]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 38);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [0.0, 0.0, 0.0, 0.0, 0.0, 1.139, 0.0, 0.0, 2.425, 0.0, -2.834, 0.0, 3.19, 0.0, 0.0, 0.0, 0.0, -1.932, 0.0, -0.944, 1.697, -2.017, 0.0, 0.0, 0.0, 0.0, 0.0, -0.198, 2.63, -0.536, 0.0, 0.0, -1.014, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.371, 0.0, 0.0, 2.024, 0.0, 0.0, -2.562, 0.0]));
+    let qu2, qw2 = scientific::dia_from_diagonals(6, 8, [-5.0, -4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 5.0], [3.371, -1.014, 0.0, 0.0, 0.0, 0.0, 2.024, 2.425, -1.932, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.198, 0.0, 0.0, 0.0, -2.834, -0.944, 2.63, 0.0, -2.562, 0.0, 0.0, 1.697, -0.536, 0.0, 0.0, 0.0, 3.19, -2.017, 0.0, 0.0, 1.139, 0.0, 0.0]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 38);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [0.0, 0.0, 0.0, 0.0, 0.0, 1.139, 0.0, 0.0, 2.425, 0.0, -2.834, 0.0, 3.19, 0.0, 0.0, 0.0, 0.0, -1.932, 0.0, -0.944, 1.697, -2.017, 0.0, 0.0, 0.0, 0.0, 0.0, -0.198, 2.63, -0.536, 0.0, 0.0, -1.014, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.371, 0.0, 0.0, 2.024, 0.0, 0.0, -2.562, 0.0]));
+}
+
+fn test_sparse_dia_pins31() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([3, 7], [-2.033, -3.345, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.197, 0.0, 3.707, 0.0, 0.0, 0.0, 0.834, 0.449, 2.5, 0.0, 0.0, 0.0, 0.0]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 12);
+    assert(qc.ndiag == 5 && scientific::dia_nnz(qc) == 12);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [5] && common_3::ms_same(qo, [-2.0, -1.0, 0.0, 1.0, 2.0]));
+    assert(qv.shape == [12] && common_3::ms_same(qv, [0.834, 0.0, 0.449, -2.033, 1.197, 2.5, -3.345, 0.0, 0.0, 0.0, 3.707, 0.0]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [-2.033, -3.345, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.197, 0.0, 3.707, 0.0, 0.0, 0.0, 0.834, 0.449, 2.5, 0.0, 0.0, 0.0, 0.0]));
+    assert(common_3::dia_same(qc, 3, 7, [-2.033, -3.345, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.197, 0.0, 3.707, 0.0, 0.0, 0.0, 0.834, 0.449, 2.5, 0.0, 0.0, 0.0, 0.0]));
+    let qm, qn = scientific::dia_matvec(qc, [-1.448, -1.806, -1.483, -1.712, -0.549, -0.775, -1.487]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [8.984854, -8.508166, -5.726026]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 12);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [-2.033, 0.0, 0.834, -3.345, 1.197, 0.449, 0.0, 0.0, 2.5, 0.0, 3.707, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 12);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [-5.0825, -8.3625, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.9925, 0.0, 9.2675, 0.0, 0.0, 0.0, 2.085, 1.1225, 6.25, 0.0, 0.0, 0.0, 0.0]));
+    assert(common::near(scientific::dia_sum(qc), 3.3089999999999997));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 7);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 7);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 12);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [-2.033, -3.345, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.197, 0.0, 3.707, 0.0, 0.0, 0.0, 0.834, 0.449, 2.5, 0.0, 0.0, 0.0, 0.0]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 12);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [-2.033, -3.345, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.197, 0.0, 3.707, 0.0, 0.0, 0.0, 0.834, 0.449, 2.5, 0.0, 0.0, 0.0, 0.0]));
+    let qu2, qw2 = scientific::dia_from_diagonals(3, 7, [-2.0, -1.0, 0.0, 1.0, 2.0], [0.834, 0.0, 0.449, -2.033, 1.197, 2.5, -3.345, 0.0, 0.0, 0.0, 3.707, 0.0]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 12);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [-2.033, -3.345, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.197, 0.0, 3.707, 0.0, 0.0, 0.0, 0.834, 0.449, 2.5, 0.0, 0.0, 0.0, 0.0]));
+}
+
+fn test_sparse_dia_pins32() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([4, 3], [3.771, 0.0, -0.709, 3.281, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.283, -1.386]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 9);
+    assert(qc.ndiag == 4 && scientific::dia_nnz(qc) == 9);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [4] && common_3::ms_same(qo, [-2.0, -1.0, 0.0, 2.0]));
+    assert(qv.shape == [9] && common_3::ms_same(qv, [0.0, 2.283, 3.281, 0.0, -1.386, 3.771, 0.0, 0.0, -0.709]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [3.771, 0.0, -0.709, 3.281, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.283, -1.386]));
+    assert(common_3::dia_same(qc, 4, 3, [3.771, 0.0, -0.709, 3.281, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.283, -1.386]));
+    let qm, qn = scientific::dia_matvec(qc, [0.262, 0.187, -1.288]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [1.901194, 0.8596220000000001, 0.0, 2.2120889999999997]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 9);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [3.771, 3.281, 0.0, 0.0, 0.0, 0.0, 0.0, 2.283, -0.709, 0.0, 0.0, -1.386]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 9);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [9.4275, 0.0, -1.7725, 8.2025, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.7075, -3.465]));
+    assert(common::near(scientific::dia_sum(qc), 7.24));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 5);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 5);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 9);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [3.771, 0.0, -0.709, 3.281, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.283, -1.386]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 9);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [3.771, 0.0, -0.709, 3.281, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.283, -1.386]));
+    let qu2, qw2 = scientific::dia_from_diagonals(4, 3, [-2.0, -1.0, 0.0, 2.0], [0.0, 2.283, 3.281, 0.0, -1.386, 3.771, 0.0, 0.0, -0.709]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 9);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [3.771, 0.0, -0.709, 3.281, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.283, -1.386]));
+}
+
+fn test_sparse_dia_pins33() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([3, 8], [0.0, 0.428, -2.627, 0.0, 0.0, 3.205, 0.0, 0.0, 0.0, 0.0, 0.0, -3.744, 1.773, 0.0, 3.258, 1.96, 0.0, 0.0, 0.0, 0.0, 2.379, 0.0, 0.0, 0.413]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 14);
+    assert(qc.ndiag == 5 && scientific::dia_nnz(qc) == 14);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [5] && common_3::ms_same(qo, [1.0, 2.0, 3.0, 5.0, 6.0]));
+    assert(qv.shape == [14] && common_3::ms_same(qv, [0.428, 0.0, 0.0, -2.627, -3.744, 2.379, 0.0, 1.773, 0.0, 3.205, 3.258, 0.413, 0.0, 1.96]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [0.0, 0.428, -2.627, 0.0, 0.0, 3.205, 0.0, 0.0, 0.0, 0.0, 0.0, -3.744, 1.773, 0.0, 3.258, 1.96, 0.0, 0.0, 0.0, 0.0, 2.379, 0.0, 0.0, 0.413]));
+    assert(common_3::dia_same(qc, 3, 8, [0.0, 0.428, -2.627, 0.0, 0.0, 3.205, 0.0, 0.0, 0.0, 0.0, 0.0, -3.744, 1.773, 0.0, 3.258, 1.96, 0.0, 0.0, 0.0, 0.0, 2.379, 0.0, 0.0, 0.413]));
+    let qm, qn = scientific::dia_matvec(qc, [-1.393, -1.308, 1.217, 1.48, -1.713, 0.847, 0.326, 1.417]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [-1.0422479999999998, -4.738841, -3.490006]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 14);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [0.0, 0.0, 0.0, 0.428, 0.0, 0.0, -2.627, 0.0, 0.0, 0.0, -3.744, 0.0, 0.0, 1.773, 2.379, 3.205, 0.0, 0.0, 0.0, 3.258, 0.0, 0.0, 1.96, 0.413]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 14);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [0.0, 1.07, -6.567499999999999, 0.0, 0.0, 8.0125, 0.0, 0.0, 0.0, 0.0, 0.0, -9.360000000000001, 4.4325, 0.0, 8.145, 4.9, 0.0, 0.0, 0.0, 0.0, 5.9475, 0.0, 0.0, 1.0325]));
+    assert(common::near(scientific::dia_sum(qc), 7.045));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 9);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 9);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 14);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [0.0, 0.428, -2.627, 0.0, 0.0, 3.205, 0.0, 0.0, 0.0, 0.0, 0.0, -3.744, 1.773, 0.0, 3.258, 1.96, 0.0, 0.0, 0.0, 0.0, 2.379, 0.0, 0.0, 0.413]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 14);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [0.0, 0.428, -2.627, 0.0, 0.0, 3.205, 0.0, 0.0, 0.0, 0.0, 0.0, -3.744, 1.773, 0.0, 3.258, 1.96, 0.0, 0.0, 0.0, 0.0, 2.379, 0.0, 0.0, 0.413]));
+    let qu2, qw2 = scientific::dia_from_diagonals(3, 8, [1.0, 2.0, 3.0, 5.0, 6.0], [0.428, 0.0, 0.0, -2.627, -3.744, 2.379, 0.0, 1.773, 0.0, 3.205, 3.258, 0.413, 0.0, 1.96]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 14);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [0.0, 0.428, -2.627, 0.0, 0.0, 3.205, 0.0, 0.0, 0.0, 0.0, 0.0, -3.744, 1.773, 0.0, 3.258, 1.96, 0.0, 0.0, 0.0, 0.0, 2.379, 0.0, 0.0, 0.413]));
+}
+
+fn test_sparse_dia_pins34() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([4, 5], [-3.728, 0.0, 0.0, 0.555, -1.123, 0.0, 0.0, 0.0, 2.998, 0.0, 0.0, 0.0, -1.494, 0.0, -3.198, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 10);
+    assert(qc.ndiag == 4 && scientific::dia_nnz(qc) == 10);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [4] && common_3::ms_same(qo, [0.0, 2.0, 3.0, 4.0]));
+    assert(qv.shape == [10] && common_3::ms_same(qv, [-3.728, 0.0, -1.494, 0.0, 0.0, 2.998, -3.198, 0.555, 0.0, -1.123]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [-3.728, 0.0, 0.0, 0.555, -1.123, 0.0, 0.0, 0.0, 2.998, 0.0, 0.0, 0.0, -1.494, 0.0, -3.198, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(common_3::dia_same(qc, 4, 5, [-3.728, 0.0, 0.0, 0.555, -1.123, 0.0, 0.0, 0.0, 2.998, 0.0, 0.0, 0.0, -1.494, 0.0, -3.198, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    let qm, qn = scientific::dia_matvec(qc, [-0.614, 1.246, 1.461, 0.001, 1.971]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [0.07611399999999968, 0.0029980000000000002, -8.485992, 0.0]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 10);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [-3.728, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.494, 0.0, 0.555, 2.998, 0.0, 0.0, -1.123, 0.0, -3.198, 0.0]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 10);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [-9.32, 0.0, 0.0, 1.3875000000000002, -2.8075, 0.0, 0.0, 0.0, 7.495000000000001, 0.0, 0.0, 0.0, -3.735, 0.0, -7.995, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    assert(common::near(scientific::dia_sum(qc), -5.99));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 6);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 6);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 10);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [-3.728, 0.0, 0.0, 0.555, -1.123, 0.0, 0.0, 0.0, 2.998, 0.0, 0.0, 0.0, -1.494, 0.0, -3.198, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 10);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [-3.728, 0.0, 0.0, 0.555, -1.123, 0.0, 0.0, 0.0, 2.998, 0.0, 0.0, 0.0, -1.494, 0.0, -3.198, 0.0, 0.0, 0.0, 0.0, 0.0]));
+    let qu2, qw2 = scientific::dia_from_diagonals(4, 5, [0.0, 2.0, 3.0, 4.0], [-3.728, 0.0, -1.494, 0.0, 0.0, 2.998, -3.198, 0.555, 0.0, -1.123]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 10);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [-3.728, 0.0, 0.0, 0.555, -1.123, 0.0, 0.0, 0.0, 2.998, 0.0, 0.0, 0.0, -1.494, 0.0, -3.198, 0.0, 0.0, 0.0, 0.0, 0.0]));
+}
+
+fn test_sparse_dia_pins35() {
+    let qc, qg = scientific::dia_from_dense(common_3::ni_nd([5, 2], [0.0, 0.0, 0.0, -0.983, 0.0, 0.0, 0.0, 2.59, 0.0, 0.0]));
+    assert(qg.kind == scientific::F_NONE && qc.nnz == 4);
+    assert(qc.ndiag == 2 && scientific::dia_nnz(qc) == 4);
+    let qo, qv, qu = scientific::dia_diagonals(qc);
+    assert(qu.kind == scientific::F_NONE);
+    assert(qo.shape == [2] && common_3::ms_same(qo, [-2.0, 0.0]));
+    assert(qv.shape == [4] && common_3::ms_same(qv, [0.0, 2.59, 0.0, -0.983]));
+    let qd, qh = scientific::dia_to_dense(qc);
+    assert(qh.kind == scientific::F_NONE && common_3::ms_same(qd, [0.0, 0.0, 0.0, -0.983, 0.0, 0.0, 0.0, 2.59, 0.0, 0.0]));
+    assert(common_3::dia_same(qc, 5, 2, [0.0, 0.0, 0.0, -0.983, 0.0, 0.0, 0.0, 2.59, 0.0, 0.0]));
+    let qm, qn = scientific::dia_matvec(qc, [1.85, 0.669]);
+    assert(qn.kind == scientific::F_NONE && common_3::ms_same(qm, [0.0, -0.6576270000000001, 0.0, 1.73271, 0.0]));
+    let qt, qtg = scientific::dia_transpose(qc);
+    assert(qtg.kind == scientific::F_NONE && qt.nnz == 4);
+    let qy, qz = scientific::dia_to_dense(qt);
+    assert(qz.kind == scientific::F_NONE && common_3::ms_same(qy, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.983, 0.0, 2.59, 0.0]));
+    let qsc, qsg = scientific::dia_scale(qc, 2.5);
+    assert(qsg.kind == scientific::F_NONE && qsc.nnz == 4);
+    let qsd, qse = scientific::dia_to_dense(qsc);
+    assert(qse.kind == scientific::F_NONE && common_3::ms_same(qsd, [0.0, 0.0, 0.0, -2.4575, 0.0, 0.0, 0.0, 6.475, 0.0, 0.0]));
+    assert(common::near(scientific::dia_sum(qc), 1.6069999999999998));
+    let qk, ql = scientific::dia_to_csr(qc);
+    assert(ql.kind == scientific::F_NONE && qk.nnz == 2);
+    let qj, qi = scientific::dia_to_coo(qc);
+    assert(qi.kind == scientific::F_NONE && qj.nnz == 2);
+    let qf, qe = scientific::dia_from_csr(qk);
+    assert(qe.kind == scientific::F_NONE && qf.nnz == 4);
+    let qb, qa = scientific::dia_to_dense(qf);
+    assert(qa.kind == scientific::F_NONE && common_3::ms_same(qb, [0.0, 0.0, 0.0, -0.983, 0.0, 0.0, 0.0, 2.59, 0.0, 0.0]));
+    let qp, qq = scientific::dia_from_coo(qj);
+    assert(qq.kind == scientific::F_NONE && qp.nnz == 4);
+    let qr, qo2 = scientific::dia_to_dense(qp);
+    assert(qo2.kind == scientific::F_NONE && common_3::ms_same(qr, [0.0, 0.0, 0.0, -0.983, 0.0, 0.0, 0.0, 2.59, 0.0, 0.0]));
+    let qu2, qw2 = scientific::dia_from_diagonals(5, 2, [-2.0, 0.0], [0.0, 2.59, 0.0, -0.983]);
+    assert(qw2.kind == scientific::F_NONE && qu2.nnz == 4);
+    let qx2, qy2 = scientific::dia_to_dense(qu2);
+    assert(qy2.kind == scientific::F_NONE && common_3::ms_same(qx2, [0.0, 0.0, 0.0, -0.983, 0.0, 0.0, 0.0, 2.59, 0.0, 0.0]));
+}
+
+fn test_sparse_dia_pins() {
+    sparse_dia_tests::test_sparse_dia_pins0();
+    sparse_dia_tests::test_sparse_dia_pins1();
+    sparse_dia_tests::test_sparse_dia_pins2();
+    sparse_dia_tests::test_sparse_dia_pins3();
+    sparse_dia_tests::test_sparse_dia_pins4();
+    sparse_dia_tests::test_sparse_dia_pins5();
+    sparse_dia_tests::test_sparse_dia_pins6();
+    sparse_dia_tests::test_sparse_dia_pins7();
+    sparse_dia_tests::test_sparse_dia_pins8();
+    sparse_dia_tests::test_sparse_dia_pins9();
+    sparse_dia_tests::test_sparse_dia_pins10();
+    sparse_dia_tests::test_sparse_dia_pins11();
+    sparse_dia_tests::test_sparse_dia_pins12();
+    sparse_dia_tests::test_sparse_dia_pins13();
+    sparse_dia_tests::test_sparse_dia_pins14();
+    sparse_dia_tests::test_sparse_dia_pins15();
+    sparse_dia_tests::test_sparse_dia_pins16();
+    sparse_dia_tests::test_sparse_dia_pins17();
+    sparse_dia_tests::test_sparse_dia_pins18();
+    sparse_dia_tests::test_sparse_dia_pins19();
+    sparse_dia_tests::test_sparse_dia_pins20();
+    sparse_dia_2_tests::test_sparse_dia_pins21();
+    sparse_dia_2_tests::test_sparse_dia_pins22();
+    sparse_dia_2_tests::test_sparse_dia_pins23();
+    sparse_dia_2_tests::test_sparse_dia_pins24();
+    sparse_dia_2_tests::test_sparse_dia_pins25();
+    sparse_dia_2_tests::test_sparse_dia_pins26();
+    sparse_dia_2_tests::test_sparse_dia_pins27();
+    sparse_dia_2_tests::test_sparse_dia_pins28();
+    sparse_dia_2_tests::test_sparse_dia_pins29();
+    sparse_dia_2_tests::test_sparse_dia_pins30();
+    sparse_dia_2_tests::test_sparse_dia_pins31();
+    sparse_dia_2_tests::test_sparse_dia_pins32();
+    sparse_dia_2_tests::test_sparse_dia_pins33();
+    sparse_dia_2_tests::test_sparse_dia_pins34();
+    sparse_dia_2_tests::test_sparse_dia_pins35();
+}
+
+// The faults of the diagonal sparse format.
+fn test_sparse_dia_hostile() {
+    // A side below one.
+    let d1, g1 = scientific::dia_from_diagonals(0, 3, [0.0], [1.0, 2.0, 3.0]);
+    assert(g1.kind == scientific::F_RANGE);
+    let d2, g2 = scientific::dia_from_diagonals(3, 0, [0.0], [1.0, 2.0, 3.0]);
+    assert(g2.kind == scientific::F_RANGE);
+    // A side above the limit.
+    let d3, g3 = scientific::dia_from_diagonals(1073741825, 3, [0.0], [1.0, 2.0, 3.0]);
+    assert(g3.kind == scientific::F_RANGE);
+    // An offset outside the matrix.
+    let d4, g4 = scientific::dia_from_diagonals(3, 3, [3.0], [1.0, 2.0, 3.0]);
+    assert(g4.kind == scientific::F_RANGE);
+    let d5, g5 = scientific::dia_from_diagonals(3, 3, [-3.0], [1.0, 2.0, 3.0]);
+    assert(g5.kind == scientific::F_RANGE);
+    // An offset that is not a whole number.
+    let d6, g6 = scientific::dia_from_diagonals(3, 3, [0.5], [1.0, 2.0, 3.0]);
+    assert(g6.kind == scientific::F_RANGE);
+    // An offset so large that it lies outside the range of an integer.
+    let d6b, g6b = scientific::dia_from_diagonals(3, 3, [1.0e300], [1.0, 2.0, 3.0]);
+    assert(g6b.kind == scientific::F_RANGE);
+    let d6c, g6c = scientific::dia_from_diagonals(3, 3, [0.0 - 1.0e300], [1.0, 2.0, 3.0]);
+    assert(g6c.kind == scientific::F_RANGE);
+    // An offset that is not finite.
+    let d6d, g6d = scientific::dia_from_diagonals(3, 3, [0.0 / 0.0], [1.0, 2.0, 3.0]);
+    assert(g6d.kind == scientific::F_RANGE);
+    // Two equal offsets.
+    let d7, g7 = scientific::dia_from_diagonals(3, 3, [0.0, 0.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    assert(g7.kind == scientific::F_VALUE);
+    // A count of the values that does not match the diagonals.
+    let d8, g8 = scientific::dia_from_diagonals(3, 3, [0.0], [1.0, 2.0]);
+    assert(g8.kind == scientific::F_SHAPE);
+    // A value that is not finite.
+    let d9, g9 = scientific::dia_from_diagonals(3, 3, [0.0], [1.0, 0.0 / 0.0, 3.0]);
+    assert(g9.kind == scientific::F_VALUE);
+    // A matrix with one diagonal.
+    let d10, g10 = scientific::dia_from_diagonals(3, 3, [0.0], [1.0, 2.0, 3.0]);
+    assert(g10.kind == scientific::F_NONE && d10.nnz == 3);
+    // A place outside the matrix.
+    let x10, h10 = scientific::dia_get(d10, 3, 0);
+    assert(h10.kind == scientific::F_RANGE);
+    let x11, h11 = scientific::dia_get(d10, 0, 3);
+    assert(h11.kind == scientific::F_RANGE);
+    // A vector of the wrong length.
+    let x12, h12 = scientific::dia_matvec(d10, [1.0, 2.0]);
+    assert(h12.kind == scientific::F_SHAPE);
+    // A factor that is not finite.
+    let d13, g13 = scientific::dia_scale(d10, 0.0 / 0.0);
+    assert(g13.kind == scientific::F_VALUE);
+    // A dense matrix that is not a matrix.
+    let d14, g14 = scientific::dia_from_dense(common_3::ni_nd([3], [1.0, 2.0, 3.0]));
+    assert(g14.kind == scientific::F_SHAPE);
+    // A dense matrix with a value that is not finite.
+    let d15, g15 = scientific::dia_from_dense(common_3::ni_nd([2, 2], [1.0, 0.0 / 0.0, 0.0, 0.0]));
+    assert(g15.kind == scientific::F_VALUE);
+    // The offsets are sorted and the values follow them.
+    let d16, g16 = scientific::dia_from_diagonals(3, 3, [1.0, -1.0], [7.0, 8.0, 9.0, 5.0]);
+    assert(g16.kind == scientific::F_NONE);
+    let o16, v16, h16 = scientific::dia_diagonals(d16);
+    assert(h16.kind == scientific::F_NONE);
+    assert(common_3::ms_same(o16, [-1.0, 1.0]) && common_3::ms_same(v16, [9.0, 5.0, 7.0, 8.0]));
+    let e16, m16 = scientific::dia_to_dense(d16);
+    assert(m16.kind == scientific::F_NONE);
+    assert(common_3::ms_same(e16, [0.0, 7.0, 0.0, 9.0, 0.0, 8.0, 0.0, 5.0, 0.0]));
+}

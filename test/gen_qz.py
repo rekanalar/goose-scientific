@@ -1,4 +1,5 @@
-"""Print the SciPy values that test/run.goose pins for qz and ordqz.
+"""Print the SciPy values that test/suite/qz_tests.goose pins for qz and ordqz.
+The same pins hold test/suite/ordqz_tests.goose and test/suite/qz_c_tests.goose.
 Run it with a Python that holds NumPy and SciPy 1.18.1."""
 import numpy as np
 from scipy.linalg import qz, ordqz

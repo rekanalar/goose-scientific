@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the rank and
+# Prints the SciPy values that test/suite/rank_pins_tests.goose pins for the rank and
 # derivative filters of N dimensions. The output is Goose source.
 #   python3 test/gen_rank.py > pins.goose
 import numpy as np

@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the labels, the binary
+# Prints the SciPy values that test/suite/morph_pins_tests.goose pins for the labels, the binary
 # morphology and the distance transform of arrays of N dimensions.
 # The output is Goose source.
 #   python3 test/gen_morph.py > pins.goose

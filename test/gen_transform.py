@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the spline filters
+# Prints the SciPy values that test/suite/transform_pins_tests.goose pins for the spline filters
 # and the interpolating transforms. The output is Goose source.
 #   python3 test/gen_transform.py > pins.goose
 import numpy as np

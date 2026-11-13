@@ -1,5 +1,7 @@
-# Prints the SciPy values that test/run.goose pins for the interpolator of
-# scattered data. Run it with SciPy:
+# Prints the SciPy values that test/suite/interp_tests.goose pins for the
+# interpolator of scattered data. The same pins hold
+# test/suite/interp1d_kinds_tests.goose and test/suite/interpn_tests.goose.
+# Run it with SciPy:
 #   python3 test/gen_interp.py
 import numpy as np
 from scipy.interpolate import griddata, LinearNDInterpolator, NearestNDInterpolator

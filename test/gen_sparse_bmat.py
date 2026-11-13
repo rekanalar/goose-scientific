@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the block matrix and
+# Prints the SciPy values that test/suite/sparse_bmat_tests.goose pins for the block matrix and
 # the columnwise diagonals. The output is Goose source.
 #   python3 test/gen_sparse_bmat.py > pins.goose
 import random

@@ -1,4 +1,4 @@
-"""Print the NumPy values that test/run.goose pins for the complex calls.
+"""Print the NumPy values that test/suite/carray_tests.goose pins for the complex calls.
 
 The script prints the products, the Cholesky factors and the transforms
 of the pinned arrays. It also prints random Hermitian matrices with

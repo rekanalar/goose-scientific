@@ -1,4 +1,4 @@
-# Prints the SciPy values that test/run.goose pins for the generalized
+# Prints the SciPy values that test/suite/ceig_pair_tests.goose pins for the generalized
 # eigenproblem of a pair of matrices. Run it with SciPy:
 #   python3 test/gen_ceig_pair.py
 import numpy as np

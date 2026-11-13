@@ -1,7 +1,7 @@
-# Prints the SciPy values that test/run.goose pins for the sparse solvers
+# Prints the SciPy values that test/suite/sparse_lgmres_tests.goose pins for the sparse solvers
 # lgmres and gcrotmk. The output is Goose source: the function
 # test_sparse_lgmres_pins with one call for each pinned system. The helpers
-# lg_pin and lg_pin_opts live in test/run.goose.
+# lg_pin and lg_pin_opts live in test/suite/sparse_lgmres_tests.goose.
 #
 # SciPy and the package may take different paths to the solution. The pins
 # therefore hold the solution of SciPy at a tight tolerance, and the tests
