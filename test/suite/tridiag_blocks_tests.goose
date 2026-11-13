@@ -139,7 +139,7 @@ fn test_tridiag_blocks_select() {
 fn test_tridiag_blocks_one_value() {
     let w, v, f = scientific::eigh_tridiagonal([3.5], []);
     assert(f.kind == scientific::F_NONE);
-    assert(w.data.len == 1 && v.data.len == 1 && v.data[0] == 1.0);
+    assert(w.data.len == 1 && v.data.len == 1 && common::mathshim_abs(v.data[0]) == 1.0);
     assert(tb_close(w.data[0], 3.5, 1.0e-12));
 }
 

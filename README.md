@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.172.1";
+import scientific from "rekanalar/goose-scientific@v0.173.0";
 ```
 
 ## API
@@ -99,6 +99,7 @@ import scientific from "rekanalar/goose-scientific@v0.172.1";
 | Sparse norm and exponential | `onenormest`, `expm_multiply`, `expm_multiply_range` |
 | Partial singular values of a sparse matrix | `svds`, `SVDS_BOTH`, `SVDS_VALUES`, `SVDS_LEFT`, `SVDS_RIGHT` |
 | Restarted sparse solvers | `lgmres`, `gcrotmk` |
+| Extreme eigenpairs of a sparse symmetric matrix | `lobpcg` |
 | Sparse diagonals by column | `spdiags` |
 | Sparse matrices of blocks | `Bsr`, `bsr_from_entries`, `bsr_from_dense`, `bsr_to_dense`, `bsr_from_csr`, `bsr_to_csr`, `bsr_from_coo`, `bsr_to_coo`, `bsr_get`, `bsr_scale`, `bsr_matvec`, `bsr_transpose`, `bsr_sum`, `bsr_nnz`, `bsr_diagonal`, `bsr_blocks` |
 | Sparse matrices of compressed columns | `Csc`, `csc_from_dense`, `csc_from_triplets`, `csc_to_dense`, `csc_eye`, `csc_diags`, `csc_transpose`, `csc_get`, `csc_scale`, `csc_matvec`, `csc_add`, `csc_sub`, `csc_matmul`, `csc_diagonal`, `csc_sum`, `csc_from_csr`, `csc_to_csr` |
@@ -311,6 +312,37 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   reorthogonalization, and a space above 256 vectors is a fault. It has
   no `M`, no `sigma`, no `v0` and no `ncv`. The vectors may differ in
   sign from SciPy. Give it a symmetric matrix.
+- `lobpcg` gives the `k` largest or the `k` smallest eigenpairs of a
+  sparse symmetric matrix. It follows `scipy.sparse.linalg.lobpcg`. It
+  takes the matrix `a` and the start block `x` of `n` rows and `k`
+  columns. It takes the optional matrix `b` of a generalized problem, the
+  preconditioner `m` and the constraint block `y`. It also takes `tol`,
+  `maxiter`, `largest` and `restart_control`. A caller passes `copy(s)`
+  for a matrix or a block that the caller keeps.
+
+  The call gives five results and a fault. They are the values, the
+  vectors, the count of iterations and two histories. The vectors stand in
+  the columns of an `n` by `k` block. The values fall for `largest` and
+  rise otherwise. The histories stay empty unless the caller asks.
+
+  The vectors stand orthonormal in the product of `b`. They have no fixed
+  sign. A `tol` of zero gives `sqrt(eps) * n`, as SciPy does. The default
+  `maxiter` is 20. A call that runs out of iterations returns its last
+  pairs, and `niter` equal to `maxiter` says so. The call raises no
+  warning, so read the residual norms from the history.
+
+  A problem with `n` minus the count of constraints below `5 * k` takes
+  the dense path, as in SciPy. The path gives `niter` of 0 and no
+  history. It needs `n` of at most 4096. It takes no constraints, and
+  the call gives a fault of kind `F_SHAPE` for them where SciPy raises an
+  error.
+
+  `LinearOperator` stays a gap. SciPy lets a caller give the matrix as a
+  function. Goose cannot store a function, so `a`, `b` and `m` are sparse
+  matrices. A caller who holds only a product must build the matrix.
+  The package has no sparse `LinearOperator`, and none can exist in Goose
+  today. The package has no `spilu` yet either.
+
 - `svds` gives the `k` largest or the `k` smallest singular values of a
   sparse matrix, with their vectors. It gives `u` of `rows` by `k`, the
   values, and `vt` of `k` by `cols`. The values stand in rising order. It
@@ -2074,6 +2106,29 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   covers the finite values and the diagonal of `U`. A forged factor gives
   a fault of kind `F_SHAPE`. The check runs before any call walks the
   buffer, and the counts are bounded before the length is computed.
+- `lobpcg` checks every input before any product. The matrix `a` and
+  the matrix `b` must stand symmetric. SciPy does not test the symmetry
+  and returns values that mean nothing for a matrix that is not
+  symmetric. The matrix `b` needs a positive diagonal, and the Cholesky
+  step of each block must succeed. A `b` that is not positive definite, a
+  dependent start block and dependent constraints give a fault of kind
+  `F_VALUE`. SciPy raises an error for the last two.
+
+  A value that is not finite in an input gives a fault of kind `F_VALUE`.
+  A shape that does not fit gives `F_SHAPE`. Three inputs give `F_LIMIT`.
+  The cases are a count of iterations above the limit and a stored count
+  above the limit. The third is work blocks above the limit of elements. The check runs
+  before any buffer grows.
+
+  A finite input can still overflow in the arithmetic. SciPy then returns
+  NaN with no error. `lobpcg` tests the values and the vectors and gives
+  `F_VALUE` instead.
+
+  The call draws no random number, so its result does not depend on the
+  Goose version. A `b` that is positive semidefinite with a positive
+  diagonal passes the diagonal test. Only the Cholesky step catches it,
+  and only when a block of the iteration shows it.
+
 - `svds` checks the matrix, the counts, the tolerance, the choice, the
   start vector and the mode before any product. The matrix has no square
   test. Its layout has to hold, and every stored value has to be finite.
