@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.177.0";
+import scientific from "rekanalar/goose-scientific@v0.178.0";
 ```
 
 ## API
@@ -48,6 +48,7 @@ import scientific from "rekanalar/goose-scientific@v0.177.0";
 | Order statistics | `median`, `percentile`, `quantile`, `mode`, `average`, `median_axis`, `quantile_axis`, `percentile_axis`, `average_axis` |
 | Products | `matmul`, `dot`, `inner`, `outer`, `kron`, `trace`, `norm` |
 | Norms and tensors | `vector_norm(a, ord=2.0, axis=[], keepdims=false)`, `matrix_norm(a, ord="fro", keepdims=false)`, `tensorinv(a, ind=2)`, `tensorsolve(a, b, axes=[])` |
+| Chain product and the calls that apply a function | `chain_new()`, `chain_add(c, a)`, `multi_dot(c)`, `apply_over_axes(a, axes)`, `vectorize(a)`, `vectorize2(a, b)`, `vectorize3(a, b, c)` |
 | Solving | `solve`, `inv`, `det`, `slogdet`, `matrix_power` |
 | Decompositions | `cholesky`, `qr`, `schur`, `ldl` |
 | Eigenvalues | `eigvals`, `eig`, `eigvalsh`, `eigh` |
@@ -173,6 +174,43 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   above 1e154 gives an infinity, and a value below 1e-162 gives zero.
   NumPy scales the matrix and gives the right norm. The norm of one
   matrix gives an array of one element, where NumPy gives a number.
+- `multi_dot` takes a chain of arrays. The caller builds the chain
+  with `chain_new` and one `chain_add` for each array.
+  The chain holds at most 256 arrays. A chain of fewer than two arrays
+  is a fault.
+  The first and the last array of the chain may hold one dimension.
+  The others hold two.
+- The chain holds matrices and vectors only. An array of more than two
+  dimensions gives `F_SHAPE`.
+  NumPy takes a chain of two arrays from `numpy.dot`. That call works
+  on arrays of more than two dimensions.
+  NumPy gives a fault for such an array in a chain of three or more.
+- `multi_dot` refuses a value that is not finite, where NumPy lets it
+  through. Two vector ends give an array of one element, where NumPy
+  gives a number.
+- `multi_dot` picks the order of the products by the cost, as NumPy
+  does. The costs stop at the largest value of the number format.
+- `multi_dot` keeps every intermediate product in memory. A long chain of
+  large arrays can reach the limit of the elements. NumPy frees the
+  products that it does not need.
+- `apply_over_axes` takes a block and a list of at most 64 axes.
+  An axis counts from the end of the dimensions of the original array
+  when it is below zero.
+  A result of the block that holds one dimension less gets an axis of
+  length one. The axis takes the place of the axis.
+  A result with another count of dimensions is a fault.
+- `vectorize`, `vectorize2` and `vectorize3` take a block over one,
+  two or three values. NumPy takes any count of arguments. A caller
+  folds the arrays first for more than three. The result type is a
+  real number. NumPy takes a list of types instead, and gives a fault
+  for an empty array without that list. This package always gives that
+  fault.
+- `vectorize` passes a value that is not finite on, when the block
+  gives one. NumPy does the same. The other calls of this package
+  refuse such a value.
+- A block is the code of the caller. The package cannot interrupt a
+  block that does not stop.
+  It cannot check what a block does with the array that it holds.
 
 - The series of the five orthogonal bases hold their coefficients from
   the lowest degree to the highest. `numpy.polynomial` holds them so.
@@ -2129,6 +2167,31 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   singular values first. A rank-deficient matrix with a tiny LU pivot
   gives a fault and not a large wrong answer. `inv` and `solve`
   do not make that test and still return such an answer.
+- `chain_add` checks every array against its own shape before it
+  reads a value. It refuses a value that is not finite.
+  A forged array gives a fault of kind `F_SHAPE` and not a crash.
+  The lists and the count of a forged chain must agree. A chain that
+  does not agree gives a fault and not a stop.
+- `multi_dot` checks the chain against its own lists before it reads
+  a value.
+  The lists and the count of a forged chain must agree.
+  A chain of fewer than two arrays is a fault.
+  A length below one in the lists is a fault.
+  The neighbors must agree on the inner size.
+
+- A product that holds more values than the limit is a fault.
+  The check uses a quotient, so no product overflows.
+- The costs of the order of the products stop at the largest value of
+  the number format. A hostile size never wraps a cost into a small
+  number and never picks a wrong order.
+- `apply_over_axes` checks the array against its own shape before it
+  reads a value.
+  It checks the result of the block against its own shape too.
+  A block that gives a forged array gives a fault and not a crash.
+  The list of axes holds at most 64 axes.
+- `vectorize`, `vectorize2` and `vectorize3` check every array
+  against its own shape before they read a value. The shape of the
+  result is checked against the limit of the elements.
 
 - The calls of the five orthogonal bases check a series before they
   build a buffer. A series of more than 1001 coefficients gives a

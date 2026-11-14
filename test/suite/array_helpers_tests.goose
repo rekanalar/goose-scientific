@@ -10,48 +10,6 @@ import scientific from "../..";
 import common;
 import array_helpers_pins;
 
-// part_start gives the place of the part i of a ragged list.
-fn part_start(lens: f64[:], i: i64) -> i64 {
-    var at: i64 = 0;
-    var k: i64 = 0;
-    while k < i { at += lens[k] as i64; k += 1; }
-    return at;
-}
-
-// arr_of builds an array of a shape and the values.
-fn arr_of(shape: i64[:], values: f64[:]) -> scientific::Arr {
-    return scientific::arr_of(scientific::copy_slice(values), shape);
-}
-
-// part_of gives the values of the part i of a ragged list.
-fn part_of(d: f64[:], lens: f64[:], i: i64) -> f64[>..] {
-    var v: f64[>..] = [];
-    let at = part_start(lens, i);
-    var k: i64 = 0;
-    while k < lens[i] as i64 { v.push(d[at + k]); k += 1; }
-    return v;
-}
-
-// shape_of gives the shape of the part i of a ragged list of shapes.
-fn shape_of(d: f64[:], lens: f64[:], i: i64) -> i64[>..] {
-    var s: i64[>..] = [];
-    let at = part_start(lens, i);
-    var k: i64 = 0;
-    while k < lens[i] as i64 { s.push(d[at + k] as i64); k += 1; }
-    return s;
-}
-
-// same_shape tells whether an array holds a shape.
-fn same_shape(a: scientific::Arr&, shape: i64[:]) -> bool {
-    if a.ndim != shape.len { return false; }
-    var i: i64 = 0;
-    while i < shape.len {
-        if a.shape[i] != shape[i] { return false; }
-        i += 1;
-    }
-    return true;
-}
-
 // order_of gives the order of the bits that the flag names.
 fn order_of(flag: f64) -> const u8[:] {
     if flag == 0.0 { return "big"; }
@@ -62,13 +20,13 @@ fn test_pack_bits() {
     let lens = array_helpers_pins::PACK_IN_L;
     var i: i64 = 0;
     while i < lens.len {
-        let shape = shape_of(array_helpers_pins::PACK_SHAPE_D, array_helpers_pins::PACK_SHAPE_L, i);
-        let values = part_of(array_helpers_pins::PACK_IN_D, lens, i);
-        let a = arr_of(shape, values);
+        let shape = common::shape_of(array_helpers_pins::PACK_SHAPE_D, array_helpers_pins::PACK_SHAPE_L, i);
+        let values = common::part_of(array_helpers_pins::PACK_IN_D, lens, i);
+        let a = common::arr_of(shape, values);
         let axis = array_helpers_pins::PACK_AXIS[i] as i64;
         let got, f = scientific::packbits(a, axis, order_of(array_helpers_pins::PACK_ORDER[i]));
         assert(f.kind == scientific::F_NONE);
-        let want = part_of(array_helpers_pins::PACK_OUT_D, array_helpers_pins::PACK_OUT_L, i);
+        let want = common::part_of(array_helpers_pins::PACK_OUT_D, array_helpers_pins::PACK_OUT_L, i);
         assert(common::all_close(got, want, 0.0));
         // The length of the axis of the result is the count of the bytes.
         let ax = scientific::fix_axis(axis, a.ndim);
@@ -81,14 +39,14 @@ fn test_unpack_bits() {
     let lens = array_helpers_pins::UNPACK_IN_L;
     var i: i64 = 0;
     while i < lens.len {
-        let shape = shape_of(array_helpers_pins::UNPACK_SHAPE_D, array_helpers_pins::UNPACK_SHAPE_L, i);
-        let values = part_of(array_helpers_pins::UNPACK_IN_D, lens, i);
-        let a = arr_of(shape, values);
+        let shape = common::shape_of(array_helpers_pins::UNPACK_SHAPE_D, array_helpers_pins::UNPACK_SHAPE_L, i);
+        let values = common::part_of(array_helpers_pins::UNPACK_IN_D, lens, i);
+        let a = common::arr_of(shape, values);
         let axis = array_helpers_pins::UNPACK_AXIS[i] as i64;
         let count = array_helpers_pins::UNPACK_COUNT[i] as i64;
         let got, f = scientific::unpackbits(a, axis, count, order_of(array_helpers_pins::UNPACK_ORDER[i]));
         assert(f.kind == scientific::F_NONE);
-        let want = part_of(array_helpers_pins::UNPACK_OUT_D, array_helpers_pins::UNPACK_OUT_L, i);
+        let want = common::part_of(array_helpers_pins::UNPACK_OUT_D, array_helpers_pins::UNPACK_OUT_L, i);
         assert(common::all_close(got, want, 0.0));
         i += 1;
     }
@@ -98,23 +56,23 @@ fn test_copy_into_array() {
     let lens = array_helpers_pins::COPY_DST_L;
     var i: i64 = 0;
     while i < lens.len {
-        let dshape = shape_of(array_helpers_pins::COPY_DST_SHAPE_D, array_helpers_pins::COPY_DST_SHAPE_L, i);
-        let dvalues = part_of(array_helpers_pins::COPY_DST_D, lens, i);
-        var dst = arr_of(dshape, dvalues);
-        let sshape = shape_of(array_helpers_pins::COPY_SRC_SHAPE_D, array_helpers_pins::COPY_SRC_SHAPE_L, i);
-        let svalues = part_of(array_helpers_pins::COPY_SRC_D, array_helpers_pins::COPY_SRC_L, i);
-        let src = arr_of(sshape, svalues);
-        let mshape = shape_of(array_helpers_pins::COPY_MASK_SHAPE_D, array_helpers_pins::COPY_MASK_SHAPE_L, i);
-        let mvalues = part_of(array_helpers_pins::COPY_MASK_D, array_helpers_pins::COPY_MASK_L, i);
+        let dshape = common::shape_of(array_helpers_pins::COPY_DST_SHAPE_D, array_helpers_pins::COPY_DST_SHAPE_L, i);
+        let dvalues = common::part_of(array_helpers_pins::COPY_DST_D, lens, i);
+        var dst = common::arr_of(dshape, dvalues);
+        let sshape = common::shape_of(array_helpers_pins::COPY_SRC_SHAPE_D, array_helpers_pins::COPY_SRC_SHAPE_L, i);
+        let svalues = common::part_of(array_helpers_pins::COPY_SRC_D, array_helpers_pins::COPY_SRC_L, i);
+        let src = common::arr_of(sshape, svalues);
+        let mshape = common::shape_of(array_helpers_pins::COPY_MASK_SHAPE_D, array_helpers_pins::COPY_MASK_SHAPE_L, i);
+        let mvalues = common::part_of(array_helpers_pins::COPY_MASK_D, array_helpers_pins::COPY_MASK_L, i);
         if mshape.len == 0 {
             let f = scientific::copyto(dst, src);
             assert(f.kind == scientific::F_NONE);
         } else {
-            let mask = arr_of(mshape, mvalues);
+            let mask = common::arr_of(mshape, mvalues);
             let f = scientific::copyto_where(dst, src, mask);
             assert(f.kind == scientific::F_NONE);
         }
-        let want = part_of(array_helpers_pins::COPY_OUT_D, array_helpers_pins::COPY_OUT_L, i);
+        let want = common::part_of(array_helpers_pins::COPY_OUT_D, array_helpers_pins::COPY_OUT_L, i);
         assert(common::all_close(dst, want, 0.0));
         i += 1;
     }
@@ -130,9 +88,9 @@ fn test_block_grid() {
         assert(fb.kind == scientific::F_NONE);
         var k: i64 = 0;
         while k < rows * cols {
-            let shape = shape_of(array_helpers_pins::BLOCK_SHAPE_D, array_helpers_pins::BLOCK_SHAPE_L, at);
-            let values = part_of(array_helpers_pins::BLOCK_VALUE_D, array_helpers_pins::BLOCK_VALUE_L, at);
-            let blk = arr_of(shape, values);
+            let shape = common::shape_of(array_helpers_pins::BLOCK_SHAPE_D, array_helpers_pins::BLOCK_SHAPE_L, at);
+            let values = common::part_of(array_helpers_pins::BLOCK_VALUE_D, array_helpers_pins::BLOCK_VALUE_L, at);
+            let blk = common::arr_of(shape, values);
             let f = scientific::block_put(b, k / cols, k % cols, blk);
             assert(f.kind == scientific::F_NONE);
             at += 1;
@@ -141,9 +99,9 @@ fn test_block_grid() {
         let got, f2 = scientific::block_build(b);
         assert(f2.kind == scientific::F_NONE);
         // The shape of the result is the shape of NumPy.
-        let oshape = shape_of(array_helpers_pins::BLOCK_OUT_SHAPE_D, array_helpers_pins::BLOCK_OUT_SHAPE_L, i);
-        assert(same_shape(got, oshape));
-        let want = part_of(array_helpers_pins::BLOCK_OUT_D, array_helpers_pins::BLOCK_OUT_L, i);
+        let oshape = common::shape_of(array_helpers_pins::BLOCK_OUT_SHAPE_D, array_helpers_pins::BLOCK_OUT_SHAPE_L, i);
+        assert(common::same_shape(got, oshape));
+        let want = common::part_of(array_helpers_pins::BLOCK_OUT_D, array_helpers_pins::BLOCK_OUT_L, i);
         assert(common::all_close(got, want, 0.0));
         i += 1;
     }
@@ -152,18 +110,18 @@ fn test_block_grid() {
 fn test_roll_axis() {
     var i: i64 = 0;
     while i < array_helpers_pins::ROLL_AXIS.len {
-        let shape = shape_of(array_helpers_pins::ROLL_SHAPE_D, array_helpers_pins::ROLL_SHAPE_L, i);
+        let shape = common::shape_of(array_helpers_pins::ROLL_SHAPE_D, array_helpers_pins::ROLL_SHAPE_L, i);
         var values: f64[>..] = [];
         var k: i64 = 0;
         while k < scientific::numel(shape) { values.push(k as f64); k += 1; }
-        let a = arr_of(shape, values);
+        let a = common::arr_of(shape, values);
         let axis = array_helpers_pins::ROLL_AXIS[i] as i64;
         let start = array_helpers_pins::ROLL_START[i] as i64;
         let got, f = scientific::rollaxis(a, axis, start);
         assert(f.kind == scientific::F_NONE);
-        let wshape = shape_of(array_helpers_pins::ROLL_OUT_SHAPE_D, array_helpers_pins::ROLL_OUT_SHAPE_L, i);
-        assert(same_shape(got, wshape));
-        let want = part_of(array_helpers_pins::ROLL_OUT_D, array_helpers_pins::ROLL_OUT_L, i);
+        let wshape = common::shape_of(array_helpers_pins::ROLL_OUT_SHAPE_D, array_helpers_pins::ROLL_OUT_SHAPE_L, i);
+        assert(common::same_shape(got, wshape));
+        let want = common::part_of(array_helpers_pins::ROLL_OUT_D, array_helpers_pins::ROLL_OUT_L, i);
         assert(common::all_close(got, want, 0.0));
         i += 1;
     }
@@ -173,12 +131,12 @@ fn test_split_sections() {
     var i: i64 = 0;
     var at: i64 = 0;
     while i < array_helpers_pins::CUT_AXIS.len {
-        let shape = shape_of(array_helpers_pins::CUT_SHAPE_D, array_helpers_pins::CUT_SHAPE_L, i);
+        let shape = common::shape_of(array_helpers_pins::CUT_SHAPE_D, array_helpers_pins::CUT_SHAPE_L, i);
         var values: f64[>..] = [];
         var k: i64 = 0;
         while k < scientific::numel(shape) { values.push(k as f64); k += 1; }
-        let a = arr_of(shape, values);
-        let places = shape_of(array_helpers_pins::CUT_PLACES_D, array_helpers_pins::CUT_PLACES_L, i);
+        let a = common::arr_of(shape, values);
+        let places = common::shape_of(array_helpers_pins::CUT_PLACES_D, array_helpers_pins::CUT_PLACES_L, i);
         let axis = array_helpers_pins::CUT_AXIS[i] as i64;
         let p, fp = scientific::split(a, places, axis);
         assert(fp.kind == scientific::F_NONE);
@@ -186,7 +144,7 @@ fn test_split_sections() {
         var j: i64 = 0;
         while j < p.count {
             let piece = scientific::part(p, j);
-            let want = part_of(array_helpers_pins::CUT_OUT_D, array_helpers_pins::CUT_OUT_L, at);
+            let want = common::part_of(array_helpers_pins::CUT_OUT_D, array_helpers_pins::CUT_OUT_L, at);
             assert(common::all_close(piece, want, 0.0));
             at += 1;
             j += 1;
@@ -198,7 +156,7 @@ fn test_split_sections() {
 fn test_sort_complex() {
     var i: i64 = 0;
     while i < array_helpers_pins::SORT_IN_L.len {
-        let pairs = part_of(array_helpers_pins::SORT_IN_D, array_helpers_pins::SORT_IN_L, i);
+        let pairs = common::part_of(array_helpers_pins::SORT_IN_D, array_helpers_pins::SORT_IN_L, i);
         var re: f64[>..] = [];
         var im: f64[>..] = [];
         var k: i64 = 0;
@@ -211,7 +169,7 @@ fn test_sort_complex() {
         assert(f.kind == scientific::F_NONE);
         let got, f2 = scientific::sort_complex(c);
         assert(f2.kind == scientific::F_NONE);
-        let want = part_of(array_helpers_pins::SORT_OUT_D, array_helpers_pins::SORT_OUT_L, i);
+        let want = common::part_of(array_helpers_pins::SORT_OUT_D, array_helpers_pins::SORT_OUT_L, i);
         assert(got.data.len == want.len);
         var j: i64 = 0;
         while j < want.len {
@@ -225,16 +183,16 @@ fn test_sort_complex() {
 fn test_strided_array() {
     var i: i64 = 0;
     while i < array_helpers_pins::STRIDE_SHAPE_L.len {
-        let buf = part_of(array_helpers_pins::STRIDE_BUFFER_D, array_helpers_pins::STRIDE_BUFFER_L, i);
+        let buf = common::part_of(array_helpers_pins::STRIDE_BUFFER_D, array_helpers_pins::STRIDE_BUFFER_L, i);
         var one: i64[>..] = [];
         one.push(buf.len);
-        let a = arr_of(one, buf);
-        let shape = shape_of(array_helpers_pins::STRIDE_SHAPE_D, array_helpers_pins::STRIDE_SHAPE_L, i);
-        let steps = shape_of(array_helpers_pins::STRIDE_STEP_D, array_helpers_pins::STRIDE_STEP_L, i);
+        let a = common::arr_of(one, buf);
+        let shape = common::shape_of(array_helpers_pins::STRIDE_SHAPE_D, array_helpers_pins::STRIDE_SHAPE_L, i);
+        let steps = common::shape_of(array_helpers_pins::STRIDE_STEP_D, array_helpers_pins::STRIDE_STEP_L, i);
         let got, f = scientific::as_strided(a, shape, steps);
         assert(f.kind == scientific::F_NONE);
-        assert(same_shape(got, shape));
-        let want = part_of(array_helpers_pins::STRIDE_OUT_D, array_helpers_pins::STRIDE_OUT_L, i);
+        assert(common::same_shape(got, shape));
+        let want = common::part_of(array_helpers_pins::STRIDE_OUT_D, array_helpers_pins::STRIDE_OUT_L, i);
         assert(common::all_close(got, want, 0.0));
         i += 1;
     }

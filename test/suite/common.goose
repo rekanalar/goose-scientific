@@ -6,6 +6,49 @@ import os;
 
 fn empty_row() -> f64[>..] { var r: f64[>..] = []; return r; }
 
+// arr_of builds an array of a shape and the values.
+// same_shape tells whether an array holds a shape.
+fn arr_of(shape: i64[:], values: f64[:]) -> scientific::Arr {
+    return scientific::arr_of(scientific::copy_slice(values), shape);
+}
+
+fn same_shape(a: scientific::Arr&, shape: i64[:]) -> bool {
+    if a.ndim != shape.len { return false; }
+    var i: i64 = 0;
+    while i < shape.len {
+        if a.shape[i] != shape[i] { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+
+// part_start gives the place of the part i of a ragged list.
+// part_of gives the values of the part i of a ragged list.
+// shape_of gives the shape of the part i of a ragged list of shapes.
+fn part_start(lens: f64[:], i: i64) -> i64 {
+    var at: i64 = 0;
+    var k: i64 = 0;
+    while k < i { at += lens[k] as i64; k += 1; }
+    return at;
+}
+
+fn part_of(d: f64[:], lens: f64[:], i: i64) -> f64[>..] {
+    var v: f64[>..] = [];
+    let at = part_start(lens, i);
+    var k: i64 = 0;
+    while k < lens[i] as i64 { v.push(d[at + k]); k += 1; }
+    return v;
+}
+
+fn shape_of(d: f64[:], lens: f64[:], i: i64) -> i64[>..] {
+    var s: i64[>..] = [];
+    let at = part_start(lens, i);
+    var k: i64 = 0;
+    while k < lens[i] as i64 { s.push(d[at + k] as i64); k += 1; }
+    return s;
+}
+
 // all_close tells whether every tap of a is within tol of v.
 fn all_close(a: scientific::Arr&, v: f64[:], tol: f64) -> bool {
     if a.data.len != v.len { return false; }

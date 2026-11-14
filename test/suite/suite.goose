@@ -87,6 +87,7 @@ import morph_2_tests;
 import morph_pins_tests;
 import morph_tests;
 import moves_tests;
+import multi_dot_apply_tests;
 import nan_tests;
 import nd_interpolator_tests;
 import ndimage_2_tests;
@@ -325,6 +326,21 @@ fn run_all() {
     morph_2_tests::test_morph_hostile();
     morph_pins_tests::test_morph_pins();
     moves_tests::test_moves();
+    multi_dot_apply_tests::test_multi_dot_pins();
+    multi_dot_apply_tests::test_multi_dot_shapes();
+    multi_dot_apply_tests::test_multi_dot_faults();
+    multi_dot_apply_tests::test_multi_dot_limit();
+    multi_dot_apply_tests::test_apply_over_axes_pins();
+    multi_dot_apply_tests::test_apply_over_axes_shape();
+    multi_dot_apply_tests::test_apply_over_axes_faults();
+    multi_dot_apply_tests::test_vectorize_pins();
+    multi_dot_apply_tests::test_vectorize_broadcast();
+    multi_dot_apply_tests::test_vectorize_faults();
+    multi_dot_apply_tests::test_chain_add_forged();
+    multi_dot_apply_tests::test_multi_dot_cost_saturates();
+    multi_dot_apply_tests::test_vectorize_limit();
+    multi_dot_apply_tests::test_apply_over_axes_no_dimension();
+    multi_dot_apply_tests::test_apply_over_axes_drop_axis();
     nan_tests::test_nan_reductions();
     nd_interpolator_tests::test_nd_interpolator();
     ndimage_2_tests::test_ndimage_hostile();
@@ -976,6 +992,24 @@ fn run_group(g: const u8[:]) -> bool {
     }
     if g == "moves" {
         moves_tests::test_moves();
+        return true;
+    }
+    if g == "multi_dot_apply" {
+        multi_dot_apply_tests::test_multi_dot_pins();
+        multi_dot_apply_tests::test_multi_dot_shapes();
+        multi_dot_apply_tests::test_multi_dot_faults();
+        multi_dot_apply_tests::test_multi_dot_limit();
+        multi_dot_apply_tests::test_apply_over_axes_pins();
+        multi_dot_apply_tests::test_apply_over_axes_shape();
+        multi_dot_apply_tests::test_apply_over_axes_faults();
+        multi_dot_apply_tests::test_vectorize_pins();
+        multi_dot_apply_tests::test_vectorize_broadcast();
+        multi_dot_apply_tests::test_vectorize_faults();
+        multi_dot_apply_tests::test_chain_add_forged();
+        multi_dot_apply_tests::test_multi_dot_cost_saturates();
+        multi_dot_apply_tests::test_vectorize_limit();
+        multi_dot_apply_tests::test_apply_over_axes_no_dimension();
+        multi_dot_apply_tests::test_apply_over_axes_drop_axis();
         return true;
     }
     if g == "nan" {
@@ -1854,6 +1888,21 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_morph_pins9" { morph_tests::test_morph_pins9(); return true; }
     if t == "test_morph_pins10" { morph_tests::test_morph_pins10(); return true; }
     if t == "test_moves" { moves_tests::test_moves(); return true; }
+    if t == "test_multi_dot_pins" { multi_dot_apply_tests::test_multi_dot_pins(); return true; }
+    if t == "test_multi_dot_shapes" { multi_dot_apply_tests::test_multi_dot_shapes(); return true; }
+    if t == "test_multi_dot_faults" { multi_dot_apply_tests::test_multi_dot_faults(); return true; }
+    if t == "test_multi_dot_limit" { multi_dot_apply_tests::test_multi_dot_limit(); return true; }
+    if t == "test_apply_over_axes_pins" { multi_dot_apply_tests::test_apply_over_axes_pins(); return true; }
+    if t == "test_apply_over_axes_shape" { multi_dot_apply_tests::test_apply_over_axes_shape(); return true; }
+    if t == "test_apply_over_axes_faults" { multi_dot_apply_tests::test_apply_over_axes_faults(); return true; }
+    if t == "test_vectorize_pins" { multi_dot_apply_tests::test_vectorize_pins(); return true; }
+    if t == "test_vectorize_broadcast" { multi_dot_apply_tests::test_vectorize_broadcast(); return true; }
+    if t == "test_vectorize_faults" { multi_dot_apply_tests::test_vectorize_faults(); return true; }
+    if t == "test_chain_add_forged" { multi_dot_apply_tests::test_chain_add_forged(); return true; }
+    if t == "test_multi_dot_cost_saturates" { multi_dot_apply_tests::test_multi_dot_cost_saturates(); return true; }
+    if t == "test_vectorize_limit" { multi_dot_apply_tests::test_vectorize_limit(); return true; }
+    if t == "test_apply_over_axes_no_dimension" { multi_dot_apply_tests::test_apply_over_axes_no_dimension(); return true; }
+    if t == "test_apply_over_axes_drop_axis" { multi_dot_apply_tests::test_apply_over_axes_drop_axis(); return true; }
     if t == "test_nan_reductions" { nan_tests::test_nan_reductions(); return true; }
     if t == "test_nd_interpolator" { nd_interpolator_tests::test_nd_interpolator(); return true; }
     if t == "test_ndimage_pins11" { ndimage_2_tests::test_ndimage_pins11(); return true; }
@@ -2718,6 +2767,24 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_moves" { moves_tests::test_moves(); return true; }
         return false;
     }
+    if g == "multi_dot_apply" {
+        if t == "test_multi_dot_pins" { multi_dot_apply_tests::test_multi_dot_pins(); return true; }
+        if t == "test_multi_dot_shapes" { multi_dot_apply_tests::test_multi_dot_shapes(); return true; }
+        if t == "test_multi_dot_faults" { multi_dot_apply_tests::test_multi_dot_faults(); return true; }
+        if t == "test_multi_dot_limit" { multi_dot_apply_tests::test_multi_dot_limit(); return true; }
+        if t == "test_apply_over_axes_pins" { multi_dot_apply_tests::test_apply_over_axes_pins(); return true; }
+        if t == "test_apply_over_axes_shape" { multi_dot_apply_tests::test_apply_over_axes_shape(); return true; }
+        if t == "test_apply_over_axes_faults" { multi_dot_apply_tests::test_apply_over_axes_faults(); return true; }
+        if t == "test_vectorize_pins" { multi_dot_apply_tests::test_vectorize_pins(); return true; }
+        if t == "test_vectorize_broadcast" { multi_dot_apply_tests::test_vectorize_broadcast(); return true; }
+        if t == "test_vectorize_faults" { multi_dot_apply_tests::test_vectorize_faults(); return true; }
+        if t == "test_chain_add_forged" { multi_dot_apply_tests::test_chain_add_forged(); return true; }
+        if t == "test_multi_dot_cost_saturates" { multi_dot_apply_tests::test_multi_dot_cost_saturates(); return true; }
+        if t == "test_vectorize_limit" { multi_dot_apply_tests::test_vectorize_limit(); return true; }
+        if t == "test_apply_over_axes_no_dimension" { multi_dot_apply_tests::test_apply_over_axes_no_dimension(); return true; }
+        if t == "test_apply_over_axes_drop_axis" { multi_dot_apply_tests::test_apply_over_axes_drop_axis(); return true; }
+        return false;
+    }
     if g == "nan" {
         if t == "test_nan_reductions" { nan_tests::test_nan_reductions(); return true; }
         return false;
@@ -3353,5 +3420,5 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
 }
 
 fn print_groups() {
-    print("groups: array_helpers assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves nan nd_interpolator ndimage ndimage_pins norms_tensors nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
+    print("groups: array_helpers assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_pins norms_tensors nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
 }
