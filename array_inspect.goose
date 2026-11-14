@@ -28,10 +28,10 @@ fn asanyarray(a) -> Arr, Fault { return asarray(a); }
 // order, so the call gives a copy.
 fn ascontiguousarray(a) -> Arr, Fault { return asarray(a); }
 
-// asfortranarray gives a copy of the array of the caller in the
-// column major order. The buffer of the package holds the elements in
-// the row major order, so the call gives a copy. The order of the
-// elements does not change.
+// asfortranarray gives a copy of the array of the caller. The buffer
+// of the package holds the elements in the row major order, so the
+// copy keeps that order. NumPy gives an array that isfortran accepts.
+// Here isfortran gives false for every array.
 fn asfortranarray(a) -> Arr, Fault { return asarray(a); }
 
 // astype gives a copy of the array of the caller with every value
@@ -56,35 +56,40 @@ fn shape(a) -> Arr, Fault {
 }
 
 // isscalar tells whether the value of the caller is a single number
-// and not an array. The package holds one array type, so a value of
-// the type f64 is a scalar.
-fn isscalar(x: f64) -> bool {
-    return true;
-}
+// and not an array. A number gives true. An array gives false.
+fn isscalar(x: f64) -> bool { return true; }
+fn isscalar(a: Arr&) -> bool { return false; }
+fn isscalar(a: CArr&) -> bool { return false; }
 
 // isrealobj tells whether the array of the caller holds real numbers.
-// The array of the package holds real numbers only, so the call gives
-// true.
-fn isrealobj(a) -> bool { return true; }
+// An array of the type Arr gives true. A complex array gives false.
+fn isrealobj(a: Arr&) -> bool { return true; }
+fn isrealobj(a: CArr&) -> bool { return false; }
 
 // iscomplexobj tells whether the array of the caller holds complex
-// numbers. The array of the package holds real numbers only, so the
-// call gives false.
-fn iscomplexobj(a) -> bool { return false; }
+// numbers. An array of the type Arr gives false. A complex array gives
+// true.
+fn iscomplexobj(a: Arr&) -> bool { return false; }
+fn iscomplexobj(a: CArr&) -> bool { return true; }
 
 // isfortran tells whether the elements of the array of the caller lie
-// in the column major order. The buffer of the package holds the
-// elements in the row major order, so the call gives false for an
-// array of more than one dimension. An array of one dimension and an
-// array of zero dimensions give true, as in NumPy.
-fn isfortran(a) -> bool {
-    return a.ndim < 2;
-}
+// in the column major order and not in the row major order. The buffer
+// of the package always holds the elements in the row major order, so
+// the call gives false. NumPy gives false for an array of one
+// dimension too, because that array lies in both orders.
+fn isfortran(a: Arr&) -> bool { return false; }
+fn isfortran(a: CArr&) -> bool { return false; }
 
 // conjugate gives the conjugate of every value of the array of the
-// caller. The values of the package are real, so the conjugate of a
-// value is the value.
-fn conjugate(a) -> Arr, Fault { return asarray(a); }
+// caller. The values of an array of the type Arr are real, so the
+// conjugate of a value is the value. A complex array gives the complex
+// conjugate of every element.
+fn conjugate(a: Arr&) -> Arr, Fault { return asarray(a); }
+fn conjugate(c: CArr&) -> CArr, Fault {
+    let f = check_stack(c.ndim, c.shape, c.data.len, 2, "conjugate");
+    if f.kind != F_NONE { return carr_empty(), f; }
+    return conj(c), no_fault();
+}
 
 // flat gives the elements of the array of the caller as a row. The row
 // holds the elements in the row major order.

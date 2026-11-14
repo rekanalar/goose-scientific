@@ -55,14 +55,33 @@ fn test_shape_gives_the_shape() {
 fn test_the_predicates() {
     let a, f_a = scientific::from_values([1.0, 2.0]);
     assert(scientific::isscalar(1.0));
+    assert(!scientific::isscalar(a));
     assert(scientific::isrealobj(a));
     assert(!scientific::iscomplexobj(a));
-    // An array of one dimension gives true, as in NumPy. An array of
-    // two dimensions gives false, because the buffer holds the
-    // elements in the row major order.
-    assert(scientific::isfortran(a));
+    // NumPy gives false for an array of one dimension and for a matrix
+    // of the row major order. The buffer of the package always holds
+    // that order.
+    assert(!scientific::isfortran(a));
     let m, f_m = scientific::from_rows(2, 2, [1.0, 2.0, 3.0, 4.0]);
     assert(!scientific::isfortran(m));
+    let m2, f_m2 = scientific::asfortranarray(m);
+    assert(!scientific::isfortran(m2));
+}
+
+// A complex array is not real. Its conjugate flips the sign of the
+// imaginary part of each element.
+fn test_a_complex_array_is_not_real() {
+    let re, f1 = scientific::from_values([1.0, 2.0]);
+    let im, f2 = scientific::from_values([3.0, 4.0]);
+    let c, f3 = scientific::complex_array(re, im);
+    assert(f3.kind == scientific::F_NONE);
+    assert(!scientific::isrealobj(c));
+    assert(scientific::iscomplexobj(c));
+    assert(!scientific::isscalar(c));
+    let k, fk = scientific::conjugate(c);
+    assert(fk.kind == scientific::F_NONE && k.data.len == 4);
+    assert(k.data[0] == 1.0 && k.data[1] == -3.0);
+    assert(k.data[2] == 2.0 && k.data[3] == -4.0);
 }
 
 fn test_flat_gives_the_elements() {

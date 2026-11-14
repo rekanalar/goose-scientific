@@ -42,6 +42,7 @@ import array_random;
 import array_random_distributions;
 import array_random_laws;
 import array_random_discrete;
+import array_random_multi;
 import array_inspect;
 import array_optimize;
 import array_minimize;
@@ -311,6 +312,20 @@ fn all_finite(data: f64[:]) -> bool {
         i += 1;
     }
     return true;
+}
+
+// max_abs gives the largest absolute value of a buffer. An empty
+// buffer gives zero.
+fn max_abs(data: f64[:]) -> f64 {
+    var m: f64 = 0.0;
+    var i: i64 = 0;
+    while i < data.len {
+        var a = data[i];
+        if a < 0.0 { a = -a; }
+        if a > m { m = a; }
+        i += 1;
+    }
+    return m;
 }
 
 // fill builds an array of a shape where every element holds one value.

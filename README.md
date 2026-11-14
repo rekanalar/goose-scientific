@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.183.0";
+import scientific from "rekanalar/goose-scientific@v0.184.0";
 ```
 
 ## API
@@ -61,6 +61,7 @@ import scientific from "rekanalar/goose-scientific@v0.183.0";
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
 | Continuous random laws | `gamma`, `lognormal`, `chisquare`, `beta`, `rayleigh`, `weibull`, `gumbel`, `logistic` |
 | Discrete random laws | `binomial`, `geometric`, `hypergeometric`, `logseries`, `negative_binomial`, `zipf`, `multinomial` |
+| The random laws of a vector | `dirichlet`, `multivariate_normal` |
 | Inspection and conversion | `asarray`, `asanyarray`, `ascontiguousarray`, `asfortranarray`, `astype`, `shape`, `isscalar`, `isrealobj`, `iscomplexobj`, `isfortran`, `conjugate`, `flat` |
 | The laws of the F family, of the circle, of the Pareto, of the triangle and of the Wald form | `f`, `noncentral_chisquare`, `noncentral_f`, `pareto`, `triangular`, `vonmises`, `wald` |
 | Names of NumPy | `seed`, `shuffle`, `random_sample`, `rand`, `randn`, `randint`, `bytes`, `get_state`, `set_state` |
@@ -1903,18 +1904,33 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   caller stays as it was. The package holds one array type, so the
   calls differ from NumPy in no way that a caller can see.
 - `asfortranarray` gives a copy in the row major order. The buffer of
-  the package holds the elements in that order, so the order of the
-  elements does not change. `isfortran` gives false for an array of
-  more than one dimension.
+  the package holds the elements in that order. NumPy gives an array
+  that `isfortran` accepts. Here `isfortran` gives false for every
+  array, because no array lies in the column major order.
 - `astype` converts every value. The package holds the type of f64
   only, so the call gives a copy. A type that the package does not
   hold gives `F_VALUE`.
 - `shape` gives the shape as a row of whole numbers. `flat` gives the
-  elements as a row. `conjugate` gives a copy, because the values of
-  the package are real. `clone` gives a copy as well.
-- `isscalar` gives true for a number. `isrealobj` gives true and
-  `iscomplexobj` gives false, because the array of the package holds
-  real numbers only.
+  elements as a row. `clone` gives a copy as well.
+- `isfortran` gave true for an array of one dimension up to v0.183.0.
+  It gives false now, as NumPy does. `isscalar`, `isrealobj`,
+  `iscomplexobj` and `conjugate` took no complex array up to v0.183.0.
+  They take one now.
+- `conjugate` gives a copy of a real array. It gives the complex
+  conjugate of a complex array.
+- `isscalar` gives true for a number and false for an array.
+  `isrealobj` gives true for a real array and false for a complex
+  array. `iscomplexobj` gives the opposite.
+- `dirichlet` takes a row of concentrations. Each concentration must
+  stand above zero and outside 1.0e-300 to 1.0e100. The call gives a
+  row of values that sum to one.
+- `multivariate_normal` takes a mean and a covariance. The mean holds
+  one dimension and the covariance holds as many rows and columns as
+  the mean holds values. A mean of more than 64 values gives
+  `F_LIMIT`. The covariance has to be symmetric and positive
+  semidefinite. The package refuses a covariance that is not, and
+  NumPy only warns about it. A singular covariance gives a point on a
+  line or a plane.
 - The eight continuous laws take the generator by reference and give
   one number. They follow the parameter rules of NumPy 2.5.4. The
   stream of the package differs from the stream of NumPy, so a seed
@@ -2340,6 +2356,12 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   for minutes. The call gives `F_LIMIT` instead.
 - The conversion calls check the array of the caller before they read
   it. A forged array gives `F_SHAPE` and not a read outside the shape.
+- `multivariate_normal` refuses a covariance that is not symmetric or
+  not positive semidefinite. NumPy only warns about such a covariance
+  and still draws a number. The number of such a draw follows no law,
+  so the package gives `F_VALUE`.
+- `dirichlet` refuses a concentration at or below zero. NumPy raises an
+  error for such a concentration.
 - `multinomial` checks its row before it reads a value. A row of
   more than one dimension gives `F_SHAPE`. A sum above one gives
   `F_VALUE`. The call never gives a wrong count.
