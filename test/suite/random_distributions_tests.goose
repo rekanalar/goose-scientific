@@ -10,30 +10,15 @@ namespace random_distributions_tests;
 
 import scientific from "../..";
 import common;
+import common_13;
 import random_distributions_pins;
 
 const DRAWS: i64 = 200000;
 
-// The law codes of the eight laws.
-const LAW_GAMMA: i64 = 0;
-const LAW_LOGNORMAL: i64 = 1;
-const LAW_CHISQUARE: i64 = 2;
-const LAW_BETA: i64 = 3;
-const LAW_RAYLEIGH: i64 = 4;
-const LAW_WEIBULL: i64 = 5;
-const LAW_GUMBEL: i64 = 6;
-const LAW_LOGISTIC: i64 = 7;
-
-// draw gives one number of a law. A law of one parameter ignores p2.
+// draw gives one number of a law. The codes are the codes of the
+// shared helper, so that one helper draws every law of the package.
 fn draw(law: i64, r: scientific::Rng&, p1: f64, p2: f64) -> f64, scientific::Fault {
-    if law == LAW_GAMMA { return scientific::gamma(r, p1, p2); }
-    if law == LAW_LOGNORMAL { return scientific::lognormal(r, p1, p2); }
-    if law == LAW_CHISQUARE { return scientific::chisquare(r, p1); }
-    if law == LAW_BETA { return scientific::beta(r, p1, p2); }
-    if law == LAW_RAYLEIGH { return scientific::rayleigh(r, p1); }
-    if law == LAW_WEIBULL { return scientific::weibull(r, p1); }
-    if law == LAW_GUMBEL { return scientific::gumbel(r, p1, p2); }
-    return scientific::logistic(r, p1, p2);
+    return common_13::law_draw(law, r, p1, p2, 0.0);
 }
 
 // check_set draws many numbers of one parameter set. It compares the
@@ -61,26 +46,21 @@ fn check_set(law: i64, seed: i64, p1: f64, p2: f64, m: f64, v: f64, q: f64[:], k
         i += 1;
     }
     let n = DRAWS as f64;
-    let mean = sum / n;
-    let variance = sumsq / n - mean * mean;
-    assert(common::mathshim_abs(mean - m) <= 5.0 * common::mathshim_sqrt(v / n));
-    assert(common::mathshim_abs(variance - v) <= 0.05 * v);
-    let se = common::mathshim_sqrt(0.1875 / n);
-    assert(common::mathshim_abs(b1 as f64 / n - 0.25) <= 5.0 * se);
-    assert(common::mathshim_abs(b2 as f64 / n - 0.50) <= 5.0 * common::mathshim_sqrt(0.25 / n));
-    assert(common::mathshim_abs(b3 as f64 / n - 0.75) <= 5.0 * se);
+    assert(common_13::law_mean_ok(sum, n, m, v));
+    assert(common_13::law_var_ok(sum, sumsq, n, v));
+    assert(common_13::law_quartiles_ok(n, b1, b2, b3));
 }
 
 fn test_gamma_family_laws() {
     var k: i64 = 0;
     while k < 3 {
-        check_set(LAW_GAMMA, 11 + k, random_distributions_pins::GAMMA_P1[k], random_distributions_pins::GAMMA_P2[k],
+        check_set(common_13::LAW_GAMMA, 11 + k, random_distributions_pins::GAMMA_P1[k], random_distributions_pins::GAMMA_P2[k],
                   random_distributions_pins::GAMMA_M[k], random_distributions_pins::GAMMA_V[k],
                   random_distributions_pins::GAMMA_Q, k);
-        check_set(LAW_CHISQUARE, 21 + k, random_distributions_pins::CHI2_P1[k], 0.0,
+        check_set(common_13::LAW_CHISQUARE, 21 + k, random_distributions_pins::CHI2_P1[k], 0.0,
                   random_distributions_pins::CHI2_M[k], random_distributions_pins::CHI2_V[k],
                   random_distributions_pins::CHI2_Q, k);
-        check_set(LAW_BETA, 31 + k, random_distributions_pins::BETA_P1[k], random_distributions_pins::BETA_P2[k],
+        check_set(common_13::LAW_BETA, 31 + k, random_distributions_pins::BETA_P1[k], random_distributions_pins::BETA_P2[k],
                   random_distributions_pins::BETA_M[k], random_distributions_pins::BETA_V[k],
                   random_distributions_pins::BETA_Q, k);
         k += 1;
@@ -90,7 +70,7 @@ fn test_gamma_family_laws() {
 fn test_lognormal_law() {
     var k: i64 = 0;
     while k < 3 {
-        check_set(LAW_LOGNORMAL, 41 + k, random_distributions_pins::LOGN_P1[k], random_distributions_pins::LOGN_P2[k],
+        check_set(common_13::LAW_LOGNORMAL, 41 + k, random_distributions_pins::LOGN_P1[k], random_distributions_pins::LOGN_P2[k],
                   random_distributions_pins::LOGN_M[k], random_distributions_pins::LOGN_V[k],
                   random_distributions_pins::LOGN_Q, k);
         k += 1;
@@ -100,16 +80,16 @@ fn test_lognormal_law() {
 fn test_inverse_transform_laws() {
     var k: i64 = 0;
     while k < 3 {
-        check_set(LAW_RAYLEIGH, 51 + k, random_distributions_pins::RAYL_P1[k], 0.0,
+        check_set(common_13::LAW_RAYLEIGH, 51 + k, random_distributions_pins::RAYL_P1[k], 0.0,
                   random_distributions_pins::RAYL_M[k], random_distributions_pins::RAYL_V[k],
                   random_distributions_pins::RAYL_Q, k);
-        check_set(LAW_WEIBULL, 61 + k, random_distributions_pins::WEIB_P1[k], 0.0,
+        check_set(common_13::LAW_WEIBULL, 61 + k, random_distributions_pins::WEIB_P1[k], 0.0,
                   random_distributions_pins::WEIB_M[k], random_distributions_pins::WEIB_V[k],
                   random_distributions_pins::WEIB_Q, k);
-        check_set(LAW_GUMBEL, 71 + k, random_distributions_pins::GUMB_P1[k], random_distributions_pins::GUMB_P2[k],
+        check_set(common_13::LAW_GUMBEL, 71 + k, random_distributions_pins::GUMB_P1[k], random_distributions_pins::GUMB_P2[k],
                   random_distributions_pins::GUMB_M[k], random_distributions_pins::GUMB_V[k],
                   random_distributions_pins::GUMB_Q, k);
-        check_set(LAW_LOGISTIC, 81 + k, random_distributions_pins::LOGI_P1[k], random_distributions_pins::LOGI_P2[k],
+        check_set(common_13::LAW_LOGISTIC, 81 + k, random_distributions_pins::LOGI_P1[k], random_distributions_pins::LOGI_P2[k],
                   random_distributions_pins::LOGI_M[k], random_distributions_pins::LOGI_V[k],
                   random_distributions_pins::LOGI_Q, k);
         k += 1;
@@ -120,8 +100,7 @@ fn test_inverse_transform_laws() {
 fn bad(law: i64, p1: f64, p2: f64, kind: i64) {
     var r = scientific::default_rng(5);
     let x, f = draw(law, r, p1, p2);
-    assert(f.kind == kind);
-    assert(x == 0.0);
+    assert(common_13::law_bad(x, f, kind));
 }
 
 fn test_bad_parameters_refused() {
@@ -130,30 +109,30 @@ fn test_bad_parameters_refused() {
     let inf = 1.0 / 0.0;
     let v = scientific::F_VALUE;
     // The parameters of each call that must be at or above zero.
-    bad(LAW_GAMMA, -1.0, 1.0, v); bad(LAW_GAMMA, 1.0, -1.0, v);
-    bad(LAW_GAMMA, nz, 1.0, v);   bad(LAW_GAMMA, 1.0, nz, v);
-    bad(LAW_GAMMA, nan, 1.0, v);  bad(LAW_GAMMA, 1.0, nan, v);
-    bad(LAW_GAMMA, inf, 1.0, v);  bad(LAW_GAMMA, 1.0, inf, v);
-    bad(LAW_LOGNORMAL, 0.0, -1.0, v); bad(LAW_LOGNORMAL, 0.0, nz, v);
-    bad(LAW_LOGNORMAL, nan, 1.0, v);  bad(LAW_LOGNORMAL, inf, 1.0, v);
-    bad(LAW_LOGNORMAL, 0.0, nan, v);  bad(LAW_LOGNORMAL, 0.0, inf, v);
-    bad(LAW_RAYLEIGH, -1.0, 0.0, v); bad(LAW_RAYLEIGH, nz, 0.0, v);
-    bad(LAW_RAYLEIGH, nan, 0.0, v);  bad(LAW_RAYLEIGH, inf, 0.0, v);
-    bad(LAW_WEIBULL, -1.0, 0.0, v); bad(LAW_WEIBULL, nz, 0.0, v);
-    bad(LAW_WEIBULL, nan, 0.0, v);  bad(LAW_WEIBULL, inf, 0.0, v);
-    bad(LAW_GUMBEL, 0.0, -1.0, v); bad(LAW_GUMBEL, 0.0, nz, v);
-    bad(LAW_GUMBEL, nan, 1.0, v);  bad(LAW_GUMBEL, inf, 1.0, v);
-    bad(LAW_GUMBEL, 0.0, nan, v);  bad(LAW_GUMBEL, 0.0, inf, v);
-    bad(LAW_LOGISTIC, 0.0, -1.0, v); bad(LAW_LOGISTIC, 0.0, nz, v);
-    bad(LAW_LOGISTIC, nan, 1.0, v);  bad(LAW_LOGISTIC, inf, 1.0, v);
-    bad(LAW_LOGISTIC, 0.0, nan, v);  bad(LAW_LOGISTIC, 0.0, inf, v);
+    bad(common_13::LAW_GAMMA, -1.0, 1.0, v); bad(common_13::LAW_GAMMA, 1.0, -1.0, v);
+    bad(common_13::LAW_GAMMA, nz, 1.0, v);   bad(common_13::LAW_GAMMA, 1.0, nz, v);
+    bad(common_13::LAW_GAMMA, nan, 1.0, v);  bad(common_13::LAW_GAMMA, 1.0, nan, v);
+    bad(common_13::LAW_GAMMA, inf, 1.0, v);  bad(common_13::LAW_GAMMA, 1.0, inf, v);
+    bad(common_13::LAW_LOGNORMAL, 0.0, -1.0, v); bad(common_13::LAW_LOGNORMAL, 0.0, nz, v);
+    bad(common_13::LAW_LOGNORMAL, nan, 1.0, v);  bad(common_13::LAW_LOGNORMAL, inf, 1.0, v);
+    bad(common_13::LAW_LOGNORMAL, 0.0, nan, v);  bad(common_13::LAW_LOGNORMAL, 0.0, inf, v);
+    bad(common_13::LAW_RAYLEIGH, -1.0, 0.0, v); bad(common_13::LAW_RAYLEIGH, nz, 0.0, v);
+    bad(common_13::LAW_RAYLEIGH, nan, 0.0, v);  bad(common_13::LAW_RAYLEIGH, inf, 0.0, v);
+    bad(common_13::LAW_WEIBULL, -1.0, 0.0, v); bad(common_13::LAW_WEIBULL, nz, 0.0, v);
+    bad(common_13::LAW_WEIBULL, nan, 0.0, v);  bad(common_13::LAW_WEIBULL, inf, 0.0, v);
+    bad(common_13::LAW_GUMBEL, 0.0, -1.0, v); bad(common_13::LAW_GUMBEL, 0.0, nz, v);
+    bad(common_13::LAW_GUMBEL, nan, 1.0, v);  bad(common_13::LAW_GUMBEL, inf, 1.0, v);
+    bad(common_13::LAW_GUMBEL, 0.0, nan, v);  bad(common_13::LAW_GUMBEL, 0.0, inf, v);
+    bad(common_13::LAW_LOGISTIC, 0.0, -1.0, v); bad(common_13::LAW_LOGISTIC, 0.0, nz, v);
+    bad(common_13::LAW_LOGISTIC, nan, 1.0, v);  bad(common_13::LAW_LOGISTIC, inf, 1.0, v);
+    bad(common_13::LAW_LOGISTIC, 0.0, nan, v);  bad(common_13::LAW_LOGISTIC, 0.0, inf, v);
     // The parameters that must be above zero: zero is refused too.
-    bad(LAW_CHISQUARE, 0.0, 0.0, v);  bad(LAW_CHISQUARE, nz, 0.0, v);
-    bad(LAW_CHISQUARE, -1.0, 0.0, v); bad(LAW_CHISQUARE, nan, 0.0, v); bad(LAW_CHISQUARE, inf, 0.0, v);
-    bad(LAW_BETA, 0.0, 1.0, v);  bad(LAW_BETA, 1.0, 0.0, v);
-    bad(LAW_BETA, nz, 1.0, v);   bad(LAW_BETA, 1.0, nz, v);
-    bad(LAW_BETA, -1.0, 1.0, v); bad(LAW_BETA, 1.0, -1.0, v);
-    bad(LAW_BETA, nan, 1.0, v);  bad(LAW_BETA, 1.0, inf, v);
+    bad(common_13::LAW_CHISQUARE, 0.0, 0.0, v);  bad(common_13::LAW_CHISQUARE, nz, 0.0, v);
+    bad(common_13::LAW_CHISQUARE, -1.0, 0.0, v); bad(common_13::LAW_CHISQUARE, nan, 0.0, v); bad(common_13::LAW_CHISQUARE, inf, 0.0, v);
+    bad(common_13::LAW_BETA, 0.0, 1.0, v);  bad(common_13::LAW_BETA, 1.0, 0.0, v);
+    bad(common_13::LAW_BETA, nz, 1.0, v);   bad(common_13::LAW_BETA, 1.0, nz, v);
+    bad(common_13::LAW_BETA, -1.0, 1.0, v); bad(common_13::LAW_BETA, 1.0, -1.0, v);
+    bad(common_13::LAW_BETA, nan, 1.0, v);  bad(common_13::LAW_BETA, 1.0, inf, v);
 }
 
 fn test_zero_cases() {
@@ -177,14 +156,14 @@ fn test_zero_cases() {
 
 fn test_size_limits() {
     let lim = scientific::F_LIMIT;
-    bad(LAW_GAMMA, 1.0e101, 1.0, lim);
-    bad(LAW_GAMMA, 1.0e-301, 1.0, lim);
-    bad(LAW_CHISQUARE, 2.0e101, 0.0, lim);
-    bad(LAW_CHISQUARE, 1.0e-301, 0.0, lim);
-    bad(LAW_BETA, 1.0e101, 1.0, lim);
-    bad(LAW_BETA, 1.0, 1.0e-301, lim);
-    bad(LAW_WEIBULL, 1.0e-301, 0.0, lim);
-    bad(LAW_WEIBULL, 1.0e101, 0.0, lim);
+    bad(common_13::LAW_GAMMA, 1.0e101, 1.0, lim);
+    bad(common_13::LAW_GAMMA, 1.0e-301, 1.0, lim);
+    bad(common_13::LAW_CHISQUARE, 2.0e101, 0.0, lim);
+    bad(common_13::LAW_CHISQUARE, 1.0e-301, 0.0, lim);
+    bad(common_13::LAW_BETA, 1.0e101, 1.0, lim);
+    bad(common_13::LAW_BETA, 1.0, 1.0e-301, lim);
+    bad(common_13::LAW_WEIBULL, 1.0e-301, 0.0, lim);
+    bad(common_13::LAW_WEIBULL, 1.0e101, 0.0, lim);
     // The limit itself holds.
     var r = scientific::default_rng(5);
     let g, f = scientific::gamma(r, 1.0e100, 1.0);
@@ -228,16 +207,7 @@ fn test_pinned_numbers_of_one_seed() {
 fn test_equal_seeds_equal_numbers() {
     var law: i64 = 0;
     while law < 8 {
-        var ra = scientific::default_rng(99);
-        var rb = scientific::default_rng(99);
-        var i: i64 = 0;
-        while i < 50 {
-            let x, fx = draw(law, ra, 1.5, 2.0);
-            let y, fy = draw(law, rb, 1.5, 2.0);
-            assert(fx.kind == scientific::F_NONE && fy.kind == scientific::F_NONE);
-            assert(x == y);
-            i += 1;
-        }
+        assert(common_13::law_same_seed(law, 1.5, 2.0, 0.0));
         law += 1;
     }
 }

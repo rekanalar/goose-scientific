@@ -406,3 +406,38 @@ fn test_dare_random() {
     }
     return;
 }
+
+// The security of the calls of the group. A parameter that is not a
+// number and a parameter that is infinite give a fault. A rate so
+// small that the limit of the Poisson law rounds to one gives a count
+// of zero and not a count below zero.
+fn test_calls_refuse_a_bad_parameter() {
+    let nan = 0.0 / 0.0;
+    let inf = 1.0 / 0.0;
+    let v = scientific::F_VALUE;
+    var r = scientific::default_rng(13);
+    // The mean and the spread of the normal law are finite numbers.
+    let n1, f1 = scientific::normal(r, nan, 1.0);
+    assert(f1.kind == v && n1 == 0.0);
+    let n2, f2 = scientific::normal(r, 0.0, nan);
+    assert(f2.kind == v && n2 == 0.0);
+    let n3, f3 = scientific::normal(r, inf, 1.0);
+    assert(f3.kind == v && n3 == 0.0);
+    let n4, f4 = scientific::normal(r, 0.0, inf);
+    assert(f4.kind == v && n4 == 0.0);
+    // The scale of the exponential law is a finite number.
+    let e1, f5 = scientific::exponential(r, nan);
+    assert(f5.kind == v && e1 == 0.0);
+    let e2, f6 = scientific::exponential(r, inf);
+    assert(f6.kind == v && e2 == 0.0);
+    // The rate of the Poisson law is a finite number.
+    let p1, f7 = scientific::poisson(r, nan);
+    assert(f7.kind == v && p1 == 0);
+    let p2, f8 = scientific::poisson(r, inf);
+    assert(f8.kind == v && p2 == 0);
+    // A rate so small that the limit of the law rounds to one gives a
+    // count of zero.
+    let p3, f9 = scientific::poisson(r, 1.0e-17);
+    assert(f9.kind == scientific::F_NONE && p3 == 0);
+    return;
+}

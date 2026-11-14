@@ -12,6 +12,10 @@ import mathshim;
 // normal numbers, when one waits.
 struct Rng { g: rng, cache: f64, holds_cache: bool }
 
+// The largest rate of the Poisson law. The method of the law holds a
+// small rate well.
+const POISSON_RATE_MAX: f64 = 30.0;
+
 // default_rng gives a generator from a seed. The same seed gives the
 // same numbers.
 fn default_rng(seed: i64) -> Rng {
@@ -43,14 +47,22 @@ fn integers(r: Rng&, low: i64, high: i64) -> i64, Fault {
 // normal gives a real number of the normal law. The mean and the
 // spread come from the caller. The method is the pair of Box and
 // Muller. The pair gives two numbers, and one waits in the cache for
-// the next call. A spread below zero is a fault.
+// the next call. A spread below zero is a fault. A mean or a spread
+// that is not finite is a fault.
 fn normal(r: Rng&, mean: f64, spread: f64) -> f64, Fault {
     if spread < 0.0 {
         return 0.0, fault(F_VALUE, "normal", "the spread holds a value below zero");
     }
+    if mathshim::is_finite_of(mean) == 0.0 || mathshim::is_finite_of(spread) == 0.0 {
+        return 0.0, fault(F_VALUE, "normal", "the mean or the spread is not finite");
+    }
     if r.holds_cache {
         r.holds_cache = false;
-        return mean + spread * r.cache, no_fault();
+        let c = mean + spread * r.cache;
+        if mathshim::is_finite_of(c) == 0.0 {
+            return 0.0, fault(F_VALUE, "normal", "the result is not finite");
+        }
+        return c, no_fault();
     }
     let u1 = rand_flt(r.g);
     let u2 = rand_flt(r.g);
@@ -60,39 +72,56 @@ fn normal(r: Rng&, mean: f64, spread: f64) -> f64, Fault {
     let angle = 6.283185307179586 * u2;
     r.cache = mag * mathshim::sine(angle);
     r.holds_cache = true;
-    return mean + spread * mag * mathshim::cosine(angle), no_fault();
+    let x = mean + spread * mag * mathshim::cosine(angle);
+    if mathshim::is_finite_of(x) == 0.0 {
+        return 0.0, fault(F_VALUE, "normal", "the result is not finite");
+    }
+    return x, no_fault();
 }
 
 // exponential gives a real number of the exponential law. The scale
 // comes from the caller. The method takes the inverse of the law. A
-// scale below zero is a fault.
+// scale below zero is a fault. A scale that is not finite is a fault.
 fn exponential(r: Rng&, scale: f64) -> f64, Fault {
     if scale < 0.0 {
         return 0.0, fault(F_VALUE, "exponential", "the scale holds a value below zero");
     }
+    if mathshim::is_finite_of(scale) == 0.0 {
+        return 0.0, fault(F_VALUE, "exponential", "the scale is not finite");
+    }
     let u = rand_flt(r.g);
-    return -mathshim::ln(1.0 - u) * scale, no_fault();
+    let x = -mathshim::ln(1.0 - u) * scale;
+    if mathshim::is_finite_of(x) == 0.0 {
+        return 0.0, fault(F_VALUE, "exponential", "the result is not finite");
+    }
+    return x, no_fault();
 }
 
 // poisson gives a count of events of a rate. The method of Knuth
 // takes the product of the uniforms until it falls below the law of
-// the rate. The method holds a small rate well. A rate above 30 is a
-// fault.
+// the rate. The method holds a small rate well. A rate above the limit
+// of the law is a fault. A rate that is not finite is a fault.
 fn poisson(r: Rng&, rate: f64) -> i64, Fault {
     if rate < 0.0 {
         return 0, fault(F_VALUE, "poisson", "the rate holds a value below zero");
     }
-    if rate > 30.0 {
+    if rate > POISSON_RATE_MAX {
         return 0, fault(F_VALUE, "poisson", "the rate holds a value above 30");
+    }
+    if mathshim::is_finite_of(rate) == 0.0 {
+        return 0, fault(F_VALUE, "poisson", "the rate is not finite");
     }
     if rate == 0.0 { return 0, no_fault(); }
     let limit = mathshim::power_e(-rate);
     var product: f64 = 1.0;
     var count: i64 = 0;
+    // A rate so small that the limit rounds to one never enters the
+    // loop. The count of the law is then zero.
     while product > limit {
         product *= rand_flt(r.g);
         count += 1;
     }
+    if count < 1 { return 0, no_fault(); }
     return count - 1, no_fault();
 }
 

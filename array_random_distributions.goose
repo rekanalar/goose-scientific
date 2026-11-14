@@ -24,6 +24,19 @@ const DIST_ROUNDS: i64 = 1000;
 // gives. It stands in for an exact zero before a logarithm.
 const DIST_TINY: f64 = 1.1102230246251565e-16;
 
+// The limits of a count of degrees of freedom. The law of the count
+// takes its half, so the count holds twice the size of a shape.
+const DIST_COUNT_MAX: f64 = 2.0e100;
+const DIST_COUNT_MIN: f64 = 2.0e-300;
+
+// dist_check_finite checks a parameter that must be a finite number.
+fn dist_check_finite(x: f64, tag: const u8[:], name: const u8[:]) -> Fault {
+    if mathshim::is_finite_of(x) == 0.0 {
+        return fault(F_VALUE, tag, name);
+    }
+    return no_fault();
+}
+
 // dist_check_nonneg checks a parameter that must be at or above zero.
 // A negative zero fails, as in NumPy.
 fn dist_check_nonneg(x: f64, tag: const u8[:], name: const u8[:]) -> Fault {
@@ -41,6 +54,19 @@ fn dist_check_pos(x: f64, tag: const u8[:], name: const u8[:]) -> Fault {
     let f = dist_check_nonneg(x, tag, name);
     if f.kind != F_NONE { return f; }
     if x == 0.0 { return fault(F_VALUE, tag, name); }
+    return no_fault();
+}
+
+// dist_check_count checks a count of degrees of freedom. The count
+// stands above zero and inside the size limits. The law of the count
+// takes its half, so the count holds twice the size of a shape. The
+// chi-square law uses the same limit.
+fn dist_check_count(x: f64, tag: const u8[:], name: const u8[:]) -> Fault {
+    let f = dist_check_pos(x, tag, name);
+    if f.kind != F_NONE { return f; }
+    if x > DIST_COUNT_MAX || x < DIST_COUNT_MIN {
+        return fault(F_LIMIT, tag, "the count of the degrees of freedom stands outside 2.0e-300 to 2.0e100");
+    }
     return no_fault();
 }
 
@@ -128,10 +154,8 @@ fn gamma(r: Rng&, shape: f64, scale: f64) -> f64, Fault {
 // chisquare gives a number of the chi-square law. It is the gamma law
 // of half the count of the degrees of freedom, with a scale of two.
 fn chisquare(r: Rng&, df: f64) -> f64, Fault {
-    let fd = dist_check_pos(df, "chisquare", "the count of the degrees of freedom is not above zero");
-    if fd.kind != F_NONE { return 0.0, fd; }
-    let fl = dist_check_shape(df / 2.0, "chisquare");
-    if fl.kind != F_NONE { return 0.0, fl; }
+    let fc = dist_check_count(df, "chisquare", "the count of the degrees of freedom is not above zero");
+    if fc.kind != F_NONE { return 0.0, fc; }
     let lg, fg = gamma_log(r, df / 2.0, "chisquare");
     if fg.kind != F_NONE { return 0.0, fg; }
     let x = 2.0 * mathshim::power_e(lg);

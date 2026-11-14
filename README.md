@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.180.0";
+import scientific from "rekanalar/goose-scientific@v0.181.0";
 ```
 
 ## API
@@ -60,6 +60,7 @@ import scientific from "rekanalar/goose-scientific@v0.180.0";
 | Transforms | `fft`, `ifft`, `fft2`, `fft2c`, `ifft2`, `fftn`, `ifftn`, `fftn_ex`, `ifftn_ex`, `fftfreq`, `rfftfreq`, `fftshift`, `ifftshift`, `rfft`, `irfft` |
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
 | Continuous random laws | `gamma`, `lognormal`, `chisquare`, `beta`, `rayleigh`, `weibull`, `gumbel`, `logistic` |
+| The laws of the F family, of the circle, of the Pareto, of the triangle and of the Wald form | `f`, `noncentral_chisquare`, `noncentral_f`, `pareto`, `triangular`, `vonmises`, `wald` |
 | Names of NumPy | `seed`, `shuffle`, `random_sample`, `rand`, `randn`, `randint`, `bytes`, `get_state`, `set_state` |
 | Shapes of another array | `empty`, `full_like`, `zeros_like`, `ones_like`, `trim_zeros`, `insert` |
 | Writes | `putmask`, `place`, `put_along_axis` |
@@ -1868,6 +1869,40 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   stream of the package differs from the stream of NumPy, so a seed
   gives other numbers. The law is the same. The mean, the variance and
   the quartiles of many numbers match SciPy 1.18.1.
+- `f`, `noncentral_chisquare`, `noncentral_f`, `pareto`, `triangular`,
+  `vonmises` and `wald` take the generator by reference. Each gives
+  one number. They follow the same rules as `gamma`, `lognormal`,
+  `chisquare`, `beta`, `rayleigh`, `weibull`, `gumbel` and
+  `logistic`. The stream differs from the stream of NumPy in the same
+  way.
+- `f` is the ratio of two chi-square numbers, each divided by its
+  count of degrees of freedom. `noncentral_f` uses the noncentral
+  chi-square law in place of the first one.
+- `noncentral_chisquare` has two forms. A count of one degree of
+  freedom or more gives the square of a normal number. That number
+  stands at the root of the noncentrality. A chi-square number of the
+  count less one is added to it.
+- A count below one gives a chi-square number. Its count of degrees
+  of freedom is the count plus twice a Poisson number. The rate of the
+  Poisson number is half the noncentrality.
+- The other form of the noncentral chi-square law adds the
+  noncentrality to a chi-square number. It has the right mean and the
+  right variance. Its quartiles stand four percent away from the law.
+  The package does not use it.
+- `pareto` is the law of NumPy. That law is the Lomax form of SciPy.
+  The form holds a shape and a location of minus one. Its support
+  starts at zero. Its mean is one over the shape less one.
+- `vonmises` follows NumPy, which returns the number in the range from
+  minus pi to pi. SciPy centres the range on the location, so the mean
+  of SciPy is the location. The plain mean of the numbers of NumPy is
+  not the location, because the circle wraps. A caller that needs the
+  place on the circle adds the location itself.
+- The package uses the method of Devroye for the von Mises law. The
+  method of Best and Fisher draws about 170000 numbers at a
+  concentration of 10. That method would give a fault.
+- `wald` is the inverse Gaussian law. Its mean is the mean and its
+  variance is the mean cubed over the scale. The call `wald` of SciPy
+  is a different law and is not the reference.
 - NumPy takes an array size. The package gives one number, and a
   caller loops.
 - `gamma` uses the method of Marsaglia and Tsang. A shape below one
@@ -1880,14 +1915,40 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   and holds the same second number of a pair. So the numbers of one
   generator come in a fixed order, whichever call asks for them.
 - A shape above 1.0e100 gives `F_LIMIT`. A shape below 1.0e-300 gives
-  `F_LIMIT`. The count of the degrees of freedom of the chi-square law
-  has a limit of 2.0e100. The law holds half of it. The sampler of the
-  gamma law stops after 1000 rounds with `F_LIMIT`.
+  `F_LIMIT`. A count of degrees of freedom has a limit of 2.0e100. The
+  law of the count holds half of it. The sampler of the gamma law
+  stops after 1000 rounds with `F_LIMIT`.
 - A Weibull shape below 0.004 gives `F_VALUE` on some draws. The power
   of the logarithm overflows there. NumPy gives infinity in that case.
   The package gives a fault and never infinity.
+- A count of degrees of freedom above 2.0e100 gives `F_LIMIT`. A
+  count below 2.0e-300 gives `F_LIMIT` too. That holds for `f`,
+  `noncentral_chisquare`, `noncentral_f` and `chisquare`.
+- A shape of `pareto` above 1.0e100 gives `F_LIMIT`. A shape below
+  1.0e-300 gives `F_LIMIT` too.
+- A count of degrees of freedom below one with a noncentrality above
+  60 gives `F_LIMIT` in `noncentral_chisquare` and `noncentral_f`.
+- The Poisson law of the package stops above a rate of
+  30. The sampler of `vonmises` stops after 1000 rounds with
+  `F_LIMIT`. The sampler of `wald` draws once and never stops. A
+  concentration above 1e6 gives the normal form of NumPy.
+- The F law, the noncentral F law and the Pareto law have a heavy
+  tail. The sample variance of such a law settles slowly. The tests
+  compare their mean and their quartiles and not their variance.
+- NumPy gives a number that is not a number for a bad location of the
+  von Mises law. The package gives `F_VALUE` for such a location.
 - `poisson` uses the method of Knuth. A rate above 30 is a fault,
   because the method holds a small rate only.
+- `normal` and `exponential` refuse a mean, a spread or a scale that
+  is not finite. Before this release they gave that number to the
+  caller. Now they give `F_VALUE`. `poisson` refuses a rate that is
+  not finite in the same way.
+- A rate of `poisson` so small that the limit of the law rounds to one
+  gives a count of zero. The method of Knuth draws no number there.
+- The mean and the scale of `wald` stand between 1.0e-300 and 1.0e100.
+  A mean or a scale outside that range gives `F_LIMIT`.
+- A range of `triangular` wider than the largest number gives
+  `F_LIMIT`. A range of 1.0e200 at each end gives a number.
 - `choice` takes a row and a count. A pick without a repeat that asks
   for more elements than the row holds is a fault.
 - `permutation` gives the shuffled order of a count. `shuffled` gives
@@ -2205,8 +2266,28 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   zero. They also refuse a parameter that is not finite. NumPy gives a
   number that is not a number or infinity for such a parameter. The
   package gives `F_VALUE`.
+- The calls that take a parameter at or above zero refuse a negative
+  zero. That group holds `f`, `noncentral_chisquare`,
+  `noncentral_f`, `pareto`, `wald` and the concentration of
+  `vonmises`. Every call of the group refuses a value that is not a
+  number and an infinite value. `triangular` refuses a left above the
+  mode, a mode above the right and a left that equals the right.
+- The method of Best and Fisher for the von Mises law needs about
+  170000 draws at a concentration of 10. A caller would wait for a
+  call that does not stop. The package uses the method of Devroye,
+  which needs about two draws. That method stops after 1000 rounds.
 - No call returns a value that is not finite. A result that overflows
   gives `F_VALUE`.
+- The sampler of `wald` takes the larger of the two roots of the law.
+  It takes the smaller one from it. The smaller root loses its digits
+  to a cancellation at a small scale. The old form gave `F_VALUE` on
+  most draws at a scale of 1.0e-9.
+- The sampler of `triangular` takes the roots of its factors apart. A
+  product of three wide numbers overflows before the root of each
+  factor does. The old form gave `F_VALUE` at ends of 1.0e200.
+- `normal` and `exponential` refuse a mean, a spread or a scale that
+  is not finite. `poisson` refuses a rate that is not finite. These
+  calls gave such a number to the caller before this release.
 - The acceptance test of the gamma sampler uses a series for a large
   shape. The plain sum loses every digit for a shape above 1e16 and
   would accept or reject at random. A shape above 1.0e100 gives
