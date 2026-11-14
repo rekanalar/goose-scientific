@@ -27,13 +27,19 @@ fn test_random() {
     assert(f4.kind == scientific::F_NONE && e == 4.053365406960153);
     let e2, f5 = scientific::exponential(r, -1.0);
     assert(f5.kind == scientific::F_VALUE);
-    // The method of Knuth holds a rate of 30 and below.
+    // The method of Knuth holds a part of the rate of 30 and below.
+    // A larger rate splits into parts.
     let p, f6 = scientific::poisson(r, 5.0);
     assert(f6.kind == scientific::F_NONE && p == 5);
     let p0, f7 = scientific::poisson(r, 0.0);
     assert(f7.kind == scientific::F_NONE && p0 == 0);
-    let pbig, f8 = scientific::poisson(r, 31.0);
-    assert(f8.kind == scientific::F_VALUE);
+    // A second generator takes the checks of a large rate, so the
+    // pinned numbers below keep their stream.
+    var rbig = scientific::default_rng(5);
+    let pbig, f8 = scientific::poisson(rbig, 100.0);
+    assert(f8.kind == scientific::F_NONE && pbig >= 60 && pbig <= 140);
+    let pover, f8b = scientific::poisson(rbig, 1.0e6 + 1.0);
+    assert(f8b.kind == scientific::F_VALUE);
     // The order of a count holds every whole number of the count.
     let pc, f9 = scientific::permutation(r, 5);
     assert(f9.kind == scientific::F_NONE);

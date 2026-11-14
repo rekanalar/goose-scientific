@@ -12,9 +12,11 @@ import mathshim;
 // normal numbers, when one waits.
 struct Rng { g: rng, cache: f64, holds_cache: bool }
 
-// The largest rate of the Poisson law. The method of the law holds a
-// small rate well.
+// The size of one part of the rate of the Poisson law. The method of
+// the law holds a small rate well.
 const POISSON_RATE_MAX: f64 = 30.0;
+// The largest rate of the Poisson law. A larger rate gives F_VALUE.
+const POISSON_RATE_SUM_MAX: f64 = 1.0e6;
 
 // default_rng gives a generator from a seed. The same seed gives the
 // same numbers.
@@ -99,30 +101,40 @@ fn exponential(r: Rng&, scale: f64) -> f64, Fault {
 
 // poisson gives a count of events of a rate. The method of Knuth
 // takes the product of the uniforms until it falls below the law of
-// the rate. The method holds a small rate well. A rate above the limit
-// of the law is a fault. A rate that is not finite is a fault.
+// the rate. The method holds a rate of 30 and below well, so a larger
+// rate splits into parts of at most 30. The sum of Poisson numbers of
+// rates that add up is a Poisson number of the sum. A rate above
+// 1.0e6 is a fault. A rate that is not finite is a fault.
 fn poisson(r: Rng&, rate: f64) -> i64, Fault {
     if rate < 0.0 {
         return 0, fault(F_VALUE, "poisson", "the rate holds a value below zero");
     }
-    if rate > POISSON_RATE_MAX {
-        return 0, fault(F_VALUE, "poisson", "the rate holds a value above 30");
-    }
     if mathshim::is_finite_of(rate) == 0.0 {
         return 0, fault(F_VALUE, "poisson", "the rate is not finite");
     }
-    if rate == 0.0 { return 0, no_fault(); }
-    let limit = mathshim::power_e(-rate);
-    var product: f64 = 1.0;
-    var count: i64 = 0;
-    // A rate so small that the limit rounds to one never enters the
-    // loop. The count of the law is then zero.
-    while product > limit {
-        product *= rand_flt(r.g);
-        count += 1;
+    if rate > POISSON_RATE_SUM_MAX {
+        return 0, fault(F_VALUE, "poisson", "the rate holds a value above 1.0e6");
     }
-    if count < 1 { return 0, no_fault(); }
-    return count - 1, no_fault();
+    if rate == 0.0 { return 0, no_fault(); }
+    let parts = mathshim::floor_of((rate - 1.0e-9) / POISSON_RATE_MAX) + 1.0;
+    let each = rate / parts;
+    var total: i64 = 0;
+    var part: i64 = 0;
+    let count = parts as i64;
+    while part < count {
+        let limit = mathshim::power_e(-each);
+        var product: f64 = 1.0;
+        var k: i64 = 0;
+        // A rate so small that the limit rounds to one never enters
+        // the loop. The count of that part is zero.
+        while product > limit {
+            product *= rand_flt(r.g);
+            k += 1;
+        }
+        if k > 0 { total += k - 1; }
+        part += 1;
+    }
+    return total, no_fault();
 }
 
 // choice picks elements of a row. A count below zero is a fault. A

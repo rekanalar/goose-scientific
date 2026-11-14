@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.181.0";
+import scientific from "rekanalar/goose-scientific@v0.182.0";
 ```
 
 ## API
@@ -60,6 +60,7 @@ import scientific from "rekanalar/goose-scientific@v0.181.0";
 | Transforms | `fft`, `ifft`, `fft2`, `fft2c`, `ifft2`, `fftn`, `ifftn`, `fftn_ex`, `ifftn_ex`, `fftfreq`, `rfftfreq`, `fftshift`, `ifftshift`, `rfft`, `irfft` |
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
 | Continuous random laws | `gamma`, `lognormal`, `chisquare`, `beta`, `rayleigh`, `weibull`, `gumbel`, `logistic` |
+| Discrete random laws | `binomial`, `geometric`, `hypergeometric`, `logseries`, `negative_binomial`, `zipf`, `multinomial` |
 | The laws of the F family, of the circle, of the Pareto, of the triangle and of the Wald form | `f`, `noncentral_chisquare`, `noncentral_f`, `pareto`, `triangular`, `vonmises`, `wald` |
 | Names of NumPy | `seed`, `shuffle`, `random_sample`, `rand`, `randn`, `randint`, `bytes`, `get_state`, `set_state` |
 | Shapes of another array | `empty`, `full_like`, `zeros_like`, `ones_like`, `trim_zeros`, `insert` |
@@ -1864,6 +1865,38 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `normal` uses the pair of Box and Muller. It gives one number of
   the pair and holds the other for the next call. So the numbers of
   one generator come in a fixed order.
+- `binomial` counts the successes in n trials. The method counts the
+  gaps of the geometric law. A probability above one half takes the
+  complement. So the cost grows with the mean of the smaller side.
+  `geometric` takes the inverse of the law. It gives the count of
+  trials up to and with the first success, as NumPy does.
+- `hypergeometric` draws without a return from an urn. It draws the
+  smaller of the sample and its complement. A draw of the complement
+  counts the misses and takes them from the good items.
+- `logseries` uses the method of Kemp. `zipf` uses the rejection
+  method of Devroye. The shape of the zipf law stands above one. A
+  shape above 1000 gives one. Any other number has a chance below
+  2 to the power minus 1000.
+- `negative_binomial` gives the count of failures before n successes.
+  It is the gamma mixture of Poisson numbers. The mean of the mixture
+  stands at or below 1.0e6. The count n is a real number above zero,
+  as in NumPy.
+- `multinomial` gives the counts of n trials over the classes of a row
+  of probabilities. Each class takes a binomial number of the trials
+  that remain. The count of the last class holds the trials that
+  remain. The sum of all but the last probability stands at or below
+  one, as in NumPy.
+- `binomial` and `hypergeometric` have a cost limit. The mean of the
+  smaller side of `binomial` stands at or below 1.0e6. The smaller
+  side of the sample of `hypergeometric` stands at or below 1.0e6. A
+  larger value gives `F_LIMIT`.
+- A side of the urn of `hypergeometric` stands at or below 1.0e15.
+  The rate of the Poisson sum of `negative_binomial` stands at or
+  below 1.0e6. The count of trials of `multinomial` stands at or
+  below 9.0e15. One budget of 1.0e6 draws covers all classes of
+  `multinomial` together.
+- A shape of `zipf` so near one that the method rejects 1000 rounds
+  gives `F_LIMIT`. NumPy loops there without a bound.
 - The eight continuous laws take the generator by reference and give
   one number. They follow the parameter rules of NumPy 2.5.4. The
   stream of the package differs from the stream of NumPy, so a seed
@@ -1926,10 +1959,13 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `noncentral_chisquare`, `noncentral_f` and `chisquare`.
 - A shape of `pareto` above 1.0e100 gives `F_LIMIT`. A shape below
   1.0e-300 gives `F_LIMIT` too.
-- A count of degrees of freedom below one with a noncentrality above
-  60 gives `F_LIMIT` in `noncentral_chisquare` and `noncentral_f`.
+- The rate of the Poisson law of `noncentral_chisquare` and of
+  `negative_binomial` stands at or below 1.0e6. A noncentrality
+  stands at or below 2.0e6.
 - The Poisson law of the package stops above a rate of
-  30. The sampler of `vonmises` stops after 1000 rounds with
+  1.0e6. A larger rate splits into parts of at most 30. Before this
+  release the law refused every rate above 30. The sampler of
+  `vonmises` stops after 1000 rounds with
   `F_LIMIT`. The sampler of `wald` draws once and never stops. A
   concentration above 1e6 gives the normal form of NumPy.
 - The F law, the noncentral F law and the Pareto law have a heavy
@@ -1937,8 +1973,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   compare their mean and their quartiles and not their variance.
 - NumPy gives a number that is not a number for a bad location of the
   von Mises law. The package gives `F_VALUE` for such a location.
-- `poisson` uses the method of Knuth. A rate above 30 is a fault,
-  because the method holds a small rate only.
+- `poisson` uses the method of Knuth. A rate splits into parts of at
+  most 30, because the method holds a small rate only.
 - `normal` and `exponential` refuse a mean, a spread or a scale that
   is not finite. Before this release they gave that number to the
   caller. Now they give `F_VALUE`. `poisson` refuses a rate that is
@@ -2278,6 +2314,15 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   which needs about two draws. That method stops after 1000 rounds.
 - No call returns a value that is not finite. A result that overflows
   gives `F_VALUE`.
+- The discrete laws refuse a probability outside the range zero to
+  one, and a probability that is not a number. NumPy returns a number
+  that is not a number for such a value. The package gives `F_VALUE`.
+- The cost cap of `multinomial` covers the whole call. A row of many
+  classes would pass the cap of `binomial` class by class and run
+  for minutes. The call gives `F_LIMIT` instead.
+- `multinomial` checks its row before it reads a value. A row of
+  more than one dimension gives `F_SHAPE`. A sum above one gives
+  `F_VALUE`. The call never gives a wrong count.
 - The sampler of `wald` takes the larger of the two roots of the law.
   It takes the smaller one from it. The smaller root loses its digits
   to a cancellation at a small scale. The old form gave `F_VALUE` on

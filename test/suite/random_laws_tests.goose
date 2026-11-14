@@ -235,11 +235,10 @@ fn test_laws_size_limits() {
     bad(common_13::LAW_NCF, 5.0, 1.0e-301, 2.0, lim);
     bad(common_13::LAW_PARETO, 1.0e101, 0.0, 0.0, lim);
     bad(common_13::LAW_PARETO, 1.0e-301, 0.0, 0.0, lim);
-    // A count of degrees of freedom below one with a large
-    // noncentrality stops, because the rate of the Poisson law stops
-    // above 30.
-    bad(common_13::LAW_NCX2, 0.5, 100.0, 0.0, lim);
-    bad(common_13::LAW_NCF, 0.5, 5.0, 100.0, lim);
+    // The rate of the Poisson law of the mixture stands at or below
+    // 1.0e6, so a noncentrality stands at or below 2.0e6.
+    bad(common_13::LAW_NCX2, 0.5, 2.0e6 + 1.0, 0.0, lim);
+    bad(common_13::LAW_NCF, 0.5, 5.0, 2.0e6 + 1.0, lim);
 }
 
 // A concentration of the von Mises law above 1e6 gives the normal

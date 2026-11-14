@@ -41,6 +41,7 @@ import array_fft;
 import array_random;
 import array_random_distributions;
 import array_random_laws;
+import array_random_discrete;
 import array_optimize;
 import array_minimize;
 import array_minimize_fit;

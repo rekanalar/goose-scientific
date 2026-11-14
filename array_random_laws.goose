@@ -25,9 +25,6 @@ const LAW_NCX_MIX: f64 = 1.0;
 // The count of the degrees of freedom above which the noncentral
 // chi-square law adds a chi-square number of the count less one.
 const LAW_NCX_ONE: f64 = 1.0;
-// The largest noncentrality of that mixture. The rate of the Poisson
-// law of the package stops above its own limit.
-const LAW_NCX_MAX: f64 = 2.0 * POISSON_RATE_MAX;
 // A concentration of the von Mises law below this size gives a
 // uniform number of the circle.
 const LAW_VM_FLAT: f64 = 1.0e-8;
@@ -89,9 +86,11 @@ fn noncentral_chisquare(r: Rng&, df: f64, nonc: f64) -> f64, Fault {
         }
         return dist_ok(x, "noncentral_chisquare");
     }
-    // A count below one uses the mixture of Poisson numbers.
-    if nonc > LAW_NCX_MAX {
-        return 0.0, fault(F_LIMIT, "noncentral_chisquare", "the noncentrality stands above 60");
+    // A count below one uses the mixture of Poisson numbers. The
+    // rate of the Poisson law stands at or below 1.0e6, so the
+    // noncentrality stands at or below 2.0e6.
+    if nonc > 2.0 * POISSON_RATE_SUM_MAX {
+        return 0.0, fault(F_LIMIT, "noncentral_chisquare", "the noncentrality stands above 2.0e6");
     }
     let k, fk = poisson(r, nonc / 2.0);
     if fk.kind != F_NONE { return 0.0, fk; }
