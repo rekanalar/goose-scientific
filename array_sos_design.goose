@@ -257,22 +257,25 @@ fn ripple_fault(v: f64, tag: const u8[:], what: const u8[:]) -> Fault {
 // zpk_to_ba gives the coefficients of the numerator and the denominator
 // from the zeros, the poles and the gain. The roots come in pairs of
 // conjugates, so the real parts hold the polynomials.
-fn zpk_to_ba(z: Cplx[:], p: Cplx[:], k: f64) -> Arr, Arr {
+fn zpk_to_ba(z: Cplx[:], p: Cplx[:], k: f64) -> Arr, Arr, Fault {
     var nb: f64[>..] = [];
     var na: f64[>..] = [];
-    roots_poly(z, nb);
-    roots_poly(p, na);
+    let fz = roots_poly(z, nb);
+    if fz.kind != F_NONE { return empty_arr(), empty_arr(), fz; }
+    let fp = roots_poly(p, na);
+    if fp.kind != F_NONE { return empty_arr(), empty_arr(), fp; }
     var i: i64 = 0;
     while i < nb.len { nb[i] = nb[i] * k; i += 1; }
-    return flt_arr(copy(nb)), flt_arr(copy(na));
+    return flt_arr(copy(nb)), flt_arr(copy(na)), no_fault();
 }
 
 // roots_poly writes the coefficients of the monic polynomial of the
 // roots, from the highest power to the lowest. A real root gives the
 // factor (x - r). A pair of conjugate roots gives the factor
 // (x^2 - 2 re x + re^2 + im^2). The product of a pair keeps the
-// polynomial real and exact.
-fn roots_poly(r: Cplx[:], out: f64[>..]&) {
+// polynomial real and exact. A root without a partner gives F_SHAPE,
+// because the polynomial would not be real.
+fn roots_poly(r: Cplx[:], out: f64[>..]&) -> Fault {
     var cr: f64[>..] = [1.0];
     var used: f64[>..] = [];
     var i: i64 = 0;
@@ -297,13 +300,15 @@ fn roots_poly(r: Cplx[:], out: f64[>..]&) {
             var k: i64 = 0;
             var found = false;
             while k < r.len {
-                if used[k] == 0.0 && mathshim::abs_of(r[k].re - r[j].re) <= 1.0e-10 * (1.0 + mathshim::abs_of(r[j].re)) && mathshim::abs_of(r[k].im + im) <= 1.0e-10 * (1.0 + mathshim::abs_of(im)) {
+                if k != j && used[k] == 0.0 && mathshim::abs_of(r[k].re - r[j].re) <= 1.0e-10 * (1.0 + mathshim::abs_of(r[j].re)) && mathshim::abs_of(r[k].im + im) <= 1.0e-10 * (1.0 + mathshim::abs_of(im)) {
                     found = true;
                     break;
                 }
                 k += 1;
             }
-            if !found { return; }
+            if !found {
+                return fault(F_SHAPE, "roots_poly", "a root has no conjugate partner");
+            }
             used[j] = 1.0;
             used[k] = 1.0;
             let re = r[j].re;
@@ -326,6 +331,7 @@ fn roots_poly(r: Cplx[:], out: f64[>..]&) {
     }
     i = 0;
     while i < cr.len { out.push(cr[i]); i += 1; }
+    return no_fault();
 }
 
 // ellip designs a digital elliptic filter with a pass band ripple of
@@ -348,8 +354,8 @@ fn ellip(order: i64, rp: f64, rs: f64, wn: f64[:], btype: const u8[:]) -> Arr, A
     var z: Cplx[>..] = [];
     var p: Cplx[>..] = [];
     let k = proto_zpk2(order, wn, btype, z0, p0, kp, z, p);
-    let b, a = zpk_to_ba(z, p, k);
-    return b, a, no_fault();
+    let b, a, fb = zpk_to_ba(z, p, k);
+    return b, a, fb;
 }
 
 // cheby1 designs a digital Chebyshev filter of type I with a ripple of
@@ -364,8 +370,8 @@ fn cheby1(order: i64, rp: f64, wn: f64[:], btype: const u8[:]) -> Arr, Arr, Faul
     var z: Cplx[>..] = [];
     var p: Cplx[>..] = [];
     let k = cheby1_digital(order, rp, wn, btype, z, p);
-    let b, a = zpk_to_ba(z, p, k);
-    return b, a, no_fault();
+    let b, a, fb = zpk_to_ba(z, p, k);
+    return b, a, fb;
 }
 
 // cheby2 designs a digital Chebyshev filter of type II with a stop band
@@ -379,8 +385,8 @@ fn cheby2(order: i64, rs: f64, wn: f64[:], btype: const u8[:]) -> Arr, Arr, Faul
     var z: Cplx[>..] = [];
     var p: Cplx[>..] = [];
     let k = cheby2_digital(order, rs, wn, btype, z, p);
-    let b, a = zpk_to_ba(z, p, k);
-    return b, a, no_fault();
+    let b, a, fb = zpk_to_ba(z, p, k);
+    return b, a, fb;
 }
 
 // cheby1_sos designs a digital Chebyshev filter of type I with a ripple
@@ -522,8 +528,8 @@ fn bessel(order: i64, wn: f64[:], btype: const u8[:], norm: const u8[:] = "phase
     var p: Cplx[>..] = [];
     let k, df = bessel_digital(order, wn, btype, norm, z, p);
     if df.kind != F_NONE { return empty_arr(), empty_arr(), df; }
-    let b, a = zpk_to_ba(z, p, k);
-    return b, a, no_fault();
+    let b, a, fb = zpk_to_ba(z, p, k);
+    return b, a, fb;
 }
 
 // bessel_sos designs the same filter as bessel and gives it as

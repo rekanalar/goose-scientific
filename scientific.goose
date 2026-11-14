@@ -50,6 +50,7 @@ import array_filter;
 import array_filter_apply;
 import array_sos;
 import array_sos_design;
+import array_filter_forms;
 import array_stats;
 import array_ufunc;
 import array_assemble;

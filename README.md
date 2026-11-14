@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.178.0";
+import scientific from "rekanalar/goose-scientific@v0.179.0";
 ```
 
 ## API
@@ -118,6 +118,7 @@ import scientific from "rekanalar/goose-scientific@v0.178.0";
 | Generalized Schur form of a pair | `qz`, `ordqz`, `qz_complex`, `ordqz_complex`, `qz_c`, `ordqz_c`, `ordqz_by`, `ordqz_complex_by`, `ordqz_c_by` |
 | Algebraic Riccati equations | `solve_continuous_are`, `solve_discrete_are`, `solve_discrete_are_pencil` |
 | Complex arrays | `CArr`, `complex_array`, `complex_real`, `complex_from_values`, `real`, `imag`, `angle`, `conj`, `iscomplex`, `isreal`, `cabs`, `cadd`, `csub`, `cmul`, `cdiv`, `cpower`, `cneg`, `cexp`, `clog`, `csqrt`, `csin`, `ccos`, `csinh`, `ccosh`, `ctranspose`, `adjoint`, `cmatmul`, `cdot`, `cvdot`, `csolve`, `cinv`, `cdet`, `ccholesky`, `cfft`, `cifft`, `cfftn`, `cifftn`, `cqr`, `csvd`, `ceig`, `ceigvals`, `ceigh`, `ceigvalsh`, `eigvals_complex`, `ceig_pair`, `ceigvals_pair`, `ceigh_pair`, `ceigvalsh_pair`, `eig_pair`, `eigvals_pair`, `eigh_pair`, `eigvalsh_pair` |
+| Forms of a filter | `zpk2tf`, `tf2zpk`, `tf2ss`, `zpk2ss`, `ss2tf` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
 
@@ -1460,6 +1461,25 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   parts in four arrays. It holds the pairing "nearest" of SciPy and
   no other pairing. It refuses a complex number with no conjugate
   partner and a filter of more than 64 poles or zeros.
+- `zpk2tf`, `tf2zpk`, `tf2ss`, `zpk2ss` and `ss2tf` change the form of a
+  filter, as the calls of `scipy.signal` do. The zeros and the poles
+  are four lists: the real parts and the imaginary parts of each. A
+  filter holds at most 64 zeros, 64 poles and 64 states, and at most 65
+  coefficients in a list. The coefficients run from the highest power to
+  the lowest.
+- `zpk2tf` refuses a root with no conjugate partner, where SciPy gives
+  complex coefficients. `tf2zpk` gives the roots in the order of the
+  package, not in the order of SciPy. Match them as a set. A repeated
+  root loses digits and may lose its pair. Then `zpk2tf` of the result
+  refuses the filter. Use `tf2sos` or the `_sos` forms for such a filter.
+- `tf2zpk` and `tf2ss` drop the leading numerator coefficients at or
+  below 1e-14, as SciPy does. They give no warning. `tf2zpk` refuses a
+  numerator of only zeros, because the gain is unknown.
+- `tf2ss` and `zpk2ss` refuse a numerator longer than the denominator.
+  A denominator of one coefficient gives one state that holds zero.
+  `ss2tf` takes one input and one output. The argument `b` is a column,
+  `c` is a row and `d` is one number. SciPy takes many inputs and many
+  outputs.
 - `tf2sos` finds the roots with `roots`. A filter of a high order
   with repeated zeros loses digits, as it does in SciPy. Use
   `butter_sos` for a Butterworth filter.
@@ -2172,6 +2192,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   A forged array gives a fault of kind `F_SHAPE` and not a crash.
   The lists and the count of a forged chain must agree. A chain that
   does not agree gives a fault and not a stop.
+- The five calls of the forms of a filter check every list and every
+  matrix against its own shape. They check before they read a value. A forged
+  array gives a fault of kind `F_SHAPE`. A value that is not finite gives
+  `F_VALUE`. A list above the limit of 64 roots, 65 coefficients or 64
+  states gives `F_LIMIT`. A division that overflows gives `F_VALUE`.
+- The pairing of conjugate roots never pairs a root with itself. A root
+  with a tiny imaginary part gives a fault and not a polynomial of a wrong
+  degree. `zpk2tf` and `tf2zpk` give `F_VALUE` when a coefficient or a root
+  overflows.
+- `zpk2tf` and the designs refuse a root with no conjugate partner. Before,
+  the helper of the designs stopped in silence and gave too few
+  coefficients.
 - `multi_dot` checks the chain against its own lists before it reads
   a value.
   The lists and the count of a forged chain must agree.

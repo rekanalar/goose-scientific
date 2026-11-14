@@ -299,7 +299,7 @@ fn zpk2sos(zr: f64[:], zi: f64[:], pr: f64[:], pi_: f64[:], k: f64) -> Arr, Faul
     if zr.len != zi.len || pr.len != pi_.len {
         return empty_arr(), fault(F_SHAPE, "zpk2sos", "the parts hold a different count");
     }
-    if zr.len > 64 || pr.len > 64 {
+    if zr.len > FORM_ROOTS_MAX || pr.len > FORM_ROOTS_MAX {
         return empty_arr(), fault(F_LIMIT, "zpk2sos", "the filter holds more than 64 poles or zeros");
     }
     var z: Cplx[>..] = [];
@@ -318,7 +318,7 @@ fn tf2sos(b: f64[:], a: f64[:]) -> Arr, Fault {
     if b.len < 1 || a.len < 1 || a[0] == 0.0 || b[0] == 0.0 {
         return empty_arr(), fault(F_VALUE, "tf2sos", "a leading coefficient holds zero or the list holds no element");
     }
-    if a.len > 65 || b.len > 65 {
+    if a.len > FORM_COEF_MAX || b.len > FORM_COEF_MAX {
         return empty_arr(), fault(F_LIMIT, "tf2sos", "the filter holds more than 64 poles or zeros");
     }
     let k = b[0] / a[0];

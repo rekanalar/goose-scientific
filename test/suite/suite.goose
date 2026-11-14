@@ -44,6 +44,7 @@ import fft_tests;
 import fftlog_tests;
 import fftn_ex_tests;
 import fftn_tests;
+import filter_forms_tests;
 import filter_tests;
 import first_step_tests;
 import firwin_tests;
@@ -262,6 +263,24 @@ fn run_all() {
     fftn_tests::test_fftn();
     fftn_ex_tests::test_fftn_ex();
     filter_tests::test_filters();
+    filter_forms_tests::test_zpk2tf_pins();
+    filter_forms_tests::test_zpk2tf_empty();
+    filter_forms_tests::test_zpk2tf_faults();
+    filter_forms_tests::test_tf2zpk_pins();
+    filter_forms_tests::test_tf2zpk_shapes();
+    filter_forms_tests::test_tf2zpk_faults();
+    filter_forms_tests::test_tf2ss_pins();
+    filter_forms_tests::test_tf2ss_one_state();
+    filter_forms_tests::test_tf2ss_trim();
+    filter_forms_tests::test_tf2ss_faults();
+    filter_forms_tests::test_zpk2ss_pins();
+    filter_forms_tests::test_zpk2ss_faults();
+    filter_forms_tests::test_ss2tf_pins();
+    filter_forms_tests::test_ss2tf_faults();
+    filter_forms_tests::test_forms_round_trip();
+    filter_forms_tests::test_design_round_trip();
+    filter_forms_tests::test_tiny_imaginary_roots();
+    filter_forms_tests::test_overflow_gives_fault();
     first_step_tests::test_first_step();
     firwin_tests::test_firwin2();
     geneig_tests::test_ceig_pair();
@@ -743,6 +762,27 @@ fn run_group(g: const u8[:]) -> bool {
     }
     if g == "filter" {
         filter_tests::test_filters();
+        return true;
+    }
+    if g == "filter_forms" {
+        filter_forms_tests::test_zpk2tf_pins();
+        filter_forms_tests::test_zpk2tf_empty();
+        filter_forms_tests::test_zpk2tf_faults();
+        filter_forms_tests::test_tf2zpk_pins();
+        filter_forms_tests::test_tf2zpk_shapes();
+        filter_forms_tests::test_tf2zpk_faults();
+        filter_forms_tests::test_tf2ss_pins();
+        filter_forms_tests::test_tf2ss_one_state();
+        filter_forms_tests::test_tf2ss_trim();
+        filter_forms_tests::test_tf2ss_faults();
+        filter_forms_tests::test_zpk2ss_pins();
+        filter_forms_tests::test_zpk2ss_faults();
+        filter_forms_tests::test_ss2tf_pins();
+        filter_forms_tests::test_ss2tf_faults();
+        filter_forms_tests::test_forms_round_trip();
+        filter_forms_tests::test_design_round_trip();
+        filter_forms_tests::test_tiny_imaginary_roots();
+        filter_forms_tests::test_overflow_gives_fault();
         return true;
     }
     if g == "first_step" {
@@ -1755,6 +1795,24 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_fht" { fftlog_tests::test_fht(); return true; }
     if t == "test_fftn_ex" { fftn_ex_tests::test_fftn_ex(); return true; }
     if t == "test_fftn" { fftn_tests::test_fftn(); return true; }
+    if t == "test_zpk2tf_pins" { filter_forms_tests::test_zpk2tf_pins(); return true; }
+    if t == "test_zpk2tf_empty" { filter_forms_tests::test_zpk2tf_empty(); return true; }
+    if t == "test_zpk2tf_faults" { filter_forms_tests::test_zpk2tf_faults(); return true; }
+    if t == "test_tf2zpk_pins" { filter_forms_tests::test_tf2zpk_pins(); return true; }
+    if t == "test_tf2zpk_shapes" { filter_forms_tests::test_tf2zpk_shapes(); return true; }
+    if t == "test_tf2zpk_faults" { filter_forms_tests::test_tf2zpk_faults(); return true; }
+    if t == "test_tf2ss_pins" { filter_forms_tests::test_tf2ss_pins(); return true; }
+    if t == "test_tf2ss_one_state" { filter_forms_tests::test_tf2ss_one_state(); return true; }
+    if t == "test_tf2ss_trim" { filter_forms_tests::test_tf2ss_trim(); return true; }
+    if t == "test_tf2ss_faults" { filter_forms_tests::test_tf2ss_faults(); return true; }
+    if t == "test_zpk2ss_pins" { filter_forms_tests::test_zpk2ss_pins(); return true; }
+    if t == "test_zpk2ss_faults" { filter_forms_tests::test_zpk2ss_faults(); return true; }
+    if t == "test_ss2tf_pins" { filter_forms_tests::test_ss2tf_pins(); return true; }
+    if t == "test_ss2tf_faults" { filter_forms_tests::test_ss2tf_faults(); return true; }
+    if t == "test_forms_round_trip" { filter_forms_tests::test_forms_round_trip(); return true; }
+    if t == "test_design_round_trip" { filter_forms_tests::test_design_round_trip(); return true; }
+    if t == "test_tiny_imaginary_roots" { filter_forms_tests::test_tiny_imaginary_roots(); return true; }
+    if t == "test_overflow_gives_fault" { filter_forms_tests::test_overflow_gives_fault(); return true; }
     if t == "test_filters" { filter_tests::test_filters(); return true; }
     if t == "test_first_step" { first_step_tests::test_first_step(); return true; }
     if t == "test_firwin2" { firwin_tests::test_firwin2(); return true; }
@@ -2516,6 +2574,27 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
     }
     if g == "filter" {
         if t == "test_filters" { filter_tests::test_filters(); return true; }
+        return false;
+    }
+    if g == "filter_forms" {
+        if t == "test_zpk2tf_pins" { filter_forms_tests::test_zpk2tf_pins(); return true; }
+        if t == "test_zpk2tf_empty" { filter_forms_tests::test_zpk2tf_empty(); return true; }
+        if t == "test_zpk2tf_faults" { filter_forms_tests::test_zpk2tf_faults(); return true; }
+        if t == "test_tf2zpk_pins" { filter_forms_tests::test_tf2zpk_pins(); return true; }
+        if t == "test_tf2zpk_shapes" { filter_forms_tests::test_tf2zpk_shapes(); return true; }
+        if t == "test_tf2zpk_faults" { filter_forms_tests::test_tf2zpk_faults(); return true; }
+        if t == "test_tf2ss_pins" { filter_forms_tests::test_tf2ss_pins(); return true; }
+        if t == "test_tf2ss_one_state" { filter_forms_tests::test_tf2ss_one_state(); return true; }
+        if t == "test_tf2ss_trim" { filter_forms_tests::test_tf2ss_trim(); return true; }
+        if t == "test_tf2ss_faults" { filter_forms_tests::test_tf2ss_faults(); return true; }
+        if t == "test_zpk2ss_pins" { filter_forms_tests::test_zpk2ss_pins(); return true; }
+        if t == "test_zpk2ss_faults" { filter_forms_tests::test_zpk2ss_faults(); return true; }
+        if t == "test_ss2tf_pins" { filter_forms_tests::test_ss2tf_pins(); return true; }
+        if t == "test_ss2tf_faults" { filter_forms_tests::test_ss2tf_faults(); return true; }
+        if t == "test_forms_round_trip" { filter_forms_tests::test_forms_round_trip(); return true; }
+        if t == "test_design_round_trip" { filter_forms_tests::test_design_round_trip(); return true; }
+        if t == "test_tiny_imaginary_roots" { filter_forms_tests::test_tiny_imaginary_roots(); return true; }
+        if t == "test_overflow_gives_fault" { filter_forms_tests::test_overflow_gives_fault(); return true; }
         return false;
     }
     if g == "first_step" {
@@ -3420,5 +3499,5 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
 }
 
 fn print_groups() {
-    print("groups: array_helpers assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_pins norms_tensors nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
+    print("groups: array_helpers assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter filter_forms first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_pins norms_tensors nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
 }
