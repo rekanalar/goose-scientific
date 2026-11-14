@@ -116,6 +116,7 @@ import qz_c_tests;
 import qz_scale_tests;
 import qz_tests;
 import qzc_tests;
+import random_distributions_tests;
 import random_tests;
 import rank_2_tests;
 import rank_3_tests;
@@ -427,6 +428,18 @@ fn run_all() {
     random_tests::test_pad_axes();
     random_tests::test_sketch();
     random_tests::test_dare_random();
+    random_distributions_tests::test_gamma_family_laws();
+    random_distributions_tests::test_lognormal_law();
+    random_distributions_tests::test_inverse_transform_laws();
+    random_distributions_tests::test_bad_parameters_refused();
+    random_distributions_tests::test_zero_cases();
+    random_distributions_tests::test_size_limits();
+    random_distributions_tests::test_distribution_overflow_gives_fault();
+    random_distributions_tests::test_pinned_numbers_of_one_seed();
+    random_distributions_tests::test_equal_seeds_equal_numbers();
+    random_distributions_tests::test_results_stay_finite();
+    random_distributions_tests::test_small_shape_stays_defined();
+    random_distributions_tests::test_large_shape_mean();
     rank_4_tests::test_rank_hostile();
     rank_pins_tests::test_rank_pins();
     remez_tests::test_remez();
@@ -1220,6 +1233,21 @@ fn run_group(g: const u8[:]) -> bool {
         random_tests::test_pad_axes();
         random_tests::test_sketch();
         random_tests::test_dare_random();
+        return true;
+    }
+    if g == "random_distributions" {
+        random_distributions_tests::test_gamma_family_laws();
+        random_distributions_tests::test_lognormal_law();
+        random_distributions_tests::test_inverse_transform_laws();
+        random_distributions_tests::test_bad_parameters_refused();
+        random_distributions_tests::test_zero_cases();
+        random_distributions_tests::test_size_limits();
+        random_distributions_tests::test_distribution_overflow_gives_fault();
+        random_distributions_tests::test_pinned_numbers_of_one_seed();
+        random_distributions_tests::test_equal_seeds_equal_numbers();
+        random_distributions_tests::test_results_stay_finite();
+        random_distributions_tests::test_small_shape_stays_defined();
+        random_distributions_tests::test_large_shape_mean();
         return true;
     }
     if g == "rank" {
@@ -2044,6 +2072,18 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_qz_time" { qz_tests::test_qz_time(); return true; }
     if t == "test_qz_c" { qzc_tests::test_qz_c(); return true; }
     if t == "test_qz_c_limit" { qzc_tests::test_qz_c_limit(); return true; }
+    if t == "test_gamma_family_laws" { random_distributions_tests::test_gamma_family_laws(); return true; }
+    if t == "test_lognormal_law" { random_distributions_tests::test_lognormal_law(); return true; }
+    if t == "test_inverse_transform_laws" { random_distributions_tests::test_inverse_transform_laws(); return true; }
+    if t == "test_bad_parameters_refused" { random_distributions_tests::test_bad_parameters_refused(); return true; }
+    if t == "test_zero_cases" { random_distributions_tests::test_zero_cases(); return true; }
+    if t == "test_size_limits" { random_distributions_tests::test_size_limits(); return true; }
+    if t == "test_distribution_overflow_gives_fault" { random_distributions_tests::test_distribution_overflow_gives_fault(); return true; }
+    if t == "test_pinned_numbers_of_one_seed" { random_distributions_tests::test_pinned_numbers_of_one_seed(); return true; }
+    if t == "test_equal_seeds_equal_numbers" { random_distributions_tests::test_equal_seeds_equal_numbers(); return true; }
+    if t == "test_results_stay_finite" { random_distributions_tests::test_results_stay_finite(); return true; }
+    if t == "test_small_shape_stays_defined" { random_distributions_tests::test_small_shape_stays_defined(); return true; }
+    if t == "test_large_shape_mean" { random_distributions_tests::test_large_shape_mean(); return true; }
     if t == "test_random" { random_tests::test_random(); return true; }
     if t == "test_generators" { random_tests::test_generators(); return true; }
     if t == "test_pad_empty" { random_tests::test_pad_empty(); return true; }
@@ -3034,6 +3074,21 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_dare_random" { random_tests::test_dare_random(); return true; }
         return false;
     }
+    if g == "random_distributions" {
+        if t == "test_gamma_family_laws" { random_distributions_tests::test_gamma_family_laws(); return true; }
+        if t == "test_lognormal_law" { random_distributions_tests::test_lognormal_law(); return true; }
+        if t == "test_inverse_transform_laws" { random_distributions_tests::test_inverse_transform_laws(); return true; }
+        if t == "test_bad_parameters_refused" { random_distributions_tests::test_bad_parameters_refused(); return true; }
+        if t == "test_zero_cases" { random_distributions_tests::test_zero_cases(); return true; }
+        if t == "test_size_limits" { random_distributions_tests::test_size_limits(); return true; }
+        if t == "test_distribution_overflow_gives_fault" { random_distributions_tests::test_distribution_overflow_gives_fault(); return true; }
+        if t == "test_pinned_numbers_of_one_seed" { random_distributions_tests::test_pinned_numbers_of_one_seed(); return true; }
+        if t == "test_equal_seeds_equal_numbers" { random_distributions_tests::test_equal_seeds_equal_numbers(); return true; }
+        if t == "test_results_stay_finite" { random_distributions_tests::test_results_stay_finite(); return true; }
+        if t == "test_small_shape_stays_defined" { random_distributions_tests::test_small_shape_stays_defined(); return true; }
+        if t == "test_large_shape_mean" { random_distributions_tests::test_large_shape_mean(); return true; }
+        return false;
+    }
     if g == "rank" {
         if t == "test_rank_pins11" { rank_2_tests::test_rank_pins11(); return true; }
         if t == "test_rank_pins12" { rank_2_tests::test_rank_pins12(); return true; }
@@ -3499,5 +3554,5 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
 }
 
 fn print_groups() {
-    print("groups: array_helpers assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter filter_forms first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_pins norms_tensors nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
+    print("groups: array_helpers assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter filter_forms first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_pins norms_tensors nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random random_distributions rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
 }

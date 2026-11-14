@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.179.0";
+import scientific from "rekanalar/goose-scientific@v0.180.0";
 ```
 
 ## API
@@ -59,6 +59,7 @@ import scientific from "rekanalar/goose-scientific@v0.179.0";
 | Polynomial type | `polynomial`, `polynomial_call`, `polynomial_degree`, `polynomial_add`, `polynomial_sub`, `polynomial_mul`, `polynomial_pow`, `polynomial_divmod`, `polynomial_der`, `polynomial_integ`, `polynomial_roots`, `polynomial_fromroots`, `polynomial_fit`, `polynomial_cutdeg`, `polynomial_linspace` |
 | Transforms | `fft`, `ifft`, `fft2`, `fft2c`, `ifft2`, `fftn`, `ifftn`, `fftn_ex`, `ifftn_ex`, `fftfreq`, `rfftfreq`, `fftshift`, `ifftshift`, `rfft`, `irfft` |
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
+| Continuous random laws | `gamma`, `lognormal`, `chisquare`, `beta`, `rayleigh`, `weibull`, `gumbel`, `logistic` |
 | Names of NumPy | `seed`, `shuffle`, `random_sample`, `rand`, `randn`, `randint`, `bytes`, `get_state`, `set_state` |
 | Shapes of another array | `empty`, `full_like`, `zeros_like`, `ones_like`, `trim_zeros`, `insert` |
 | Writes | `putmask`, `place`, `put_along_axis` |
@@ -1862,6 +1863,29 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - `normal` uses the pair of Box and Muller. It gives one number of
   the pair and holds the other for the next call. So the numbers of
   one generator come in a fixed order.
+- The eight continuous laws take the generator by reference and give
+  one number. They follow the parameter rules of NumPy 2.5.4. The
+  stream of the package differs from the stream of NumPy, so a seed
+  gives other numbers. The law is the same. The mean, the variance and
+  the quartiles of many numbers match SciPy 1.18.1.
+- NumPy takes an array size. The package gives one number, and a
+  caller loops.
+- `gamma` uses the method of Marsaglia and Tsang. A shape below one
+  uses the law of the shape plus one. `chisquare` is the gamma law of
+  half the count with a scale of two. `beta` forms the ratio from the
+  logarithms of two gamma numbers, so a small shape stays defined.
+- `weibull` has the scale one, as in NumPy. `gumbel` is the law of the
+  right hand, `gumbel_r` of SciPy. Its mean lies above the location.
+- The sampler of `gamma` calls `normal`. It draws from the same stream
+  and holds the same second number of a pair. So the numbers of one
+  generator come in a fixed order, whichever call asks for them.
+- A shape above 1.0e100 gives `F_LIMIT`. A shape below 1.0e-300 gives
+  `F_LIMIT`. The count of the degrees of freedom of the chi-square law
+  has a limit of 2.0e100. The law holds half of it. The sampler of the
+  gamma law stops after 1000 rounds with `F_LIMIT`.
+- A Weibull shape below 0.004 gives `F_VALUE` on some draws. The power
+  of the logarithm overflows there. NumPy gives infinity in that case.
+  The package gives a fault and never infinity.
 - `poisson` uses the method of Knuth. A rate above 30 is a fault,
   because the method holds a small rate only.
 - `choice` takes a row and a count. A pick without a repeat that asks
@@ -2176,6 +2200,17 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Security
 
+- The eight continuous laws refuse a negative zero where NumPy
+  refuses it. A plain test for a value below zero accepts a negative
+  zero. They also refuse a parameter that is not finite. NumPy gives a
+  number that is not a number or infinity for such a parameter. The
+  package gives `F_VALUE`.
+- No call returns a value that is not finite. A result that overflows
+  gives `F_VALUE`.
+- The acceptance test of the gamma sampler uses a series for a large
+  shape. The plain sum loses every digit for a shape above 1e16 and
+  would accept or reject at random. A shape above 1.0e100 gives
+  `F_LIMIT`.
 - `vector_norm`, `matrix_norm`, `tensorinv` and `tensorsolve` check
   every operand against its own shape before they read a value. A
   forged array gives a fault and not a crash.
