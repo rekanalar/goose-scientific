@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.182.0";
+import scientific from "rekanalar/goose-scientific@v0.183.0";
 ```
 
 ## API
@@ -61,6 +61,7 @@ import scientific from "rekanalar/goose-scientific@v0.182.0";
 | Sampling | `default_rng`, `uniform`, `random_uniform`, `integers`, `normal`, `exponential`, `poisson`, `choice`, `permutation`, `shuffled`, `shuffle_rows` |
 | Continuous random laws | `gamma`, `lognormal`, `chisquare`, `beta`, `rayleigh`, `weibull`, `gumbel`, `logistic` |
 | Discrete random laws | `binomial`, `geometric`, `hypergeometric`, `logseries`, `negative_binomial`, `zipf`, `multinomial` |
+| Inspection and conversion | `asarray`, `asanyarray`, `ascontiguousarray`, `asfortranarray`, `astype`, `shape`, `isscalar`, `isrealobj`, `iscomplexobj`, `isfortran`, `conjugate`, `flat` |
 | The laws of the F family, of the circle, of the Pareto, of the triangle and of the Wald form | `f`, `noncentral_chisquare`, `noncentral_f`, `pareto`, `triangular`, `vonmises`, `wald` |
 | Names of NumPy | `seed`, `shuffle`, `random_sample`, `rand`, `randn`, `randint`, `bytes`, `get_state`, `set_state` |
 | Shapes of another array | `empty`, `full_like`, `zeros_like`, `ones_like`, `trim_zeros`, `insert` |
@@ -1897,6 +1898,23 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
   `multinomial` together.
 - A shape of `zipf` so near one that the method rejects 1000 rounds
   gives `F_LIMIT`. NumPy loops there without a bound.
+- `asarray`, `asanyarray`, `ascontiguousarray` and `asfortranarray`
+  give a copy of the array of the caller. The array of the
+  caller stays as it was. The package holds one array type, so the
+  calls differ from NumPy in no way that a caller can see.
+- `asfortranarray` gives a copy in the row major order. The buffer of
+  the package holds the elements in that order, so the order of the
+  elements does not change. `isfortran` gives false for an array of
+  more than one dimension.
+- `astype` converts every value. The package holds the type of f64
+  only, so the call gives a copy. A type that the package does not
+  hold gives `F_VALUE`.
+- `shape` gives the shape as a row of whole numbers. `flat` gives the
+  elements as a row. `conjugate` gives a copy, because the values of
+  the package are real. `clone` gives a copy as well.
+- `isscalar` gives true for a number. `isrealobj` gives true and
+  `iscomplexobj` gives false, because the array of the package holds
+  real numbers only.
 - The eight continuous laws take the generator by reference and give
   one number. They follow the parameter rules of NumPy 2.5.4. The
   stream of the package differs from the stream of NumPy, so a seed
@@ -2320,6 +2338,8 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 - The cost cap of `multinomial` covers the whole call. A row of many
   classes would pass the cap of `binomial` class by class and run
   for minutes. The call gives `F_LIMIT` instead.
+- The conversion calls check the array of the caller before they read
+  it. A forged array gives `F_SHAPE` and not a read outside the shape.
 - `multinomial` checks its row before it reads a value. A row of
   more than one dimension gives `F_SHAPE`. A sum above one gives
   `F_VALUE`. The call never gives a wrong count.

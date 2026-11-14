@@ -64,6 +64,7 @@ import grids_tests;
 import hfftn_ex_tests;
 import histogram2d_tests;
 import index_tests;
+import inspect_tests;
 import integrate_tests;
 import interp1d_kinds_tests;
 import interp_spline_tests;
@@ -304,6 +305,12 @@ fn run_all() {
     hfftn_ex_tests::test_hfftn_ex();
     histogram2d_tests::test_histogram2d();
     index_tests::test_indexing();
+    inspect_tests::test_conversion_gives_a_copy();
+    inspect_tests::test_astype_keeps_the_values();
+    inspect_tests::test_shape_gives_the_shape();
+    inspect_tests::test_the_predicates();
+    inspect_tests::test_flat_gives_the_elements();
+    inspect_tests::test_a_forged_array_gives_a_fault();
     integrate_tests::test_integrate();
     interp_tests::test_interp();
     interp_tests::test_spline_mixed_ends();
@@ -938,6 +945,15 @@ fn run_group(g: const u8[:]) -> bool {
     }
     if g == "index" {
         index_tests::test_indexing();
+        return true;
+    }
+    if g == "inspect" {
+        inspect_tests::test_conversion_gives_a_copy();
+        inspect_tests::test_astype_keeps_the_values();
+        inspect_tests::test_shape_gives_the_shape();
+        inspect_tests::test_the_predicates();
+        inspect_tests::test_flat_gives_the_elements();
+        inspect_tests::test_a_forged_array_gives_a_fault();
         return true;
     }
     if g == "integrate" {
@@ -1971,6 +1987,12 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_hfftn_ex" { hfftn_ex_tests::test_hfftn_ex(); return true; }
     if t == "test_histogram2d" { histogram2d_tests::test_histogram2d(); return true; }
     if t == "test_indexing" { index_tests::test_indexing(); return true; }
+    if t == "test_conversion_gives_a_copy" { inspect_tests::test_conversion_gives_a_copy(); return true; }
+    if t == "test_astype_keeps_the_values" { inspect_tests::test_astype_keeps_the_values(); return true; }
+    if t == "test_shape_gives_the_shape" { inspect_tests::test_shape_gives_the_shape(); return true; }
+    if t == "test_the_predicates" { inspect_tests::test_the_predicates(); return true; }
+    if t == "test_flat_gives_the_elements" { inspect_tests::test_flat_gives_the_elements(); return true; }
+    if t == "test_a_forged_array_gives_a_fault" { inspect_tests::test_a_forged_array_gives_a_fault(); return true; }
     if t == "test_integrate" { integrate_tests::test_integrate(); return true; }
     if t == "test_interp1d_kinds" { interp1d_kinds_tests::test_interp1d_kinds(); return true; }
     if t == "test_interp_spline_bc" { interp_spline_tests::test_interp_spline_bc(); return true; }
@@ -2849,6 +2871,15 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_indexing" { index_tests::test_indexing(); return true; }
         return false;
     }
+    if g == "inspect" {
+        if t == "test_conversion_gives_a_copy" { inspect_tests::test_conversion_gives_a_copy(); return true; }
+        if t == "test_astype_keeps_the_values" { inspect_tests::test_astype_keeps_the_values(); return true; }
+        if t == "test_shape_gives_the_shape" { inspect_tests::test_shape_gives_the_shape(); return true; }
+        if t == "test_the_predicates" { inspect_tests::test_the_predicates(); return true; }
+        if t == "test_flat_gives_the_elements" { inspect_tests::test_flat_gives_the_elements(); return true; }
+        if t == "test_a_forged_array_gives_a_fault" { inspect_tests::test_a_forged_array_gives_a_fault(); return true; }
+        return false;
+    }
     if g == "integrate" {
         if t == "test_integrate" { integrate_tests::test_integrate(); return true; }
         return false;
@@ -3696,5 +3727,5 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
 }
 
 fn print_groups() {
-    print("groups: array_helpers assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter filter_forms first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_pins norms_tensors nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random random_discrete random_distributions random_laws rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
+    print("groups: array_helpers assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter filter_forms first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index inspect integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_pins norms_tensors nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random random_discrete random_distributions random_laws rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
 }
