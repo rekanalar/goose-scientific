@@ -195,6 +195,7 @@ import array_norms;
 import array_tensor;
 import array_chain;
 import array_apply;
+import array_dtype;
 
 // The kinds of a fault. A fault holds a kind, the name of the check
 // and a short detail.

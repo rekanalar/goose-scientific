@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.184.0";
+import scientific from "rekanalar/goose-scientific@v0.185.0";
 ```
 
 ## API
@@ -28,6 +28,7 @@ import scientific from "rekanalar/goose-scientific@v0.184.0";
 | Stacks | `vstack`, `hstack`, `dstack`, `column_stack` |
 | Grids | `meshgrid(x, y, indexing="xy", sparse=false)`, `cross`, `interpn` |
 | Constants | `constants::pi`, `constants::c`, `constants::h` and the rest of the module of SciPy, `value`, `unit`, `precision`, `find`, `convert_temperature`, `lambda2nu`, `nu2lambda` |
+| Types of numbers | `promote_types`, `result_type`, `can_cast(from, to, casting)`, `common_type`, `issubdtype`, `isdtype`, `min_scalar_type` |
 | Moves | `moveaxis`, `moveaxis_many`, `flipud`, `fliplr`, `rot90(a, k=1, axis0=0, axis1=1)`, `broadcast_to`, `broadcast_arrays`, `select`, `apply_along_axis`, `apply_along_axis_scalar` |
 | Positions | `argwhere`, `flatnonzero` |
 | Histograms of two dimensions | `histogram2d(x, y, xbins=10, ybins=10)`, `histogramdd(points, bins=10)` |
@@ -153,6 +154,18 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 ```
 
 ## Limits
+
+The type calls work on names of types and never touch an array:
+
+- The names are the 14 number types of NumPy. They run from `bool` and `int8` up to `float64` and `complex128`.
+- The short names `bool_`, `half`, `single`, `double`, `float`, `csingle`, `cdouble`, `complex`, `int` and `uint` count too.
+- A name that is no type gives a fault of kind `F_VALUE`. The package holds no longdouble, datetime, string or object type.
+- `issubdtype` takes a type name or one of eight classes. The classes are `generic`, `number`, `integer`, `signedinteger`, `unsignedinteger`, `floating`, `complexfloating` and `inexact`.
+- `isdtype` takes one kind name. A caller who needs a tuple of kinds calls it once for each kind.
+- `can_cast` takes the rule as a text and has no default. Pass `"safe"` for the default of NumPy.
+- `result_type` takes two types. It does not look at a value, so it differs from NumPy for a Python number.
+- `min_scalar_type` takes an `i64` or an `f64`. A value above the largest `i64` is out of its reach, and NumPy gives `uint64` for it.
+- `common_type` gives a fault for a `bool`, as NumPy raises an error.
 
 - `vector_norm` takes a real order. The order 0 counts the values that
   are not zero. An infinity takes the largest absolute value, and a
@@ -2331,6 +2344,9 @@ let s, f3 = scientific::add(a, row);   // shape 2 x 3
 
 ## Security
 
+- The type calls compare each name with a fixed list of names. No name reaches a path, a command or a format. An unknown name gives `F_VALUE` and no value.
+- The package accepts the 14 type names and ten short aliases. It accepts no type code such as `i8`. The alias `int` means `int64`, and `uint` means `uint64`.
+- A casting rule that is not no, equiv, safe, same_kind or unsafe gives `F_VALUE`, as NumPy raises an error.
 - The eight continuous laws refuse a negative zero where NumPy
   refuses it. A plain test for a value below zero accepts a negative
   zero. They also refuse a parameter that is not finite. NumPy gives a

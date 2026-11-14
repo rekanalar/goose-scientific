@@ -2,6 +2,7 @@
 namespace suite;
 
 import std;
+import array_dtype_tests;
 import array_helpers_tests;
 import assemble_tests;
 import balance_tests;
@@ -191,6 +192,12 @@ import windows_tests;
 
 // run_all runs every test that no other test calls.
 fn run_all() {
+    array_dtype_tests::test_promote_grid();
+    array_dtype_tests::test_can_cast_grid();
+    array_dtype_tests::test_common_type_grid();
+    array_dtype_tests::test_issubdtype_and_isdtype_grid();
+    array_dtype_tests::test_min_scalar_type();
+    array_dtype_tests::test_dtype_names_and_faults();
     array_helpers_tests::test_pack_bits();
     array_helpers_tests::test_unpack_bits();
     array_helpers_tests::test_copy_into_array();
@@ -596,6 +603,15 @@ fn run_all() {
 
 // run_group runs every test of one group. It tells whether the group exists.
 fn run_group(g: const u8[:]) -> bool {
+    if g == "array_dtype" {
+        array_dtype_tests::test_promote_grid();
+        array_dtype_tests::test_can_cast_grid();
+        array_dtype_tests::test_common_type_grid();
+        array_dtype_tests::test_issubdtype_and_isdtype_grid();
+        array_dtype_tests::test_min_scalar_type();
+        array_dtype_tests::test_dtype_names_and_faults();
+        return true;
+    }
     if g == "array_helpers" {
         array_helpers_tests::test_pack_bits();
         array_helpers_tests::test_unpack_bits();
@@ -1824,6 +1840,12 @@ fn run_group(g: const u8[:]) -> bool {
 
 // run_test runs one test by name. It tells whether the test exists.
 fn run_test(t: const u8[:]) -> bool {
+    if t == "test_promote_grid" { array_dtype_tests::test_promote_grid(); return true; }
+    if t == "test_can_cast_grid" { array_dtype_tests::test_can_cast_grid(); return true; }
+    if t == "test_common_type_grid" { array_dtype_tests::test_common_type_grid(); return true; }
+    if t == "test_issubdtype_and_isdtype_grid" { array_dtype_tests::test_issubdtype_and_isdtype_grid(); return true; }
+    if t == "test_min_scalar_type" { array_dtype_tests::test_min_scalar_type(); return true; }
+    if t == "test_dtype_names_and_faults" { array_dtype_tests::test_dtype_names_and_faults(); return true; }
     if t == "test_pack_bits" { array_helpers_tests::test_pack_bits(); return true; }
     if t == "test_unpack_bits" { array_helpers_tests::test_unpack_bits(); return true; }
     if t == "test_copy_into_array" { array_helpers_tests::test_copy_into_array(); return true; }
@@ -2539,6 +2561,15 @@ fn run_test(t: const u8[:]) -> bool {
 
 // run_test_in runs one test when it belongs to the group.
 fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
+    if g == "array_dtype" {
+        if t == "test_promote_grid" { array_dtype_tests::test_promote_grid(); return true; }
+        if t == "test_can_cast_grid" { array_dtype_tests::test_can_cast_grid(); return true; }
+        if t == "test_common_type_grid" { array_dtype_tests::test_common_type_grid(); return true; }
+        if t == "test_issubdtype_and_isdtype_grid" { array_dtype_tests::test_issubdtype_and_isdtype_grid(); return true; }
+        if t == "test_min_scalar_type" { array_dtype_tests::test_min_scalar_type(); return true; }
+        if t == "test_dtype_names_and_faults" { array_dtype_tests::test_dtype_names_and_faults(); return true; }
+        return false;
+    }
     if g == "array_helpers" {
         if t == "test_pack_bits" { array_helpers_tests::test_pack_bits(); return true; }
         if t == "test_unpack_bits" { array_helpers_tests::test_unpack_bits(); return true; }
@@ -3766,5 +3797,5 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
 }
 
 fn print_groups() {
-    print("groups: array_helpers assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter filter_forms first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index inspect integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_pins norms_tensors nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random random_discrete random_distributions random_laws random_multi rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
+    print("groups: array_dtype array_helpers assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter filter_forms first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index inspect integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_pins norms_tensors nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random random_discrete random_distributions random_laws random_multi rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
 }
