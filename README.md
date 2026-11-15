@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.186.0";
+import scientific from "rekanalar/goose-scientific@v1.0.0";
 ```
 
 ## API
@@ -90,10 +90,10 @@ import scientific from "rekanalar/goose-scientific@v0.186.0";
 | Rank and derivative filters of N dimensions | `rank_filter`, `median_filter`, `percentile_filter`, `minimum_filter`, `maximum_filter`, the forms `rank_filter_fp`, `median_filter_fp`, `percentile_filter_fp`, `minimum_filter_fp` and `maximum_filter_fp`, `minimum_filter1d`, `maximum_filter1d`, `sobel`, `prewitt`, `laplace`, `gaussian_laplace`, `gaussian_gradient_magnitude` |
 | Labels, morphology and distances of N dimensions | `generate_binary_structure`, `iterate_structure`, `label`, `label_st`, `binary_erosion`, `binary_dilation`, `binary_opening`, `binary_closing`, the forms with the suffix `_st`, `binary_fill_holes`, `binary_fill_holes_st`, `distance_transform_edt`, `distance_transform_edt_indices` |
 | Filters that take a block | `generic_filter`, `generic_filter_fp`, `generic_laplace`, `generic_gradient_magnitude` |
-| Measurements of labeled regions | `sum_labels`, `mean_labels`, `variance_labels`, `standard_deviation_labels`, `minimum_labels`, `maximum_labels`, `median_labels`, `minimum_position`, `maximum_position`, `extrema`, `center_of_mass`, `histogram_labels`, `find_objects`, `labeled_comprehension` |
+| Measurements of labeled regions | `sum_labels`, `mean_labels`, `variance_labels`, `standard_deviation_labels`, `standard_deviation`, `minimum_labels`, `maximum_labels`, `median_labels`, `minimum_position`, `maximum_position`, `extrema`, `center_of_mass`, `histogram_labels`, `find_objects`, `labeled_comprehension` |
 | Grey morphology, propagation and hit or miss | `grey_erosion`, `grey_dilation`, `grey_opening`, `grey_closing`, `morphological_gradient`, `morphological_laplace`, `white_tophat`, `black_tophat`, the forms with the suffix `_st`, `binary_propagation`, `binary_propagation_st`, `binary_hit_or_miss`, `binary_hit_or_miss_st` |
 | Chamfer and brute force distances and value positions | `distance_transform_cdt`, `distance_transform_cdt_indices`, `distance_transform_cdt_st`, `distance_transform_cdt_st_indices`, `distance_transform_bf`, `distance_transform_bf_indices`, `value_indices` |
-| Spline filters and interpolating transforms of N dimensions | `spline_filter1d`, `spline_filter`, `map_coordinates`, `affine_transform`, `shift`, `zoom`, `rotate` |
+| Spline filters and interpolating transforms of N dimensions | `nd_spline_filter1d`, `nd_spline_filter`, `map_coordinates`, `affine_transform`, `shift`, `zoom`, `rotate` |
 | Geometric transform and line filter of N dimensions | `geometric_transform`, `generic_filter1d` |
 | Vectorized filter of N dimensions | `vectorized_filter` |
 | Cubic splines and `interp1d` | `cubic_spline`, `cubic_spline_ends`, `cubic_hermite`, `bspline`, `make_interp_spline`, `make_interp_spline_bc`, `splrep`, `splrep_residual`, `splev`, `bspline_eval`, `bspline_design_matrix`, `pchip`, `akima`, `spline_eval`, `spline_integrate`, `interp1d` |
@@ -132,8 +132,17 @@ import scientific from "rekanalar/goose-scientific@v0.186.0";
 | Filter design and transforms | `buttap`, `cheb1ap`, `cheb2ap`, `ellipap`, `besselap`, `buttord`, `cheb1ord`, `cheb2ord`, `ellipord`, `band_stop_obj`, `iirfilter`, `iirfilter_zpk`, `iirdesign`, `iirnotch`, `iirpeak`, `iircomb`, `kaiser_beta`, `kaiser_atten`, `kaiserord`, `lp2lp`, `lp2hp`, `lp2bp`, `lp2bs`, `lp2lp_zpk`, `lp2hp_zpk`, `lp2bp_zpk`, `lp2bs_zpk`, `bilinear`, `bilinear_zpk`, `normalize`, `findfreqs`, `freqs`, `freqs_zpk`, `freqz_zpk`, `freqz_sos`, `group_delay`, `cont2discrete` |
 | Spectrum, windows and waves | `czt`, `czt_points`, `zoom_fft`, `csd_ex`, `coherence`, `correlation_lags`, `envelope`, `check_cola`, `check_nola`, `closest_stft_dual_window`, `choose_conv_method`, `deconvolve`, `lombscargle`, `minimum_phase`, `whittaker_henderson`, `convolve2d`, `correlate2d`, `medfilt2d`, `order_filter`, `sepfir2d`, `firwin_2d`, `gauss_spline`, `hilbert2`, `wiener`, `argrelmax`, `argrelmin`, `argrelextrema`, `peak_widths`, `ricker`, `cwt`, `find_peaks_cwt`, `chirp`, `gausspulse`, `gausspulse_cutoff`, `sawtooth`, `sweep_poly`, `gammatone`, `vectorstrength`, `max_len_seq` |
 | Plain calls of the optimization | `rosen`, `rosen_der`, `rosen_hess`, `rosen_hess_prod`, `check_grad`, `fixed_point`, `line_search`, `bracket`, `brute`, `isotonic_regression`, `bfgs_hessian_update`, `sr1_hessian_update`, `bounds`, `linear_constraint`, `show_options` |
+| Optimizers of SciPy | `fmin_powell(x0, xtol=1e-4, ftol=1e-4, maxiter=0) { v => ... }`, `fmin_cobyla(x0, rhobeg=1.0, rhoend=1e-4, maxfun=1000, catol=2e-4) { v => ... }`, `fmin_slsqp(x0, neq, lb=[], ub=[], acc=1e-6, iters=100) { v => ... }`, `fmin_tnc(x0, lb=[], ub=[], epsilon=1e-8, maxfun=0, ftol=-1.0, xtol=-1.0, pgtol=-1.0) { v => ... }`, `leastsq(x0, ftol, xtol, gtol, maxfev, factor, diag=[]) { d => ..., f => ... }`, `leastsq_est(x0, ftol, xtol, gtol, maxfev, factor, diag=[]) { f => ... }`, `lsq_linear(a, b, lower, upper, method="trf", tol=1e-10, max_iter=0)`, `quadratic_assignment(a, b, method="faq", seed=1)`, `shgo(lower, upper, n=100, iters=1) { v => ... }` |
+| Results of the optimizers | `OptimizeResult`, `RootResults`, `NlConstraint`, `optimize_result`, `root_result`, `nl_constraint` |
+| Systems of a signal | `lti(num, den)`, `dlti(num, den)`, `state_space(a, b, c, d, dt)`, `dlsim(system, u, t=[], x0=[])`, `place_poles(a, b, pr, pi_, method="YT", ...)` |
+| Spline filters of a signal | `cspline1d(signal, lamb=0.0)`, `cspline1d_eval(cj, newx, dx=1.0, x0=0.0)`, `qspline1d(signal, lamb=0.0)`, `qspline1d_eval(cj, newx, dx=1.0, x0=0.0)`, `cspline2d(signal, lamb=0.0, precision=-1.0)`, `qspline2d(signal, lamb=0.0, precision=-1.0)`, `symiirorder1(signal, c0, z1, precision=-1.0)`, `symiirorder2(signal, r, omega, precision=-1.0)`, `spline_filter(a, lmbda = 5.0)` |
+| Fast convolution and the forms of a filter | `oaconvolve(in1, in2, mode="full")`, `upfirdn(h, x, up=1, down=1, axis=-1, mode="constant", cval=0.0)`, `sos2tf(sos)`, `sos2zpk(sos)`, `firls(numtaps, bands, desired, weight=[], fs=2.0)`, `unit_impulse(shape, idx=[], mid=false)` |
+| Short time transform | `stft_plan(win, hop, fs, fft_mode="onesided", ...)`, `stft_forward(plan, x, axis=-1)`, `stft_inverse(plan, s, axis=-1)` |
+| Integrators of SciPy | `cubature(f, a, b, n=1000)`, `solve_bvp(x, y, p=[], tol=1e-3, max_nodes=1000) { bc, f }`, `solve_ivp_lsoda(t0, t1, y0, rtol, atol, max_step, t_eval=[], first_step=0.0) { t, y => ... }`, `complex_ode(t0, t1, y0, rtol, atol, method="RK45", max_step, t_eval=[]) { t, y => ... }`, `lebedev_rule(n)` |
+| Files of the sparse formats | `save_npz(path, matrix)`, `load_npz(path)`, `spilu(matrix, drop_tol=1e-4, fill_factor=10.0, drop_rule="basic")` |
 | Responses of a system | `impulse`, `step`, `lsim`, `freqresp`, `bode`, `dstep`, `dimpulse`, `dfreqresp`, `dbode`, `ss2zpk`, `abcd_normalize` |
 | Polynomial and rational interpolation | `barycentric_interpolate`, `krogh_interpolate`, `floater_hormann`, `lagrange_poly`, `pade_approx`, `taylor_approximate`, `pchip_interpolate`, `splder`, `splantider`, `splint`, `spalde`, `sproot`, `make_lsq_spline`, `rect_spline`, `rect_spline_eval` |
+| Interpolators of many dimensions | `rbf(points, values, query, function="multiquadric", ...)`, `rbf_interpolate(y, d, x, neighbors=-1, smoothing=0.0, kernel="thin_plate_spline", ...)`, `clough_tocher_interpolate(points, values, xi, fill_value, tol=1e-6, maxiter=400, rescale=false)`, `bivariate_spline(tx, ty, c, kx, ky)`, `lsq_bivariate_spline(x, y, z, tx, ty, w, kx, ky)`, `bisplev(xq, yq, tx, ty, c, kx, ky, grid=true, dx=0, dy=0)`, `bivariate_integral(xa, xb, ya, yb, tx, ty, c, kx, ky)`, `bpoly(c, x, extrap=true, periodic=false)`, `bpoly_eval(b, xs, nu=0)`, `nd_bspline(t, nts, ks, c)`, `ndspl_eval(s, xi, npoints, nu, extrapolate)`, `nd_poly(x, nbs, ks, c)`, `ndpoly_eval(s, xi, npoints, nu, extrapolate)`, `aaa_interpolate(x, y, xs, rtol=-1.0, max_terms=100)`, `aaa_run(x, y, xs, rtol, max_terms)`, `make_smoothing_spline(x, y, w, lam)`, `make_smoothing_spline_gcv(x, y, w)`, `generate_knots(x, y, w, k, s)` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
 The fault holds a kind, the name of the check and a short detail.
@@ -561,7 +570,7 @@ The type calls work on names of types and never touch an array:
   function. Goose cannot store a function, so `a`, `b` and `m` are sparse
   matrices. A caller who holds only a product must build the matrix.
   The package has no sparse `LinearOperator`, and none can exist in Goose
-  today. The package has no `spilu` yet either.
+  today. The package holds the call `spilu` for the incomplete factor.
 
 - `svds` gives the `k` largest or the `k` smallest singular values of a
   sparse matrix, with their vectors. It gives `u` of `rows` by `k`, the
@@ -785,9 +794,13 @@ The type calls work on names of types and never touch an array:
   over the rows at each step, so the time grows with the square of the
   side. The merge of the rows grows with the fill-in. A caller that
   takes a matrix from an untrusted source lowers the side first.
-- `spilu`, the incomplete factor, stays out. Its drop rule and its fill
-  factor come from SuperLU. No standard fixes the rule, and another rule
-  gives another factor and another solution.
+- `spilu` gives the incomplete factor with the drop rule `basic`. The rule
+  of SuperLU drops a value of the factor below the limit of the drop. The
+  fill factor bounds the count of the values of each row. The factor of
+  SuperLU and this one differ, because the order of the drops differs.
+  The rule `basic` is the only rule. Another name gives a fault of value.
+- `spilu` bounds the count of the values of the factor. A matrix that
+  fills in past the limit gives a fault of limit.
 - `factorized` of SciPy is `sparse_lu` followed by `splu_solve`. The
   factor does not change, so many right sides can use it.
 - `onenormest` gives a lower bound of the one-norm of a `Csr` matrix. It
@@ -1128,7 +1141,7 @@ The type calls work on names of types and never touch an array:
   The modes `nearest` and `grid-constant` pad the array with 12 values
   before the filter, as SciPy does. So a spline there is not exact beyond
   that range.
-- `spline_filter` takes the orders 2 to 5. `spline_filter1d` also takes
+- `nd_spline_filter` takes the orders 2 to 5. `nd_spline_filter1d` also takes
   0 and 1 and returns the array. `zoom` with a factor of one on every axis
   and `prefilter` true returns a copy. `rotate` takes the plane as two axes.
   It rotates every plane of an array of three or more dimensions.
@@ -2454,8 +2467,13 @@ The type calls work on names of types and never touch an array:
 - The values match SciPy 1.18.1 and NumPy 2.5.4.
 - `czt`, `czt_points` and `zoom_fft` give the values of the call. They
   return no object. SciPy `CZT`, `ZoomFFT` and `ShortTimeFFT` are
-  classes. The package has no class for them. `stft` and `istft` give
-  the values of `ShortTimeFFT`.
+  classes. The package holds the plan of the short time transform in
+  the struct `StftPlan`. The calls `stft_plan`, `stft_forward` and
+  `stft_inverse` take it.
+
+  The classes `CZT` and `ZoomFFT` have no counterpart, because their
+  state holds one function. `stft` and `istft` give the values of
+  `ShortTimeFFT`.
 - A complex `w` or `a` comes as four numbers: `w_re`, `w_im`, `a_re`
   and `a_im`. A value that is not a number in `w_re` or `a_re` means
   the default. The default `w` turns by 2 pi over the point count. The
@@ -2591,7 +2609,9 @@ The type calls work on names of types and never touch an array:
 - `rect_spline` follows `RectBivariateSpline` with the smoothing
   factor zero and the degrees of the two axes. The values hold the
   rows of the second axis for each row of the first axis. The
-  smoothing of Dierckx, the boxes and the sphere forms stay out.
+  smoothing fit of Dierckx and the three forms over the sphere stay
+  out. The package holds the least squares fit `lsq_bivariate_spline`
+  with the knots of the caller.
 - `bspline`, `make_interp_spline`, `splev`, `pchip`, `akima`,
   `cubic_spline`, `cubic_hermite`, `interp1d` and `griddata` were in
   the package before this change. `PchipInterpolator`, `CubicSpline`,
@@ -2616,8 +2636,11 @@ The type calls work on names of types and never touch an array:
   the type `Splu` of this package.
 - The call `solve_ivp` of this package holds the methods RK45, RK23,
   DOP853, Radau and BDF of SciPy. The calls `ode` and `complex_ode` of
-  SciPy stand for the same calls. The method LSODA of SciPy holds no
-  counterpart, because the method switches its law at run time.
+  SciPy stand for the same calls. The method LSODA of SciPy is the call
+  `solve_ivp_lsoda` of this package. The switch between the Adams and
+  the BDF methods follows the test of the stiffness of the package. The
+  test runs at each step, so the steps differ from SciPy. The values at
+  the times of the output agree with SciPy to the tolerances.
 - The types `OdeSolver`, `OdeSolution` and `DenseOutput` of SciPy hold
   no counterpart. Goose cannot store a function value, so a caller
   cannot build a type of its own solver.
@@ -2640,12 +2663,25 @@ The type calls work on names of types and never touch an array:
 - The call `romb` of SciPy is the call `romberg` of this package. Both
   calls take the samples of the function.
 - The call `cubature` of SciPy integrates over a box of any count of
-  dimensions. The call `nquad` of this package integrates the same box.
-- The call `lebedev_rule` of SciPy holds no counterpart. The table of
-  the points of the orders runs over many thousand numbers, and the
-  rule serves the sphere only.
-- The calls `save_npz` and `load_npz` of SciPy hold no counterpart.
-  This package holds no reader and no writer of the archive files.
+  dimensions. The call `cubature` of this package takes the same box.
+  It nests the adaptive rule of Gauss and Kronrod over the box. The
+  call `nquad` of this package does the same.
+
+  The estimate of the error differs from the estimate of SciPy. The
+  value agrees to the tolerance. The call takes a count of intervals,
+  not the tolerances of SciPy.
+- The call `lebedev_rule` of SciPy holds the same points and weights
+  as this package. The orders run from 3 to 131 and skip the orders
+  that hold no table. A count with no table gives a fault of value.
+  The call `lebedev_grid` builds the points of one rule for a caller
+  who wants them in one buffer.
+- The calls `save_npz` and `load_npz` of SciPy are the calls of this
+  package with the same names. The writer of this package holds the
+  compressed rows only. The reader holds every format that SciPy
+  writes. It holds the compressed rows, the compressed columns, the
+  blocks of rows, the diagonals and the coordinates. A member that
+  SciPy compressed gives a fault of value, because the package holds
+  no inflate.
 - The calls `find_best_blas_type`, `get_blas_funcs` and
   `get_lapack_funcs` of SciPy hold no counterpart. This package writes
   its own algorithms and holds no library of BLAS or LAPACK.
@@ -2658,11 +2694,182 @@ The type calls work on names of types and never touch an array:
 - The call `watershed_ift` of this package takes the values and the
   markers as arrays of the same shape. The values stand from zero up,
   and the call cuts them to whole numbers.
-- The call `standard_deviation` of SciPy is the call
-  `standard_deviation_labels` of this package. The plain whole-array
-  standard deviation is the call `std`.
+- SciPy's `standard_deviation` is the call `standard_deviation` of this
+  package. An empty labels list holds the whole image. The plain
+  whole-array standard deviation of NumPy is the call `std`.
 - The call `test` of NumPy and SciPy holds no counterpart. The tests of
   this package live in the directory of the tests.
+- The four methods of minimization of SciPy take their function as a
+  block. The block of `fmin_powell` gives the value of the function
+  alone. The block of `fmin_cobyla` gives the value first and the
+  constraints after it. The block of `fmin_slsqp` gives the value
+  first and the constraints after it. The first `neq` constraints of
+  `fmin_slsqp` must equal zero. The block of `fmin_tnc` gives the value
+  of the function first and the gradient after it.
+- `fmin_powell`, `fmin_cobyla`, `fmin_slsqp` and `fmin_tnc` take the
+  bounds as two lists. One list holds the lower bounds. One list holds
+  the upper bounds. A list of a different length gives a fault of
+  shape. A bound above the other bound gives a fault of value.
+- `fmin_powell` stops at the count of the turns of the search. The
+  count stands at 1000 turns for each variable. A run that does not
+  reach the tolerance gives a fault of limit.
+- `fmin_cobyla` stops at the count of the calls of the function. A run
+  that does not reach the end of the radius gives a fault of limit.
+- `fmin_slsqp` stops at the count of the turns. The call holds the
+  method of SciPy. It leaves out the second-order correction of the
+  estimate of the Hessian, so the path differs. The values at the
+  answer agree.
+- `fmin_tnc` stops at the count of the calls. The method of SciPy holds
+  the same rule, so the answers agree.
+- `leastsq` takes two blocks. The first block gives the matrix of the
+  derivatives. The second block gives the values of the data. The call
+  `leastsq_est` takes the second block alone and estimates the matrix
+  of the derivatives. SciPy estimates it in the same way, so the two
+  calls agree.
+- `leastsq` counts the calls of its blocks in the fields of the
+  answer. The count of the calls of the derivatives agrees with the
+  count of SciPy. The count of the calls of the values is one less.
+  The last step of SciPy asks for the values once more.
+- `lsq_linear` holds the methods `trf` and `bvls` of SciPy. Another
+  method gives a fault of value.
+- `quadratic_assignment` holds the methods `faq` and `2opt`. The method
+  `faq` of SciPy is deterministic, so the two calls agree. The method
+  `2opt` of SciPy starts its search from a random order of the rows.
+  The package starts from the order of the caller. The two calls give
+  different answers when the search ends in another valley. The cause
+  is the different start, not the rule of the swaps.
+- `shgo` draws its points from the sequence of Halton. SciPy builds a
+  complex of the samples and refines it. The two calls find the same
+  minimum for a smooth function. They differ for a function with many
+  minima, because they draw different points.
+- `lti` and `dlti` give the system of SciPy in the form that SciPy
+  holds after `normalize`. The denominator starts at one, and the small
+  coefficients of the numerator leave. The step of the time of a
+  continuous system holds zero.
+- `state_space` takes the matrices of SciPy. The matrix of the states
+  has to be square. The matrix of the input holds one column. The
+  matrix of the output holds one row.
+- `dlsim` refuses times that do not rise and a step of the time of zero
+  or below. The count of the steps is bounded.
+- `place_poles` holds the methods `YT` and `KNV0` of SciPy. A complex
+  pole must come with its conjugate. A pole that repeats more times
+  than the rank of the input gives a fault of value. The poles must sit
+  in the closed loop, so a caller must check the reach of the input.
+- `cspline1d` and `qspline1d` take a signal of one dimension. The
+  smoothing quadratic spline of SciPy holds no implementation, so
+  `qspline1d` refuses a fall-off above zero.
+- `cspline2d` and `qspline2d` take a matrix of two dimensions. The
+  rule of SciPy reflects the signal at its edges. The package does the
+  same, so the values at the edges agree.
+- `symiirorder1` needs the pole inside the unit circle. `symiirorder2`
+  needs the radius below one. The sum of the mirror of the method of
+  SciPy must converge. A sum that does not converge gives a fault of
+  value.
+- `oaconvolve` takes the mode `full`, `same` or `valid`. The method
+  cuts the longer signal into blocks. The size of a block is a power of
+  two, so the values differ from SciPy in the last digits.
+- `upfirdn` takes the mode `constant`, `edge`, `symmetric`, `reflect`,
+  `wrap`, `smooth`, `line`, `antisymmetric` or `antireflect`. The rates
+  stand at 100000 or below. The result is longer than the limit gives a
+  fault of limit.
+- `firls` takes the count of the taps, which has to be odd, and the
+  bands as pairs of edges. The edges stand between zero and one of the
+  rate. The system of the fit holds a large condition number for many
+  taps. The taps of the package and the taps of SciPy agree to
+  1e-6 and not more.
+- `sos2tf` and `sos2zpk` take the sections of a filter. The product of
+  the sections can overflow, and a product that overflows gives a fault
+  of value.
+- The short time transform of SciPy holds the plan in an object. The
+  package holds the plan in the struct `StftPlan`, and the calls
+  `stft_plan`, `stft_forward` and `stft_inverse` take it. The values of
+  the transform sit in one complex array with the real and the
+  imaginary parts interleaved.
+- `cubature` nests the adaptive rule of Gauss and Kronrod over the
+  box. The estimate of the error differs from the estimate of SciPy.
+  The box holds eight dimensions at most.
+- `solve_bvp` refines the mesh of the caller. The count of the nodes is
+  bounded. A mesh that does not reach the tolerance gives a fault
+  of limit. The conditions at the ends must hold one value each.
+- `solve_ivp_lsoda` switches between the Adams and the BDF methods at
+  run time, as LSODA of SciPy does. The rule of the switch is the test
+  of the stiffness of the package, so the steps differ from SciPy. The
+  values at the times of the output agree to the tolerances.
+- `complex_ode` takes the values as a complex array. The real and the
+  imaginary parts sit interleaved in one buffer.
+- `lebedev_rule` holds the orders that SciPy holds. An order with no
+  table gives a fault of value.
+- `rbf` is the class of the older SciPy. It takes the name of the
+  kernel and the parameters of it. `rbf_interpolate` is the class of
+  the newer SciPy. It takes the name of the kernel and the count of the
+  neighbours. The two calls hold the same kernels. The older class
+  gives the same values as SciPy for the same kernel.
+- `clough_tocher_interpolate` estimates the gradients at the points by
+  an iteration. SciPy estimates them the same way, so the values agree.
+  The count of the points and the count of the turns are bounded. A
+  count above the bound gives a fault of limit.
+- `aaa_interpolate` builds the rational form of the sample. It stops
+  when the tolerance holds, and the count of the terms is bounded. A
+  sample that no term fits gives a fault of limit.
+- `bivariate_spline` and `lsq_bivariate_spline` take the degrees of the
+  two axes. The degrees stand from one to five. The knots of the caller
+  hold the interior knots only. The boundary of the fit follows the rule
+  of SciPy, which reads the knots in the padded form.
+- `bisplev` gives the values on a grid of the two axes or at the pairs
+  of points. The order of the derivative stands at zero or above.
+- `bivariate_integral` gives the integral over a rectangle of the fit.
+- `bpoly` takes the coefficients and the breakpoints of the pieces. The
+  order of the derivative of `bpoly_eval` stands at zero or above.
+- `nd_bspline` and `nd_poly` take the knots of every axis. The degrees
+  stand from zero to twenty. The count of the axes is bounded.
+- `make_smoothing_spline` takes the factor of the fit. A factor below
+  zero gives a fault of value. `make_smoothing_spline_gcv` finds the
+  factor from the generalized cross validation. The criterion is flat
+  near its smallest value. The factor of the package and the factor
+  of SciPy differ by the step of the search. The coefficients of the fit
+  agree to 1e-3 and not more.
+- `generate_knots` searches the knots of the fit of Dierckx. The degree
+  stands from one to five. The factor stands for the count of the
+  squares of the residuals that the search accepts.
+- `save_npz` writes the compressed rows of a matrix. The members stay
+  stored, because the package holds no deflate. NumPy reads the same
+  file.
+- `load_npz` reads the compressed rows, the compressed columns, the
+  blocks of rows, the diagonals and the coordinates. A member that
+  SciPy compressed gives a fault of value, because the package holds no
+  inflate.
+- `spilu` holds the drop rule `basic` of SuperLU. Another rule gives a
+  fault of value. The side of the matrix stands at 16384 or below. A
+  matrix that is singular under the rule without a pivot gives a fault
+  of value.
+- The smoothing bivariate spline of Dierckx and the three splines over
+  the sphere hold no counterpart. The package holds the least squares
+  fit with the knots of the caller. It holds the rules of Lebedev for
+  the sphere.
+- The classes of SciPy become the structs of the package. The struct
+  `StateSpace` replaces the class `StateSpace` of SciPy. The struct
+  `TransferFunction` replaces the class `TransferFunction`. The struct
+  `ZpkSystem` replaces the class `ZerosPolesGain`. The struct
+  `OptimizeResult` replaces the class `OptimizeResult`. The struct
+  `RootResults` replaces the class `RootResults`.
+
+  The struct `NlConstraint` replaces the class `NonlinearConstraint`.
+
+  The struct `StftPlan` replaces the class `ShortTimeFFT`. The struct
+  `Grid2` replaces the classes `BivariateSpline` and
+  `LSQBivariateSpline`. The struct `NdSpl` replaces the class
+  `NdBSpline`. The struct `NdPoly` replaces the class `NdPPoly`. The
+  struct `BPoly` replaces the class `BPoly`.
+
+  The call `aaa_interpolate` replaces the class `AAA`. The
+  call `clough_tocher_interpolate` replaces the class
+  `CloughTocher2DInterpolator`. The call `rbf_interpolate` replaces the
+  class `RBFInterpolator`. The call `rbf` replaces the class `Rbf`.
+
+  The call `lsq_bivariate_spline` replaces the call `bisplrep`. The
+  call `solve_ivp_lsoda` replaces the class `LSODA`.
+- The results of the package do not differ between the two supported
+  versions of Goose. The full test run gives the same values on both.
 ## Security
 
 - The type calls compare each name with a fixed list of names. No name reaches a path, a command or a format. An unknown name gives `F_VALUE` and no value.
@@ -3470,6 +3677,35 @@ The type calls work on names of types and never touch an array:
   rule. It also checks the count of the places of the set. A set that
   a caller built by hand and broke gives a fault. A rule of more than
   eight operands gives `F_LIMIT`.
+- The reader of the archive of the sparse formats checks the name of
+  every member. The name holds only letters, digits and underscores,
+  then the suffix `.npy`. A name with another byte gives `F_VALUE`. The
+  rule keeps a path out of the name, so the reader never writes a file
+  that the archive names.
+- The reader of the archive bounds the count of the members at 256. It
+  bounds the count of the bytes of a member and the count of the values
+  of a member. A member above the bound gives `F_LIMIT`. A file that
+  claims a large member cannot make the reader hold it.
+- The reader of the archive checks every offset and every length
+  against the bytes of the file. The check runs before the reader
+  reads a value. A file that points outside its own bytes gives
+  `F_LIMIT`. No read leaves the bytes of the file.
+- The calls that read and write files refuse a path with a NUL byte.
+  The archive of the sparse formats writes into the path that the
+  caller gives and into no other path.
+- Every optimizer of SciPy bounds the count of its turns or of its
+  calls. A problem that does not converge gives `F_LIMIT` and not a
+  run of hours.
+- Every call that takes a knot, a pole, a band or a bound checks the
+  count and the values first. The work starts after the checks. A count
+  below one gives `F_VALUE` or `F_RANGE`.
+- The call `place_poles` refuses a pole that repeats more times than
+  the rank of the input. The matrix of the answer would hold no
+  inverse.
+- The call `spilu` bounds the side of the matrix at 16384 and the count
+  of the working rows. It refuses a matrix that is singular under the
+  rule without a pivot. The factor never holds a value that is not
+  finite.
 ## License
 
 MIT

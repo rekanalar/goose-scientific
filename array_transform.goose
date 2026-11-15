@@ -1,7 +1,7 @@
 // The spline filter of one dimension: the orders, the modes and the coefficients.
 //
 // The interpolating transforms of arrays of N dimensions, as in
-// scipy.ndimage: spline_filter1d, spline_filter, map_coordinates,
+// scipy.ndimage: nd_spline_filter1d, nd_spline_filter, map_coordinates,
 // affine_transform, shift, zoom and rotate.
 //
 // A spline of order 2 to 5 reads coefficients that a recursive filter
@@ -169,13 +169,13 @@ fn tr_checked(a, order: i64, mode: const u8[:], tag: const u8[:]) -> i64, Fault 
     return m, no_fault();
 }
 
-// spline_filter1d gives the coefficients of the spline of an order along one
+// nd_spline_filter1d gives the coefficients of the spline of an order along one
 // axis. The orders 0 and 1 give the array itself.
-fn spline_filter1d(a, order: i64 = 3, axis: i64 = -1, mode: const u8[:] = "mirror") -> Arr, Fault {
-    let m, f = tr_checked(a, order, mode, "spline_filter1d");
+fn nd_spline_filter1d(a, order: i64 = 3, axis: i64 = -1, mode: const u8[:] = "mirror") -> Arr, Fault {
+    let m, f = tr_checked(a, order, mode, "nd_spline_filter1d");
     if f.kind != F_NONE { return empty_arr(), f; }
     let ax = nd_axis(axis, a.ndim);
-    if ax < 0 { return empty_arr(), fault(F_RANGE, "spline_filter1d", "the axis stands outside the array"); }
+    if ax < 0 { return empty_arr(), fault(F_RANGE, "nd_spline_filter1d", "the axis stands outside the array"); }
     var d: f64[>..] = [];
     var i: i64 = 0;
     while i < a.data.len { d.push(a.data[i]); i += 1; }
@@ -183,12 +183,12 @@ fn spline_filter1d(a, order: i64 = 3, axis: i64 = -1, mode: const u8[:] = "mirro
     return arr_of(copy(d), a.shape), no_fault();
 }
 
-// spline_filter gives the coefficients of the spline of an order from 2 to 5,
+// nd_spline_filter gives the coefficients of the spline of an order from 2 to 5,
 // one axis after the other.
-fn spline_filter(a, order: i64 = 3, mode: const u8[:] = "mirror") -> Arr, Fault {
-    let m, f = tr_checked(a, order, mode, "spline_filter");
+fn nd_spline_filter(a, order: i64 = 3, mode: const u8[:] = "mirror") -> Arr, Fault {
+    let m, f = tr_checked(a, order, mode, "nd_spline_filter");
     if f.kind != F_NONE { return empty_arr(), f; }
-    if order < 2 { return empty_arr(), fault(F_RANGE, "spline_filter", "the order of the spline stands outside 2 to 5"); }
+    if order < 2 { return empty_arr(), fault(F_RANGE, "nd_spline_filter", "the order of the spline stands outside 2 to 5"); }
     var d: f64[>..] = [];
     var i: i64 = 0;
     while i < a.data.len { d.push(a.data[i]); i += 1; }

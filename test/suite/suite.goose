@@ -74,7 +74,9 @@ import index_tests;
 import inspect_tests;
 import integrate_tests;
 import interp1d_kinds_tests;
+import interp_biv_tests;
 import interp_more_tests;
+import interp_nd_tests;
 import interp_spline_tests;
 import interp_tests;
 import interpn_splines_tests;
@@ -108,6 +110,8 @@ import norms_tensors_tests;
 import nquad_tests;
 import odeint_tests;
 import ops_tests;
+import optimize_fmin_tests;
+import optimize_lsq_tests;
 import optimize_more_tests;
 import optimize_tests;
 import order_tests;
@@ -154,6 +158,8 @@ import sets_tests;
 import shape_tests;
 import signal_design_tests;
 import signal_spectrum_tests;
+import signal_spline_tests;
+import signal_systems_tests;
 import signal_tests;
 import sketch_hostile_tests;
 import solve_ivp_tests;
@@ -177,6 +183,7 @@ import sparse_lil_tests;
 import sparse_lsmr_tests;
 import sparse_lu_tests;
 import sparse_more_tests;
+import sparse_npz_tests;
 import sparse_svds_tests;
 import sparse_tests;
 import spatial_tests;
@@ -390,7 +397,13 @@ fn run_all() {
     inspect_tests::test_a_complex_array_is_not_real();
     inspect_tests::test_flat_gives_the_elements();
     inspect_tests::test_a_forged_array_gives_a_fault();
-    integrate_tests::test_integrate();
+    integrate_tests::test_integrate_rk23();
+    integrate_tests::test_integrate_lsoda();
+    integrate_tests::test_integrate_bvp();
+    integrate_tests::test_integrate_cubature();
+    integrate_tests::test_integrate_lebedev();
+    integrate_tests::test_integrate_complex();
+    integrate_tests::test_integrate_std();
     interp_tests::test_interp();
     interp_tests::test_spline_mixed_ends();
     interp_tests::test_spline_ends();
@@ -406,6 +419,19 @@ fn run_all() {
     interp_more_tests::test_rect_spline();
     interp_more_tests::test_pchip_interpolate();
     interp_more_tests::test_spline_broken();
+    interp_nd_tests::test_rbf();
+    interp_nd_tests::test_rbf_faults();
+    interp_nd_tests::test_rbf_interpolate();
+    interp_nd_tests::test_rbf_interpolate_neighbors();
+    interp_nd_tests::test_rbf_interpolate_one_dimension();
+    interp_nd_tests::test_rbf_interpolate_columns();
+    interp_nd_tests::test_rbf_interpolate_faults();
+    interp_nd_tests::test_aaa_interpolate();
+    interp_nd_tests::test_aaa_faults();
+    interp_nd_tests::test_clough_tocher();
+    interp_nd_tests::test_clough_tocher_columns();
+    interp_nd_tests::test_clough_tocher_rescale();
+    interp_nd_tests::test_clough_tocher_faults();
     interp_spline_tests::test_interp_spline_bc();
     interpn_tests::test_interpn();
     interpn_splines_tests::test_interpn_splines();
@@ -493,6 +519,24 @@ fn run_all() {
     ops_tests::test_elementwise_math();
     ops_tests::test_elementwise_rest();
     optimize_tests::test_optimize();
+    optimize_fmin_tests::test_fmin_powell_pins();
+    optimize_fmin_tests::test_fmin_cobyla_pins();
+    optimize_fmin_tests::test_fmin_slsqp_pins();
+    optimize_fmin_tests::test_fmin_tnc_pins();
+    optimize_fmin_tests::test_fmin_faults();
+    optimize_lsq_tests::test_leastsq();
+    optimize_lsq_tests::test_leastsq_est();
+    optimize_lsq_tests::test_leastsq_faults();
+    optimize_lsq_tests::test_leastsq_singular();
+    optimize_lsq_tests::test_lsq_linear();
+    optimize_lsq_tests::test_lsq_linear_faults();
+    optimize_lsq_tests::test_qap_faq();
+    optimize_lsq_tests::test_qap_2opt();
+    optimize_lsq_tests::test_qap_faults();
+    optimize_lsq_tests::test_shgo();
+    optimize_lsq_tests::test_shgo_faults();
+    optimize_lsq_tests::test_optimize_result_structs();
+    optimize_lsq_tests::test_nl_constraint();
     optimize_more_tests::test_rosen_pins();
     optimize_more_tests::test_check_grad_pins();
     optimize_more_tests::test_fixed_point_pins();
@@ -673,6 +717,29 @@ fn run_all() {
     signal_spectrum_tests::test_sigspec_vectorstrength();
     signal_spectrum_tests::test_sigspec_max_len_seq();
     signal_spectrum_tests::test_sigspec_broken_array();
+    signal_spline_tests::test_signal_spline_1d();
+    signal_spline_tests::test_signal_spline_eval();
+    signal_spline_tests::test_signal_spline_2d();
+    signal_spline_tests::test_signal_spline_iir();
+    signal_spline_tests::test_signal_spline_oa();
+    signal_spline_tests::test_signal_spline_upfirdn();
+    signal_spline_tests::test_signal_spline_stft();
+    signal_spline_tests::test_signal_spline_faults();
+    signal_systems_tests::test_lti_pins();
+    signal_systems_tests::test_dlti_pins();
+    signal_systems_tests::test_lti_faults();
+    signal_systems_tests::test_dlsim_tf_pins();
+    signal_systems_tests::test_dlsim_ss_pins();
+    signal_systems_tests::test_dlsim_faults();
+    signal_systems_tests::test_place_poles_pins();
+    signal_systems_tests::test_place_poles_faults();
+    signal_systems_tests::test_sos2tf_pins();
+    signal_systems_tests::test_sos2zpk_pins();
+    signal_systems_tests::test_sos_faults();
+    signal_systems_tests::test_firls_pins();
+    signal_systems_tests::test_firls_faults();
+    signal_systems_tests::test_unit_impulse_pins();
+    signal_systems_tests::test_unit_impulse_faults();
     sketch_hostile_tests::test_sketch_hostile();
     sort_tests::test_sort_and_search();
     sos_tests::test_sections();
@@ -725,6 +792,13 @@ fn run_all() {
     sparse_more_tests::test_sparse_more_eigs();
     sparse_more_tests::test_sparse_more_funm_multiply();
     sparse_more_tests::test_sparse_more_broken_matrix();
+    sparse_npz_tests::test_sparse_npz_members();
+    sparse_npz_tests::test_sparse_npz_round();
+    sparse_npz_tests::test_sparse_npz_load_scipy();
+    sparse_npz_tests::test_sparse_npz_spilu();
+    sparse_npz_tests::test_sparse_npz_drop();
+    sparse_npz_tests::test_sparse_npz_spilu_faults();
+    sparse_npz_tests::test_sparse_npz_faults();
     sparse_svds_tests::test_sparse_svds_largest();
     sparse_svds_tests::test_sparse_svds_smallest();
     sparse_svds_tests::test_sparse_svds_small_values();
@@ -1228,7 +1302,13 @@ fn run_group(g: const u8[:]) -> bool {
         return true;
     }
     if g == "integrate" {
-        integrate_tests::test_integrate();
+        integrate_tests::test_integrate_rk23();
+        integrate_tests::test_integrate_lsoda();
+        integrate_tests::test_integrate_bvp();
+        integrate_tests::test_integrate_cubature();
+        integrate_tests::test_integrate_lebedev();
+        integrate_tests::test_integrate_complex();
+        integrate_tests::test_integrate_std();
         return true;
     }
     if g == "interp" {
@@ -1239,6 +1319,24 @@ fn run_group(g: const u8[:]) -> bool {
     }
     if g == "interp1d_kinds" {
         interp1d_kinds_tests::test_interp1d_kinds();
+        return true;
+    }
+    if g == "interp_biv" {
+        interp_biv_tests::test_lsq_bivariate();
+        interp_biv_tests::test_lsq_bivariate_degrees();
+        interp_biv_tests::test_bivariate_spline();
+        interp_biv_tests::test_smoothing_spline();
+        interp_biv_tests::test_smoothing_spline_weights();
+        interp_biv_tests::test_smoothing_spline_gcv();
+        interp_biv_tests::test_generate_knots();
+        interp_biv_tests::test_bpoly();
+        interp_biv_tests::test_nd_bspline();
+        interp_biv_tests::test_nd_poly();
+        interp_biv_tests::test_bisplev_faults();
+        interp_biv_tests::test_bivariate_faults();
+        interp_biv_tests::test_smoothing_faults();
+        interp_biv_tests::test_bpoly_faults();
+        interp_biv_tests::test_nd_faults();
         return true;
     }
     if g == "interp_more" {
@@ -1253,6 +1351,22 @@ fn run_group(g: const u8[:]) -> bool {
         interp_more_tests::test_rect_spline();
         interp_more_tests::test_pchip_interpolate();
         interp_more_tests::test_spline_broken();
+        return true;
+    }
+    if g == "interp_nd" {
+        interp_nd_tests::test_rbf();
+        interp_nd_tests::test_rbf_faults();
+        interp_nd_tests::test_rbf_interpolate();
+        interp_nd_tests::test_rbf_interpolate_neighbors();
+        interp_nd_tests::test_rbf_interpolate_one_dimension();
+        interp_nd_tests::test_rbf_interpolate_columns();
+        interp_nd_tests::test_rbf_interpolate_faults();
+        interp_nd_tests::test_aaa_interpolate();
+        interp_nd_tests::test_aaa_faults();
+        interp_nd_tests::test_clough_tocher();
+        interp_nd_tests::test_clough_tocher_columns();
+        interp_nd_tests::test_clough_tocher_rescale();
+        interp_nd_tests::test_clough_tocher_faults();
         return true;
     }
     if g == "interp_spline" {
@@ -1480,6 +1594,30 @@ fn run_group(g: const u8[:]) -> bool {
     }
     if g == "optimize" {
         optimize_tests::test_optimize();
+        return true;
+    }
+    if g == "optimize_fmin" {
+        optimize_fmin_tests::test_fmin_powell_pins();
+        optimize_fmin_tests::test_fmin_cobyla_pins();
+        optimize_fmin_tests::test_fmin_slsqp_pins();
+        optimize_fmin_tests::test_fmin_tnc_pins();
+        optimize_fmin_tests::test_fmin_faults();
+        return true;
+    }
+    if g == "optimize_lsq" {
+        optimize_lsq_tests::test_leastsq();
+        optimize_lsq_tests::test_leastsq_est();
+        optimize_lsq_tests::test_leastsq_faults();
+        optimize_lsq_tests::test_leastsq_singular();
+        optimize_lsq_tests::test_lsq_linear();
+        optimize_lsq_tests::test_lsq_linear_faults();
+        optimize_lsq_tests::test_qap_faq();
+        optimize_lsq_tests::test_qap_2opt();
+        optimize_lsq_tests::test_qap_faults();
+        optimize_lsq_tests::test_shgo();
+        optimize_lsq_tests::test_shgo_faults();
+        optimize_lsq_tests::test_optimize_result_structs();
+        optimize_lsq_tests::test_nl_constraint();
         return true;
     }
     if g == "optimize_more" {
@@ -1837,6 +1975,35 @@ fn run_group(g: const u8[:]) -> bool {
         signal_spectrum_tests::test_sigspec_broken_array();
         return true;
     }
+    if g == "signal_spline" {
+        signal_spline_tests::test_signal_spline_1d();
+        signal_spline_tests::test_signal_spline_eval();
+        signal_spline_tests::test_signal_spline_2d();
+        signal_spline_tests::test_signal_spline_iir();
+        signal_spline_tests::test_signal_spline_oa();
+        signal_spline_tests::test_signal_spline_upfirdn();
+        signal_spline_tests::test_signal_spline_stft();
+        signal_spline_tests::test_signal_spline_faults();
+        return true;
+    }
+    if g == "signal_systems" {
+        signal_systems_tests::test_lti_pins();
+        signal_systems_tests::test_dlti_pins();
+        signal_systems_tests::test_lti_faults();
+        signal_systems_tests::test_dlsim_tf_pins();
+        signal_systems_tests::test_dlsim_ss_pins();
+        signal_systems_tests::test_dlsim_faults();
+        signal_systems_tests::test_place_poles_pins();
+        signal_systems_tests::test_place_poles_faults();
+        signal_systems_tests::test_sos2tf_pins();
+        signal_systems_tests::test_sos2zpk_pins();
+        signal_systems_tests::test_sos_faults();
+        signal_systems_tests::test_firls_pins();
+        signal_systems_tests::test_firls_faults();
+        signal_systems_tests::test_unit_impulse_pins();
+        signal_systems_tests::test_unit_impulse_faults();
+        return true;
+    }
     if g == "sketch_hostile" {
         sketch_hostile_tests::test_sketch_hostile();
         return true;
@@ -2055,6 +2222,16 @@ fn run_group(g: const u8[:]) -> bool {
         sparse_more_tests::test_sparse_more_eigs();
         sparse_more_tests::test_sparse_more_funm_multiply();
         sparse_more_tests::test_sparse_more_broken_matrix();
+        return true;
+    }
+    if g == "sparse_npz" {
+        sparse_npz_tests::test_sparse_npz_members();
+        sparse_npz_tests::test_sparse_npz_round();
+        sparse_npz_tests::test_sparse_npz_load_scipy();
+        sparse_npz_tests::test_sparse_npz_spilu();
+        sparse_npz_tests::test_sparse_npz_drop();
+        sparse_npz_tests::test_sparse_npz_spilu_faults();
+        sparse_npz_tests::test_sparse_npz_faults();
         return true;
     }
     if g == "sparse_svds" {
@@ -2459,8 +2636,29 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_a_complex_array_is_not_real" { inspect_tests::test_a_complex_array_is_not_real(); return true; }
     if t == "test_flat_gives_the_elements" { inspect_tests::test_flat_gives_the_elements(); return true; }
     if t == "test_a_forged_array_gives_a_fault" { inspect_tests::test_a_forged_array_gives_a_fault(); return true; }
-    if t == "test_integrate" { integrate_tests::test_integrate(); return true; }
+    if t == "test_integrate_rk23" { integrate_tests::test_integrate_rk23(); return true; }
+    if t == "test_integrate_lsoda" { integrate_tests::test_integrate_lsoda(); return true; }
+    if t == "test_integrate_bvp" { integrate_tests::test_integrate_bvp(); return true; }
+    if t == "test_integrate_cubature" { integrate_tests::test_integrate_cubature(); return true; }
+    if t == "test_integrate_lebedev" { integrate_tests::test_integrate_lebedev(); return true; }
+    if t == "test_integrate_complex" { integrate_tests::test_integrate_complex(); return true; }
+    if t == "test_integrate_std" { integrate_tests::test_integrate_std(); return true; }
     if t == "test_interp1d_kinds" { interp1d_kinds_tests::test_interp1d_kinds(); return true; }
+    if t == "test_lsq_bivariate" { interp_biv_tests::test_lsq_bivariate(); return true; }
+    if t == "test_lsq_bivariate_degrees" { interp_biv_tests::test_lsq_bivariate_degrees(); return true; }
+    if t == "test_bivariate_spline" { interp_biv_tests::test_bivariate_spline(); return true; }
+    if t == "test_smoothing_spline" { interp_biv_tests::test_smoothing_spline(); return true; }
+    if t == "test_smoothing_spline_weights" { interp_biv_tests::test_smoothing_spline_weights(); return true; }
+    if t == "test_smoothing_spline_gcv" { interp_biv_tests::test_smoothing_spline_gcv(); return true; }
+    if t == "test_generate_knots" { interp_biv_tests::test_generate_knots(); return true; }
+    if t == "test_bpoly" { interp_biv_tests::test_bpoly(); return true; }
+    if t == "test_nd_bspline" { interp_biv_tests::test_nd_bspline(); return true; }
+    if t == "test_nd_poly" { interp_biv_tests::test_nd_poly(); return true; }
+    if t == "test_bisplev_faults" { interp_biv_tests::test_bisplev_faults(); return true; }
+    if t == "test_bivariate_faults" { interp_biv_tests::test_bivariate_faults(); return true; }
+    if t == "test_smoothing_faults" { interp_biv_tests::test_smoothing_faults(); return true; }
+    if t == "test_bpoly_faults" { interp_biv_tests::test_bpoly_faults(); return true; }
+    if t == "test_nd_faults" { interp_biv_tests::test_nd_faults(); return true; }
     if t == "test_barycentric_interpolate" { interp_more_tests::test_barycentric_interpolate(); return true; }
     if t == "test_krogh_interpolate" { interp_more_tests::test_krogh_interpolate(); return true; }
     if t == "test_floater_hormann" { interp_more_tests::test_floater_hormann(); return true; }
@@ -2472,6 +2670,19 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_rect_spline" { interp_more_tests::test_rect_spline(); return true; }
     if t == "test_pchip_interpolate" { interp_more_tests::test_pchip_interpolate(); return true; }
     if t == "test_spline_broken" { interp_more_tests::test_spline_broken(); return true; }
+    if t == "test_rbf" { interp_nd_tests::test_rbf(); return true; }
+    if t == "test_rbf_faults" { interp_nd_tests::test_rbf_faults(); return true; }
+    if t == "test_rbf_interpolate" { interp_nd_tests::test_rbf_interpolate(); return true; }
+    if t == "test_rbf_interpolate_neighbors" { interp_nd_tests::test_rbf_interpolate_neighbors(); return true; }
+    if t == "test_rbf_interpolate_one_dimension" { interp_nd_tests::test_rbf_interpolate_one_dimension(); return true; }
+    if t == "test_rbf_interpolate_columns" { interp_nd_tests::test_rbf_interpolate_columns(); return true; }
+    if t == "test_rbf_interpolate_faults" { interp_nd_tests::test_rbf_interpolate_faults(); return true; }
+    if t == "test_aaa_interpolate" { interp_nd_tests::test_aaa_interpolate(); return true; }
+    if t == "test_aaa_faults" { interp_nd_tests::test_aaa_faults(); return true; }
+    if t == "test_clough_tocher" { interp_nd_tests::test_clough_tocher(); return true; }
+    if t == "test_clough_tocher_columns" { interp_nd_tests::test_clough_tocher_columns(); return true; }
+    if t == "test_clough_tocher_rescale" { interp_nd_tests::test_clough_tocher_rescale(); return true; }
+    if t == "test_clough_tocher_faults" { interp_nd_tests::test_clough_tocher_faults(); return true; }
     if t == "test_interp_spline_bc" { interp_spline_tests::test_interp_spline_bc(); return true; }
     if t == "test_interp" { interp_tests::test_interp(); return true; }
     if t == "test_spline_mixed_ends" { interp_tests::test_spline_mixed_ends(); return true; }
@@ -2611,6 +2822,24 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_logic_and_math" { ops_tests::test_logic_and_math(); return true; }
     if t == "test_elementwise_math" { ops_tests::test_elementwise_math(); return true; }
     if t == "test_elementwise_rest" { ops_tests::test_elementwise_rest(); return true; }
+    if t == "test_fmin_powell_pins" { optimize_fmin_tests::test_fmin_powell_pins(); return true; }
+    if t == "test_fmin_cobyla_pins" { optimize_fmin_tests::test_fmin_cobyla_pins(); return true; }
+    if t == "test_fmin_slsqp_pins" { optimize_fmin_tests::test_fmin_slsqp_pins(); return true; }
+    if t == "test_fmin_tnc_pins" { optimize_fmin_tests::test_fmin_tnc_pins(); return true; }
+    if t == "test_fmin_faults" { optimize_fmin_tests::test_fmin_faults(); return true; }
+    if t == "test_leastsq" { optimize_lsq_tests::test_leastsq(); return true; }
+    if t == "test_leastsq_est" { optimize_lsq_tests::test_leastsq_est(); return true; }
+    if t == "test_leastsq_faults" { optimize_lsq_tests::test_leastsq_faults(); return true; }
+    if t == "test_leastsq_singular" { optimize_lsq_tests::test_leastsq_singular(); return true; }
+    if t == "test_lsq_linear" { optimize_lsq_tests::test_lsq_linear(); return true; }
+    if t == "test_lsq_linear_faults" { optimize_lsq_tests::test_lsq_linear_faults(); return true; }
+    if t == "test_qap_faq" { optimize_lsq_tests::test_qap_faq(); return true; }
+    if t == "test_qap_2opt" { optimize_lsq_tests::test_qap_2opt(); return true; }
+    if t == "test_qap_faults" { optimize_lsq_tests::test_qap_faults(); return true; }
+    if t == "test_shgo" { optimize_lsq_tests::test_shgo(); return true; }
+    if t == "test_shgo_faults" { optimize_lsq_tests::test_shgo_faults(); return true; }
+    if t == "test_optimize_result_structs" { optimize_lsq_tests::test_optimize_result_structs(); return true; }
+    if t == "test_nl_constraint" { optimize_lsq_tests::test_nl_constraint(); return true; }
     if t == "test_rosen_pins" { optimize_more_tests::test_rosen_pins(); return true; }
     if t == "test_check_grad_pins" { optimize_more_tests::test_check_grad_pins(); return true; }
     if t == "test_fixed_point_pins" { optimize_more_tests::test_fixed_point_pins(); return true; }
@@ -2836,6 +3065,29 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_sigspec_vectorstrength" { signal_spectrum_tests::test_sigspec_vectorstrength(); return true; }
     if t == "test_sigspec_max_len_seq" { signal_spectrum_tests::test_sigspec_max_len_seq(); return true; }
     if t == "test_sigspec_broken_array" { signal_spectrum_tests::test_sigspec_broken_array(); return true; }
+    if t == "test_signal_spline_1d" { signal_spline_tests::test_signal_spline_1d(); return true; }
+    if t == "test_signal_spline_eval" { signal_spline_tests::test_signal_spline_eval(); return true; }
+    if t == "test_signal_spline_2d" { signal_spline_tests::test_signal_spline_2d(); return true; }
+    if t == "test_signal_spline_iir" { signal_spline_tests::test_signal_spline_iir(); return true; }
+    if t == "test_signal_spline_oa" { signal_spline_tests::test_signal_spline_oa(); return true; }
+    if t == "test_signal_spline_upfirdn" { signal_spline_tests::test_signal_spline_upfirdn(); return true; }
+    if t == "test_signal_spline_stft" { signal_spline_tests::test_signal_spline_stft(); return true; }
+    if t == "test_signal_spline_faults" { signal_spline_tests::test_signal_spline_faults(); return true; }
+    if t == "test_lti_pins" { signal_systems_tests::test_lti_pins(); return true; }
+    if t == "test_dlti_pins" { signal_systems_tests::test_dlti_pins(); return true; }
+    if t == "test_lti_faults" { signal_systems_tests::test_lti_faults(); return true; }
+    if t == "test_dlsim_tf_pins" { signal_systems_tests::test_dlsim_tf_pins(); return true; }
+    if t == "test_dlsim_ss_pins" { signal_systems_tests::test_dlsim_ss_pins(); return true; }
+    if t == "test_dlsim_faults" { signal_systems_tests::test_dlsim_faults(); return true; }
+    if t == "test_place_poles_pins" { signal_systems_tests::test_place_poles_pins(); return true; }
+    if t == "test_place_poles_faults" { signal_systems_tests::test_place_poles_faults(); return true; }
+    if t == "test_sos2tf_pins" { signal_systems_tests::test_sos2tf_pins(); return true; }
+    if t == "test_sos2zpk_pins" { signal_systems_tests::test_sos2zpk_pins(); return true; }
+    if t == "test_sos_faults" { signal_systems_tests::test_sos_faults(); return true; }
+    if t == "test_firls_pins" { signal_systems_tests::test_firls_pins(); return true; }
+    if t == "test_firls_faults" { signal_systems_tests::test_firls_faults(); return true; }
+    if t == "test_unit_impulse_pins" { signal_systems_tests::test_unit_impulse_pins(); return true; }
+    if t == "test_unit_impulse_faults" { signal_systems_tests::test_unit_impulse_faults(); return true; }
     if t == "test_signal" { signal_tests::test_signal(); return true; }
     if t == "test_spectral" { signal_tests::test_spectral(); return true; }
     if t == "test_sketch_hostile" { sketch_hostile_tests::test_sketch_hostile(); return true; }
@@ -2977,6 +3229,13 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_sparse_more_eigs" { sparse_more_tests::test_sparse_more_eigs(); return true; }
     if t == "test_sparse_more_funm_multiply" { sparse_more_tests::test_sparse_more_funm_multiply(); return true; }
     if t == "test_sparse_more_broken_matrix" { sparse_more_tests::test_sparse_more_broken_matrix(); return true; }
+    if t == "test_sparse_npz_members" { sparse_npz_tests::test_sparse_npz_members(); return true; }
+    if t == "test_sparse_npz_round" { sparse_npz_tests::test_sparse_npz_round(); return true; }
+    if t == "test_sparse_npz_load_scipy" { sparse_npz_tests::test_sparse_npz_load_scipy(); return true; }
+    if t == "test_sparse_npz_spilu" { sparse_npz_tests::test_sparse_npz_spilu(); return true; }
+    if t == "test_sparse_npz_drop" { sparse_npz_tests::test_sparse_npz_drop(); return true; }
+    if t == "test_sparse_npz_spilu_faults" { sparse_npz_tests::test_sparse_npz_spilu_faults(); return true; }
+    if t == "test_sparse_npz_faults" { sparse_npz_tests::test_sparse_npz_faults(); return true; }
     if t == "test_sparse_svds_largest" { sparse_svds_tests::test_sparse_svds_largest(); return true; }
     if t == "test_sparse_svds_smallest" { sparse_svds_tests::test_sparse_svds_smallest(); return true; }
     if t == "test_sparse_svds_small_values" { sparse_svds_tests::test_sparse_svds_small_values(); return true; }
@@ -3539,7 +3798,13 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         return false;
     }
     if g == "integrate" {
-        if t == "test_integrate" { integrate_tests::test_integrate(); return true; }
+        if t == "test_integrate_rk23" { integrate_tests::test_integrate_rk23(); return true; }
+        if t == "test_integrate_lsoda" { integrate_tests::test_integrate_lsoda(); return true; }
+        if t == "test_integrate_bvp" { integrate_tests::test_integrate_bvp(); return true; }
+        if t == "test_integrate_cubature" { integrate_tests::test_integrate_cubature(); return true; }
+        if t == "test_integrate_lebedev" { integrate_tests::test_integrate_lebedev(); return true; }
+        if t == "test_integrate_complex" { integrate_tests::test_integrate_complex(); return true; }
+        if t == "test_integrate_std" { integrate_tests::test_integrate_std(); return true; }
         return false;
     }
     if g == "interp" {
@@ -3550,6 +3815,24 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
     }
     if g == "interp1d_kinds" {
         if t == "test_interp1d_kinds" { interp1d_kinds_tests::test_interp1d_kinds(); return true; }
+        return false;
+    }
+    if g == "interp_biv" {
+        if t == "test_lsq_bivariate" { interp_biv_tests::test_lsq_bivariate(); return true; }
+        if t == "test_lsq_bivariate_degrees" { interp_biv_tests::test_lsq_bivariate_degrees(); return true; }
+        if t == "test_bivariate_spline" { interp_biv_tests::test_bivariate_spline(); return true; }
+        if t == "test_smoothing_spline" { interp_biv_tests::test_smoothing_spline(); return true; }
+        if t == "test_smoothing_spline_weights" { interp_biv_tests::test_smoothing_spline_weights(); return true; }
+        if t == "test_smoothing_spline_gcv" { interp_biv_tests::test_smoothing_spline_gcv(); return true; }
+        if t == "test_generate_knots" { interp_biv_tests::test_generate_knots(); return true; }
+        if t == "test_bpoly" { interp_biv_tests::test_bpoly(); return true; }
+        if t == "test_nd_bspline" { interp_biv_tests::test_nd_bspline(); return true; }
+        if t == "test_nd_poly" { interp_biv_tests::test_nd_poly(); return true; }
+        if t == "test_bisplev_faults" { interp_biv_tests::test_bisplev_faults(); return true; }
+        if t == "test_bivariate_faults" { interp_biv_tests::test_bivariate_faults(); return true; }
+        if t == "test_smoothing_faults" { interp_biv_tests::test_smoothing_faults(); return true; }
+        if t == "test_bpoly_faults" { interp_biv_tests::test_bpoly_faults(); return true; }
+        if t == "test_nd_faults" { interp_biv_tests::test_nd_faults(); return true; }
         return false;
     }
     if g == "interp_more" {
@@ -3564,6 +3847,22 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_rect_spline" { interp_more_tests::test_rect_spline(); return true; }
         if t == "test_pchip_interpolate" { interp_more_tests::test_pchip_interpolate(); return true; }
         if t == "test_spline_broken" { interp_more_tests::test_spline_broken(); return true; }
+        return false;
+    }
+    if g == "interp_nd" {
+        if t == "test_rbf" { interp_nd_tests::test_rbf(); return true; }
+        if t == "test_rbf_faults" { interp_nd_tests::test_rbf_faults(); return true; }
+        if t == "test_rbf_interpolate" { interp_nd_tests::test_rbf_interpolate(); return true; }
+        if t == "test_rbf_interpolate_neighbors" { interp_nd_tests::test_rbf_interpolate_neighbors(); return true; }
+        if t == "test_rbf_interpolate_one_dimension" { interp_nd_tests::test_rbf_interpolate_one_dimension(); return true; }
+        if t == "test_rbf_interpolate_columns" { interp_nd_tests::test_rbf_interpolate_columns(); return true; }
+        if t == "test_rbf_interpolate_faults" { interp_nd_tests::test_rbf_interpolate_faults(); return true; }
+        if t == "test_aaa_interpolate" { interp_nd_tests::test_aaa_interpolate(); return true; }
+        if t == "test_aaa_faults" { interp_nd_tests::test_aaa_faults(); return true; }
+        if t == "test_clough_tocher" { interp_nd_tests::test_clough_tocher(); return true; }
+        if t == "test_clough_tocher_columns" { interp_nd_tests::test_clough_tocher_columns(); return true; }
+        if t == "test_clough_tocher_rescale" { interp_nd_tests::test_clough_tocher_rescale(); return true; }
+        if t == "test_clough_tocher_faults" { interp_nd_tests::test_clough_tocher_faults(); return true; }
         return false;
     }
     if g == "interp_spline" {
@@ -3791,6 +4090,30 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
     }
     if g == "optimize" {
         if t == "test_optimize" { optimize_tests::test_optimize(); return true; }
+        return false;
+    }
+    if g == "optimize_fmin" {
+        if t == "test_fmin_powell_pins" { optimize_fmin_tests::test_fmin_powell_pins(); return true; }
+        if t == "test_fmin_cobyla_pins" { optimize_fmin_tests::test_fmin_cobyla_pins(); return true; }
+        if t == "test_fmin_slsqp_pins" { optimize_fmin_tests::test_fmin_slsqp_pins(); return true; }
+        if t == "test_fmin_tnc_pins" { optimize_fmin_tests::test_fmin_tnc_pins(); return true; }
+        if t == "test_fmin_faults" { optimize_fmin_tests::test_fmin_faults(); return true; }
+        return false;
+    }
+    if g == "optimize_lsq" {
+        if t == "test_leastsq" { optimize_lsq_tests::test_leastsq(); return true; }
+        if t == "test_leastsq_est" { optimize_lsq_tests::test_leastsq_est(); return true; }
+        if t == "test_leastsq_faults" { optimize_lsq_tests::test_leastsq_faults(); return true; }
+        if t == "test_leastsq_singular" { optimize_lsq_tests::test_leastsq_singular(); return true; }
+        if t == "test_lsq_linear" { optimize_lsq_tests::test_lsq_linear(); return true; }
+        if t == "test_lsq_linear_faults" { optimize_lsq_tests::test_lsq_linear_faults(); return true; }
+        if t == "test_qap_faq" { optimize_lsq_tests::test_qap_faq(); return true; }
+        if t == "test_qap_2opt" { optimize_lsq_tests::test_qap_2opt(); return true; }
+        if t == "test_qap_faults" { optimize_lsq_tests::test_qap_faults(); return true; }
+        if t == "test_shgo" { optimize_lsq_tests::test_shgo(); return true; }
+        if t == "test_shgo_faults" { optimize_lsq_tests::test_shgo_faults(); return true; }
+        if t == "test_optimize_result_structs" { optimize_lsq_tests::test_optimize_result_structs(); return true; }
+        if t == "test_nl_constraint" { optimize_lsq_tests::test_nl_constraint(); return true; }
         return false;
     }
     if g == "optimize_more" {
@@ -4148,6 +4471,35 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_sigspec_broken_array" { signal_spectrum_tests::test_sigspec_broken_array(); return true; }
         return false;
     }
+    if g == "signal_spline" {
+        if t == "test_signal_spline_1d" { signal_spline_tests::test_signal_spline_1d(); return true; }
+        if t == "test_signal_spline_eval" { signal_spline_tests::test_signal_spline_eval(); return true; }
+        if t == "test_signal_spline_2d" { signal_spline_tests::test_signal_spline_2d(); return true; }
+        if t == "test_signal_spline_iir" { signal_spline_tests::test_signal_spline_iir(); return true; }
+        if t == "test_signal_spline_oa" { signal_spline_tests::test_signal_spline_oa(); return true; }
+        if t == "test_signal_spline_upfirdn" { signal_spline_tests::test_signal_spline_upfirdn(); return true; }
+        if t == "test_signal_spline_stft" { signal_spline_tests::test_signal_spline_stft(); return true; }
+        if t == "test_signal_spline_faults" { signal_spline_tests::test_signal_spline_faults(); return true; }
+        return false;
+    }
+    if g == "signal_systems" {
+        if t == "test_lti_pins" { signal_systems_tests::test_lti_pins(); return true; }
+        if t == "test_dlti_pins" { signal_systems_tests::test_dlti_pins(); return true; }
+        if t == "test_lti_faults" { signal_systems_tests::test_lti_faults(); return true; }
+        if t == "test_dlsim_tf_pins" { signal_systems_tests::test_dlsim_tf_pins(); return true; }
+        if t == "test_dlsim_ss_pins" { signal_systems_tests::test_dlsim_ss_pins(); return true; }
+        if t == "test_dlsim_faults" { signal_systems_tests::test_dlsim_faults(); return true; }
+        if t == "test_place_poles_pins" { signal_systems_tests::test_place_poles_pins(); return true; }
+        if t == "test_place_poles_faults" { signal_systems_tests::test_place_poles_faults(); return true; }
+        if t == "test_sos2tf_pins" { signal_systems_tests::test_sos2tf_pins(); return true; }
+        if t == "test_sos2zpk_pins" { signal_systems_tests::test_sos2zpk_pins(); return true; }
+        if t == "test_sos_faults" { signal_systems_tests::test_sos_faults(); return true; }
+        if t == "test_firls_pins" { signal_systems_tests::test_firls_pins(); return true; }
+        if t == "test_firls_faults" { signal_systems_tests::test_firls_faults(); return true; }
+        if t == "test_unit_impulse_pins" { signal_systems_tests::test_unit_impulse_pins(); return true; }
+        if t == "test_unit_impulse_faults" { signal_systems_tests::test_unit_impulse_faults(); return true; }
+        return false;
+    }
     if g == "sketch_hostile" {
         if t == "test_sketch_hostile" { sketch_hostile_tests::test_sketch_hostile(); return true; }
         return false;
@@ -4368,6 +4720,16 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_sparse_more_broken_matrix" { sparse_more_tests::test_sparse_more_broken_matrix(); return true; }
         return false;
     }
+    if g == "sparse_npz" {
+        if t == "test_sparse_npz_members" { sparse_npz_tests::test_sparse_npz_members(); return true; }
+        if t == "test_sparse_npz_round" { sparse_npz_tests::test_sparse_npz_round(); return true; }
+        if t == "test_sparse_npz_load_scipy" { sparse_npz_tests::test_sparse_npz_load_scipy(); return true; }
+        if t == "test_sparse_npz_spilu" { sparse_npz_tests::test_sparse_npz_spilu(); return true; }
+        if t == "test_sparse_npz_drop" { sparse_npz_tests::test_sparse_npz_drop(); return true; }
+        if t == "test_sparse_npz_spilu_faults" { sparse_npz_tests::test_sparse_npz_spilu_faults(); return true; }
+        if t == "test_sparse_npz_faults" { sparse_npz_tests::test_sparse_npz_faults(); return true; }
+        return false;
+    }
     if g == "sparse_svds" {
         if t == "test_sparse_svds_largest" { sparse_svds_tests::test_sparse_svds_largest(); return true; }
         if t == "test_sparse_svds_smallest" { sparse_svds_tests::test_sparse_svds_smallest(); return true; }
@@ -4516,5 +4878,5 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
 }
 
 fn print_groups() {
-    print("groups: array_busday array_dtype array_helpers array_helpers_more array_index array_text array_textio assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular date_civil dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter filter_forms first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index inspect integrate interp interp1d_kinds interp_more interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_more ndimage_pins norms_tensors nquad odeint ops optimize optimize_more order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad quad_more qz qz_c qz_scale qzc random random_discrete random_distributions random_laws random_multi rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal signal_design signal_spectrum sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_more sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
+    print("groups: array_busday array_dtype array_helpers array_helpers_more array_index array_text array_textio assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular date_civil dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter filter_forms first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index inspect integrate interp interp1d_kinds interp_biv interp_more interp_nd interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_more ndimage_pins norms_tensors nquad odeint ops optimize optimize_fmin optimize_lsq optimize_more order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad quad_more qz qz_c qz_scale qzc random random_discrete random_distributions random_laws random_multi rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal signal_design signal_spectrum signal_spline signal_systems sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_more sparse_npz sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
 }

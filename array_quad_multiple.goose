@@ -60,6 +60,26 @@ fn ivp_dense(te: f64[:], ht: f64[:], hh: f64[:], hy: f64[:], hk: f64[:], kind: i
             j += 1;
             continue;
         }
+        if kind == 5 {
+            // The method LSODA. The rows of the derivative at the
+            // start, of the derivative at the end and of the state at
+            // the end of the step.
+            var kb: f64[>..] = [];
+            var i0: i64 = 0;
+            while i0 < 2 * n { kb.push(hk[si * 3 * n + i0]); i0 += 1; }
+            var yo: f64[>..] = [];
+            var yn: f64[>..] = [];
+            i0 = 0;
+            while i0 < n { yo.push(hy[si * n + i0]); i0 += 1; }
+            i0 = 0;
+            while i0 < n { yn.push(hk[si * 3 * n + 2 * n + i0]); i0 += 1; }
+            let yv = lsoda_hermite(n, yo, yn, hh[si], kb, xs);
+            ts.push(x);
+            var i: i64 = 0;
+            while i < n { ys.push(yv[i]); i += 1; }
+            j += 1;
+            continue;
+        }
         if kind == 2 {
             // The method of the order eight. The rows of the stages of
             // the step and the state at its end.

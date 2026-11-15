@@ -219,6 +219,14 @@ fn standard_deviation_labels(a, labels, index: i64[:] = []) -> Arr, Fault {
     return ms_variance(a, labels, index, true, "standard_deviation_labels");
 }
 
+// standard_deviation gives the root of the variance of the values of
+// the image, over the regions of the labels. An empty labels array
+// holds the whole image in one region, as in SciPy with the labels of
+// None.
+fn standard_deviation(a, labels, index: i64[:] = []) -> Arr, Fault {
+    return ms_variance(a, labels, index, true, "standard_deviation");
+}
+
 // ms_extreme finds the smallest and the largest value of each slot. A tie
 // keeps the first place in row-major order. NaN is the largest value.
 fn ms_extreme(a, gid: i64[:], ns: i64, mn: f64[>..]&, mx: f64[>..]&, pmn: i64[>..]&, pmx: i64[>..]&) {

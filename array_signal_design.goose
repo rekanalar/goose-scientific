@@ -223,8 +223,8 @@ fn sig_gpass_gstop(gpass: f64, gstop: f64, tag: const u8[:]) -> Fault {
 }
 
 // sig_bso gives the order of a band stop filter for one edge of the
-// pass band. The kind holds zero for Butterworth, one for Chebyshev
-// and two for elliptic filters.
+// pass band. The kind holds SIG_BUTTER for Butterworth, SIG_CHEBY1
+// and SIG_CHEBY2 for Chebyshev and SIG_ELLIP for elliptic filters.
 fn sig_bso(wp: f64, ind: i64, passb: f64[:], stopb: f64[:], gpass: f64, gstop: f64, kind: i64) -> f64, Fault {
     let gf = sig_gpass_gstop(gpass, gstop, "band_stop_obj");
     if gf.kind != F_NONE { return 0.0, gf; }
@@ -250,10 +250,10 @@ fn sig_bso(wp: f64, ind: i64, passb: f64[:], stopb: f64[:], gpass: f64, gstop: f
     }
     let gs = mathshim::power(10.0, 0.1 * mathshim::abs_of(gstop));
     let gp = mathshim::power(10.0, 0.1 * mathshim::abs_of(gpass));
-    if kind == 0 {
+    if kind == SIG_BUTTER {
         return mathshim::log10_of((gs - 1.0) / (gp - 1.0)) / (2.0 * mathshim::log10_of(nat)), no_fault();
     }
-    if kind == 1 {
+    if kind == SIG_CHEBY1 || kind == SIG_CHEBY2 {
         let v = mathshim::arccosh_of(mathshim::root((gs - 1.0) / (gp - 1.0)));
         return v / mathshim::arccosh_of(nat), no_fault();
     }

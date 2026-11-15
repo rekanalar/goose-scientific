@@ -204,16 +204,7 @@ fn fftconvolve(a: f64[:], b: f64[:], mode: const u8[:] = "full") -> Arr, Fault {
     let full, f3 = irfft(re, im, n);
     if f3.kind != F_NONE { return empty_arr(), f3; }
     if mode == "full" { return full, no_fault(); }
-    var size = a.len;
-    if mode == "valid" {
-        size = a.len - b.len + 1;
-        if b.len > a.len { size = b.len - a.len + 1; }
-    }
-    let start = (n - size) / 2;
-    var out: f64[>..] = [];
-    i = 0;
-    while i < size { out.push(full.data[start + i]); i += 1; }
-    return line_arr(copy(out)), no_fault();
+    return oa_apply_mode(full.data, a.len, b.len, mode, "fftconvolve");
 }
 
 // medfilt gives the median filter of a signal with an odd kernel size.

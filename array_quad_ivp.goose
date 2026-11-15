@@ -51,7 +51,8 @@ fn ivp_tableau(kind: i32, c: f64[>..]&, a: f64[>..]&, b: f64[>..]&, e: f64[>..]&
 }
 
 // solve_ivp integrates the system y' = f(t, y) from t0 to t1 with the
-// start y0. The method is "RK45" or "RK23". The step follows the
+// start y0. The method is "RK45", "RK23", "DOP853", "BDF", "Radau" or
+// "LSODA". The step follows the
 // control of SciPy, so the steps equal the steps of SciPy. The result
 // holds the times of the steps in one array and the values in a
 // matrix of one row per time. The tolerances hold the relative and the
@@ -110,6 +111,7 @@ fn dense_eval(d: Dense&, x: f64[:]) -> Arr, Fault {
     if d.kind == 2 { rows = 16; }
     if d.kind == 3 { rows = 9; }
     if d.kind == 4 { rows = 3; }
+    if d.kind == 5 { rows = 3; }
     var ht: f64[>..] = [];
     var hh: f64[>..] = [];
     var hy: f64[>..] = [];
@@ -180,6 +182,8 @@ fn ivp_point(rk45: bool, ns: i64, n: i64, y: f64[:], h: f64, k: f64[:], fl: f64[
 // ivp_point_kind gives the state inside one step, at the fraction xs
 // of the step. The rows of the stages are in kall. The method of the
 // order eight uses its own interpolation.
+// The kind of the method in the dense output. The number five is the
+// method LSODA.
 fn ivp_point_kind(kind: i32, ns: i64, n: i64, y: f64[:], ynew: f64[:], h: f64, kall: f64[:], xs: f64) -> f64[>..] {
     if kind == 2 {
         return dop853_point(n, y, ynew, h, kall, xs);
@@ -189,6 +193,9 @@ fn ivp_point_kind(kind: i32, ns: i64, n: i64, y: f64[:], ynew: f64[:], h: f64, k
     }
     if kind == 3 {
         return bdf_poly(n, kall, kall[6 * n] + (xs - 1.0) * h);
+    }
+    if kind == 5 {
+        return lsoda_hermite(n, y, ynew, h, kall, xs);
     }
     var k: f64[>..] = [];
     var fl: f64[>..] = [];

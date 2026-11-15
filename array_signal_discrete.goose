@@ -20,6 +20,14 @@ import mathshim;
 // column of the input, c is the row of the output and d is the direct
 // part.
 fn cont2discrete(a: Arr, b: Arr, c: Arr, d: f64, dt: f64, method: const u8[:] = "zoh", alpha: f64 = 0.5) -> Arr, Arr, Arr, f64, Fault {
+    // The matrices are read by their shape, so the buffer of each
+    // matrix must agree with its shape.
+    let fa = check_stack(a.ndim, a.shape, a.data.len, 1, "cont2discrete");
+    if fa.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), 0.0, fa; }
+    let fb = check_stack(b.ndim, b.shape, b.data.len, 1, "cont2discrete");
+    if fb.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), 0.0, fb; }
+    let fc = check_stack(c.ndim, c.shape, c.data.len, 1, "cont2discrete");
+    if fc.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), 0.0, fc; }
     if a.ndim != 2 || a.shape[0] != a.shape[1] {
         return empty_arr(), empty_arr(), empty_arr(), 0.0,
             fault(F_SHAPE, "cont2discrete", "the matrix of the states is not square");
@@ -29,14 +37,6 @@ fn cont2discrete(a: Arr, b: Arr, c: Arr, d: f64, dt: f64, method: const u8[:] = 
         return empty_arr(), empty_arr(), empty_arr(), 0.0,
             fault(F_SHAPE, "cont2discrete", "the input or the output does not match the matrix of the states");
     }
-    // The matrices are read by their shape, so the buffer of each
-    // matrix must agree with its shape.
-    let fa = check_stack(a.ndim, a.shape, a.data.len, 1, "cont2discrete");
-    if fa.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), 0.0, fa; }
-    let fb = check_stack(b.ndim, b.shape, b.data.len, 1, "cont2discrete");
-    if fb.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), 0.0, fb; }
-    let fc = check_stack(c.ndim, c.shape, c.data.len, 1, "cont2discrete");
-    if fc.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), 0.0, fc; }
     if !(dt > 0.0) {
         return empty_arr(), empty_arr(), empty_arr(), 0.0,
             fault(F_VALUE, "cont2discrete", "the step holds a value of zero or below");

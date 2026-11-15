@@ -45,7 +45,7 @@ fn test_quad() {
     assert(bqf.kind == scientific::F_VALUE);
     let hq1, hq2, hqf = scientific::quad(0.0, 1.0, 1e-300, 1e-300, 3) { x => common::mathshim_sin(1.0 / x) };
     assert(hqf.kind == scientific::F_LIMIT);
-    let bi1, bi2, bif = scientific::solve_ivp(0.0, 1.0, [1.0], 0.001, 1e-6, "LSODA") { t, y => [y[0]] };
+    let bi1, bi2, bif = scientific::solve_ivp(0.0, 1.0, [1.0], 0.001, 1e-6, "NOPE") { t, y => [y[0]] };
     assert(bif.kind == scientific::F_VALUE);
     let bi3, bi4, bi5 = scientific::solve_ivp(0.0, 1.0, [1.0, 2.0]) { t, y => [y[0]] };
     assert(bi5.kind == scientific::F_SHAPE);

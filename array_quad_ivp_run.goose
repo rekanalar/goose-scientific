@@ -9,7 +9,7 @@ import mathshim;
 // functions. It gives the times and the states, the times, the numbers
 // and the states of the events, and the dense output of the steps.
 fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64, atol: f64, method: const u8[:], max_step: f64, t_eval: f64[:], nev: i64, terminal: bool[:], direction: f64[:], want_dense: bool, first_step: f64, use_jac: bool) -> Arr, Arr, Arr, Arr, Arr, Dense, Fault {
-    if method != "RK45" && method != "RK23" && method != "DOP853" && method != "BDF" && method != "Radau" {
+    if method != "RK45" && method != "RK23" && method != "DOP853" && method != "BDF" && method != "Radau" && method != "LSODA" {
         return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "the method holds an unknown name");
     }
     if !(t0 - t0 == 0.0) || !(t1 - t1 == 0.0) || t0 == t1 {
@@ -46,17 +46,21 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
     var hist_y: f64[>..] = [];
     var hist_k: f64[>..] = [];
     // The kind of the method. The number zero is RK45, the number one
-    // is RK23 and the number two is DOP853.
+    // is RK23 and the number two is DOP853. The number five is LSODA.
+    // The dense output keeps the rows of the current interpolant. The
+    // package holds no separate rows for the stiff mode.
     var kind: i32 = 1;
     if method == "RK45" { kind = 0; }
     if method == "DOP853" { kind = 2; }
     if method == "BDF" { kind = 3; }
     if method == "Radau" { kind = 4; }
+    if method == "LSODA" { kind = 5; }
     var order: f64 = 3.0;
     if kind == 0 { order = 5.0; }
     if kind == 2 { order = 8.0; }
     if kind == 3 { order = 2.0; }
     if kind == 4 { order = 4.0; }
+    if kind == 5 { order = 2.0; }
     // The exponent of the control is minus one over the order of the
     // error estimate plus one.
     var cc: f64[>..] = [];
@@ -66,13 +70,6 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
     var e3: f64[>..] = [];
     var ns: i64 = 0;
     if kind < 3 { ns = ivp_tableau(kind, cc, aa, bb, ee, e3); }
-    // The count of the rows of the stages that the dense output holds.
-    // The method of the order eight holds three more rows for the
-    // interpolation.
-    var rows: i64 = ns + 1;
-    if kind == 2 { rows = 16; }
-    if kind == 3 { rows = 9; }
-    if kind == 4 { rows = 3; }
     var y: f64[>..] = [];
     var i: i64 = 0;
     while i < n { y.push(y0[i]); i += 1; }
@@ -160,7 +157,7 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
             return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), jf0;
         }
     }
-    if kind == 3 {
+    if kind == 3 || kind == 5 {
         i = 0;
         while i < 8 * n { bdm.push(0.0); i += 1; }
         i = 0;
@@ -174,6 +171,15 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
             return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), jf0;
         }
     }
+    // The state of the method LSODA: the times and the values of the
+    // history of the Adams method, and the mode with the counters.
+    var llt: f64[>..] = [t];
+    var llf: f64[>..] = [];
+    var lli: i64[>..] = [0, 1, 0, 0, 0];
+    if kind == 5 {
+        i = 0;
+        while i < n { llf.push(f[i]); i += 1; }
+    }
     var ts: f64[>..] = [t];
     var ys: f64[>..] = [];
     i = 0;
@@ -184,6 +190,7 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
     if ntol2 > 0.03 { ntol2 = 0.03; }
     if ntol2 > ntol { ntol = ntol2; }
     var steps: i64 = 0;
+    var ls_rej: i64 = 0;
     while dir * (t1 - t) > 0.0 && !stop {
         steps += 1;
         if steps > 1000000 {
@@ -229,6 +236,28 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
             while i < n { fnew.push(fbn[i]); i += 1; }
             i = 0;
             while i < nev { gnew.push(fbn[n + i]); i += 1; }
+            accepted = true;
+        }
+        if kind == 5 {
+            let took, ls = lsoda_step(t, t1, dir, n, nev, atol, rtol, ntol, max_step, y, f, llt, llf, lli, bdm, bfst, bist, bjm, bjfac, blum, bpiv, ynew, fnew, btn) { tt, yy => F(tt, copy(yy)) };
+            if ls.kind != F_NONE {
+                return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), ls;
+            }
+            if !took {
+                // The method held the step. The buffers of the step
+                // hold nothing, so the run takes the smaller step of
+                // the method again.
+                ls_rej += 1;
+                if ls_rej > 1000 {
+                    return empty_arr(), empty_arr(), empty_arr(), empty_arr(), empty_arr(), dense_none(), fault(F_VALUE, "solve_ivp", "the method of LSODA held the step too often");
+                }
+                h_abs = mathshim::abs_of(bfst[0]);
+                continue;
+            }
+            ls_rej = 0;
+            tnew = btn[0];
+            i = 0;
+            while i < nev { gnew.push(fnew[n + i]); i += 1; }
             accepted = true;
         }
         while !accepted {
@@ -390,6 +419,18 @@ fn ivp_run<F: fn(f64, f64[:]) -> f64[:]>(t0: f64, t1: f64, y0: f64[:], rtol: f64
         if kind == 4 {
             i = 0;
             while i < 3 * n { kall.push(rrq[i]); i += 1; }
+        } else if kind == 5 {
+            // The rows of the mode of the Adams method and of the mode
+            // of the BDF method are the same: the derivative at the
+            // start of the step, the derivative at its end and the
+            // state at its end. The rows of the step keep the same
+            // count, so the mode may change at run time.
+            i = 0;
+            while i < n { kall.push(f[i]); i += 1; }
+            i = 0;
+            while i < n { kall.push(fnew[i]); i += 1; }
+            i = 0;
+            while i < n { kall.push(ynew[i]); i += 1; }
         } else if kind == 3 {
             // The rows of the differences, the end of the step, the step
             // and the order, as the polynomial of the step needs them.

@@ -130,15 +130,15 @@ fn test_transform_hostile() {
     let big = 9223372036854775807;
     let nan = 0.0 / 0.0;
     let inf = 1.0 / 0.0;
-    let r1, h1 = scientific::spline_filter(a, 6);
+    let r1, h1 = scientific::nd_spline_filter(a, 6);
     assert(h1.kind == scientific::F_RANGE);
-    let r2, h2 = scientific::spline_filter(a, 1);
+    let r2, h2 = scientific::nd_spline_filter(a, 1);
     assert(h2.kind == scientific::F_RANGE);
-    let r3, h3 = scientific::spline_filter(a, 3, "bogus");
+    let r3, h3 = scientific::nd_spline_filter(a, 3, "bogus");
     assert(h3.kind == scientific::F_VALUE);
-    let r4, h4 = scientific::spline_filter1d(a, 3, 2);
+    let r4, h4 = scientific::nd_spline_filter1d(a, 3, 2);
     assert(h4.kind == scientific::F_RANGE);
-    let r5, h5 = scientific::spline_filter1d(a, big);
+    let r5, h5 = scientific::nd_spline_filter1d(a, big);
     assert(h5.kind == scientific::F_RANGE);
     // A coordinate array with another first axis than the input.
     let c1 = common_3::ni_nd([3, 2], [0.0, 1.0, 0.0, 1.0, 0.0, 1.0]);

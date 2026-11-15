@@ -35,7 +35,7 @@ fn main() {
     show("points", p);
 
     // The spline coefficients that the cubic calls compute first.
-    let k, f8 = scientific::spline_filter(m, 3, "mirror");
+    let k, f8 = scientific::nd_spline_filter(m, 3, "mirror");
     assert(f8.kind == scientific::F_NONE);
     show("coefficients", k);
 }

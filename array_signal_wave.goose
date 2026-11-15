@@ -438,3 +438,45 @@ fn max_len_seq(nbits: i64, length: i64 = -1, taps: f64[:] = []) -> Arr, Arr, Fau
     }
     return line_arr(copy(seq)), line_arr(copy(out)), no_fault();
 }
+
+// unit_impulse builds an array of zeros with one value of one at a
+// place. The place idx holds one value for the same place in every
+// dimension, or one value for each dimension. With no value the place
+// is the first of every dimension. With mid the place is the half of
+// every dimension. The result holds real values.
+fn unit_impulse(shape: i64[:], idx: i64[:] = [], mid: bool = false) -> Arr, Fault {
+    let fs = check_shape(shape);
+    if fs.kind != F_NONE {
+        return empty_arr(), fault(fs.kind, "unit_impulse", fs.detail);
+    }
+    let n = shape.len;
+    var places: i64[>..] = [];
+    var i: i64 = 0;
+    if mid {
+        while i < n { places.push(shape[i] / 2); i += 1; }
+    } else if idx.len == 0 {
+        while i < n { places.push(0); i += 1; }
+    } else if idx.len == 1 {
+        while i < n { places.push(idx[0]); i += 1; }
+    } else if idx.len == n {
+        while i < n { places.push(idx[i]); i += 1; }
+    } else {
+        return empty_arr(), fault(F_SHAPE, "unit_impulse", "the place holds one value or one value for each dimension");
+    }
+    i = 0;
+    while i < n {
+        if places[i] < 0 || places[i] >= shape[i] {
+            return empty_arr(), fault(F_RANGE, "unit_impulse", "a place lies outside its dimension");
+        }
+        i += 1;
+    }
+    let a, zf = zeros(shape);
+    if zf.kind != F_NONE {
+        return empty_arr(), fault(zf.kind, "unit_impulse", zf.detail);
+    }
+    var flat: i64 = 0;
+    i = 0;
+    while i < n { flat = flat * shape[i] + places[i]; i += 1; }
+    a.data[flat] = 1.0;
+    return a, no_fault();
+}

@@ -222,16 +222,16 @@ fn sig_unit_grid(n: i64, whole: bool, tag: const u8[:]) -> Arr, Fault {
 fn freqz_sos(sos: Arr, n: i64 = 512, whole: bool = false) -> Arr, Arr, Arr, Fault {
     let w, f = sig_unit_grid(n, whole, "freqz_sos");
     if f.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), f; }
+    // The sections are read by their shape, so the buffer must agree
+    // with the shape, and the shape list must agree with ndim.
+    let fs = check_stack(sos.ndim, sos.shape, sos.data.len, 1, "freqz_sos");
+    if fs.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), fs; }
     if sos.ndim != 2 || sos.shape[1] != 6 {
         return empty_arr(), empty_arr(), empty_arr(), fault(F_SHAPE, "freqz_sos", "the sections do not hold six coefficients per row");
     }
     if sos.shape[0] < 1 {
         return empty_arr(), empty_arr(), empty_arr(), fault(F_VALUE, "freqz_sos", "the sections hold no row");
     }
-    // The sections are read by their shape, so the buffer must agree
-    // with the shape.
-    let fs = check_stack(sos.ndim, sos.shape, sos.data.len, 1, "freqz_sos");
-    if fs.kind != F_NONE { return empty_arr(), empty_arr(), empty_arr(), fs; }
     var hr: f64[>..] = [];
     var hi: f64[>..] = [];
     var i: i64 = 0;
