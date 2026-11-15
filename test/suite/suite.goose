@@ -2,8 +2,13 @@
 namespace suite;
 
 import std;
+import array_busday_tests;
 import array_dtype_tests;
+import array_helpers_more_tests;
 import array_helpers_tests;
+import array_index_tests;
+import array_text_tests;
+import array_textio_tests;
 import assemble_tests;
 import balance_tests;
 import banded_tests;
@@ -28,6 +33,7 @@ import cubic_hermite_tests;
 import cumulative_simpson_tests;
 import curve_fit_tests;
 import dare_singular_tests;
+import date_civil_tests;
 import dblquad_tests;
 import dct_tests;
 import decimate_tests;
@@ -68,6 +74,7 @@ import index_tests;
 import inspect_tests;
 import integrate_tests;
 import interp1d_kinds_tests;
+import interp_more_tests;
 import interp_spline_tests;
 import interp_tests;
 import interpn_splines_tests;
@@ -94,12 +101,14 @@ import multi_dot_apply_tests;
 import nan_tests;
 import nd_interpolator_tests;
 import ndimage_2_tests;
+import ndimage_more_tests;
 import ndimage_pins_tests;
 import ndimage_tests;
 import norms_tensors_tests;
 import nquad_tests;
 import odeint_tests;
 import ops_tests;
+import optimize_more_tests;
 import optimize_tests;
 import order_tests;
 import ordqz_c_tests;
@@ -113,6 +122,7 @@ import programs_tests;
 import qrinsert_tests;
 import qrtools_tests;
 import qrupdate_tests;
+import quad_more_tests;
 import quad_tests;
 import qz_c_tests;
 import qz_scale_tests;
@@ -142,6 +152,8 @@ import scilinalg_tests;
 import select_tests;
 import sets_tests;
 import shape_tests;
+import signal_design_tests;
+import signal_spectrum_tests;
 import signal_tests;
 import sketch_hostile_tests;
 import solve_ivp_tests;
@@ -164,6 +176,7 @@ import sparse_lgmres_tests;
 import sparse_lil_tests;
 import sparse_lsmr_tests;
 import sparse_lu_tests;
+import sparse_more_tests;
 import sparse_svds_tests;
 import sparse_tests;
 import spatial_tests;
@@ -192,6 +205,20 @@ import windows_tests;
 
 // run_all runs every test that no other test calls.
 fn run_all() {
+    array_busday_tests::test_busday_count();
+    array_busday_tests::test_busday_count_one();
+    array_busday_tests::test_busday_offset();
+    array_busday_tests::test_busday_offset_one();
+    array_busday_tests::test_is_busday();
+    array_busday_tests::test_is_busday_one();
+    array_busday_tests::test_isnat();
+    array_busday_tests::test_isnat_one();
+    array_busday_tests::test_busdaycalendar();
+    array_busday_tests::test_busdaycalendar_weekmask_named();
+    array_busday_tests::test_datetime_as_string();
+    array_busday_tests::test_datetime_as_string_one();
+    array_busday_tests::test_datetime_data();
+    array_busday_tests::test_datetime_data_one();
     array_dtype_tests::test_promote_grid();
     array_dtype_tests::test_can_cast_grid();
     array_dtype_tests::test_common_type_grid();
@@ -217,6 +244,38 @@ fn run_all() {
     array_helpers_tests::test_element_limit();
     array_helpers_tests::test_forged_grid();
     array_helpers_tests::test_forged_pieces();
+    array_helpers_more_tests::test_array_equiv();
+    array_helpers_more_tests::test_divmod();
+    array_helpers_more_tests::test_real_if_close();
+    array_helpers_more_tests::test_dsplit();
+    array_helpers_more_tests::test_fromfunction_fromiter();
+    array_helpers_more_tests::test_array_helpers_more_forms();
+    array_index_tests::test_tri_from();
+    array_index_tests::test_diag_from();
+    array_index_tests::test_mask_indices();
+    array_index_tests::test_walks();
+    array_index_tests::test_share_memory();
+    array_index_tests::test_einsum_path();
+    array_index_tests::test_einsum_path_limit();
+    array_text_tests::test_format_float_positional();
+    array_text_tests::test_format_float_scientific();
+    array_text_tests::test_format_float_limits();
+    array_text_tests::test_base_repr();
+    array_text_tests::test_binary_repr();
+    array_text_tests::test_typename();
+    array_text_tests::test_mintypecode();
+    array_textio_tests::test_array_textio_string();
+    array_textio_tests::test_array_textio_repr();
+    array_textio_tests::test_array_textio_str();
+    array_textio_tests::test_array_textio_loadtxt();
+    array_textio_tests::test_array_textio_genfromtxt();
+    array_textio_tests::test_array_textio_savetxt();
+    array_textio_tests::test_array_textio_save();
+    array_textio_tests::test_array_textio_load();
+    array_textio_tests::test_array_textio_savez();
+    array_textio_tests::test_array_textio_savez_compressed();
+    array_textio_tests::test_array_textio_regex();
+    array_textio_tests::test_array_textio_faults();
     assemble_tests::test_assemble();
     bessel_tests::test_bessel();
     bins_tests::test_bins_and_weights();
@@ -256,6 +315,17 @@ fn run_all() {
     curve_fit_tests::test_curve_fit();
     dare_singular_tests::test_dare_singular();
     dare_singular_tests::test_dare_singular_hostile();
+    date_civil_tests::test_civil_days();
+    date_civil_tests::test_civil_days_outside();
+    date_civil_tests::test_civil_of();
+    date_civil_tests::test_date_weekday();
+    date_civil_tests::test_date_month();
+    date_civil_tests::test_date_in_range();
+    date_civil_tests::test_date_of();
+    date_civil_tests::test_date_days();
+    date_civil_tests::test_date_days_refused();
+    date_civil_tests::test_date_parts();
+    date_civil_tests::test_date_parts_faults();
     dblquad_tests::test_dblquad();
     dct_tests::test_transforms();
     dct_tests::test_dctn();
@@ -325,6 +395,17 @@ fn run_all() {
     interp_tests::test_spline_mixed_ends();
     interp_tests::test_spline_ends();
     interp1d_kinds_tests::test_interp1d_kinds();
+    interp_more_tests::test_barycentric_interpolate();
+    interp_more_tests::test_krogh_interpolate();
+    interp_more_tests::test_floater_hormann();
+    interp_more_tests::test_lagrange_poly();
+    interp_more_tests::test_pade_approx();
+    interp_more_tests::test_taylor_approximate();
+    interp_more_tests::test_spline_algebra();
+    interp_more_tests::test_make_lsq_spline();
+    interp_more_tests::test_rect_spline();
+    interp_more_tests::test_pchip_interpolate();
+    interp_more_tests::test_spline_broken();
     interp_spline_tests::test_interp_spline_bc();
     interpn_tests::test_interpn();
     interpn_splines_tests::test_interpn_splines();
@@ -382,6 +463,12 @@ fn run_all() {
     nan_tests::test_nan_reductions();
     nd_interpolator_tests::test_nd_interpolator();
     ndimage_2_tests::test_ndimage_hostile();
+    ndimage_more_tests::test_ndimage_more_fourier();
+    ndimage_more_tests::test_ndimage_more_fourier_faults();
+    ndimage_more_tests::test_ndimage_more_bessel();
+    ndimage_more_tests::test_ndimage_more_watershed();
+    ndimage_more_tests::test_ndimage_more_std();
+    ndimage_more_tests::test_watershed_broken_array();
     ndimage_pins_tests::test_ndimage_pins();
     norms_tensors_tests::test_vector_norm_pins();
     norms_tensors_tests::test_vector_norm_shape();
@@ -406,6 +493,23 @@ fn run_all() {
     ops_tests::test_elementwise_math();
     ops_tests::test_elementwise_rest();
     optimize_tests::test_optimize();
+    optimize_more_tests::test_rosen_pins();
+    optimize_more_tests::test_check_grad_pins();
+    optimize_more_tests::test_fixed_point_pins();
+    optimize_more_tests::test_line_search_pins();
+    optimize_more_tests::test_bracket_pins();
+    optimize_more_tests::test_brute_pins();
+    optimize_more_tests::test_isotonic_pins();
+    optimize_more_tests::test_hessian_update_pins();
+    optimize_more_tests::test_bounds_and_constraints();
+    optimize_more_tests::test_impulse_pins();
+    optimize_more_tests::test_step_pins();
+    optimize_more_tests::test_lsim_pins();
+    optimize_more_tests::test_freqresp_bode_pins();
+    optimize_more_tests::test_discrete_pins();
+    optimize_more_tests::test_state_form_pins();
+    optimize_more_tests::test_faults();
+    optimize_more_tests::test_optimize_more_broken_matrix();
     order_tests::test_order_statistics();
     ordqz_tests::test_ordqz();
     ordqz_c_tests::test_ordqz_c();
@@ -430,6 +534,11 @@ fn run_all() {
     quad_tests::test_dop853();
     quad_tests::test_bdf();
     quad_tests::test_radau();
+    quad_more_tests::test_quad_more_newton_cotes();
+    quad_more_tests::test_quad_more_newton_cotes_apply();
+    quad_more_tests::test_quad_more_nsum();
+    quad_more_tests::test_quad_more_tanhsinh();
+    quad_more_tests::test_quad_more_qmc_quad();
     qz_tests::test_qz();
     qz_tests::test_qz_complex();
     qz_tests::test_ordqz_by();
@@ -512,6 +621,58 @@ fn run_all() {
     shape_tests::test_shape();
     signal_tests::test_signal();
     signal_tests::test_spectral();
+    signal_design_tests::test_prototypes();
+    signal_design_tests::test_prototype_faults();
+    signal_design_tests::test_order_selection();
+    signal_design_tests::test_order_faults();
+    signal_design_tests::test_iirfilter();
+    signal_design_tests::test_iirdesign();
+    signal_design_tests::test_iir_faults();
+    signal_design_tests::test_notch_peak_comb();
+    signal_design_tests::test_kaiser();
+    signal_design_tests::test_band_transforms();
+    signal_design_tests::test_zpk_transforms();
+    signal_design_tests::test_bilinear();
+    signal_design_tests::test_normalize();
+    signal_design_tests::test_analog_response();
+    signal_design_tests::test_digital_response();
+    signal_design_tests::test_group_delay();
+    signal_design_tests::test_discretize();
+    signal_design_tests::test_discretize_faults();
+    signal_design_tests::test_discretize_broken_matrix();
+    signal_spectrum_tests::test_sigspec_czt();
+    signal_spectrum_tests::test_sigspec_czt_default_is_fft();
+    signal_spectrum_tests::test_sigspec_czt_points();
+    signal_spectrum_tests::test_sigspec_zoom_fft();
+    signal_spectrum_tests::test_sigspec_csd();
+    signal_spectrum_tests::test_sigspec_csd_of_one_signal_is_welch();
+    signal_spectrum_tests::test_sigspec_csd_two_sided_and_median();
+    signal_spectrum_tests::test_sigspec_csd_faults();
+    signal_spectrum_tests::test_sigspec_coherence();
+    signal_spectrum_tests::test_sigspec_correlation_lags();
+    signal_spectrum_tests::test_sigspec_envelope();
+    signal_spectrum_tests::test_sigspec_convolve2d_correlate2d();
+    signal_spectrum_tests::test_sigspec_rank_filters_2d();
+    signal_spectrum_tests::test_sigspec_firwin_2d();
+    signal_spectrum_tests::test_sigspec_gauss_spline();
+    signal_spectrum_tests::test_sigspec_hilbert2_and_wiener();
+    signal_spectrum_tests::test_sigspec_check_cola_nola();
+    signal_spectrum_tests::test_sigspec_closest_stft_dual_window();
+    signal_spectrum_tests::test_sigspec_choose_conv_method();
+    signal_spectrum_tests::test_sigspec_deconvolve();
+    signal_spectrum_tests::test_sigspec_lombscargle();
+    signal_spectrum_tests::test_sigspec_minimum_phase();
+    signal_spectrum_tests::test_sigspec_whittaker_henderson();
+    signal_spectrum_tests::test_sigspec_peak_widths();
+    signal_spectrum_tests::test_sigspec_argrelextrema();
+    signal_spectrum_tests::test_sigspec_ricker_cwt_find_peaks_cwt();
+    signal_spectrum_tests::test_sigspec_chirp();
+    signal_spectrum_tests::test_sigspec_gausspulse();
+    signal_spectrum_tests::test_sigspec_sawtooth_sweep_poly();
+    signal_spectrum_tests::test_sigspec_gammatone();
+    signal_spectrum_tests::test_sigspec_vectorstrength();
+    signal_spectrum_tests::test_sigspec_max_len_seq();
+    signal_spectrum_tests::test_sigspec_broken_array();
     sketch_hostile_tests::test_sketch_hostile();
     sort_tests::test_sort_and_search();
     sos_tests::test_sections();
@@ -555,6 +716,15 @@ fn run_all() {
     sparse_lu_tests::test_sparse_lu_pins();
     sparse_lu_tests::test_sparse_lu_hostile();
     sparse_lu_tests::test_sparse_lu_more();
+    sparse_more_tests::test_sparse_more_valid();
+    sparse_more_tests::test_sparse_more_index_dtype();
+    sparse_more_tests::test_sparse_more_random();
+    sparse_more_tests::test_sparse_more_triangular_solve();
+    sparse_more_tests::test_sparse_more_band();
+    sparse_more_tests::test_sparse_more_laplacian();
+    sparse_more_tests::test_sparse_more_eigs();
+    sparse_more_tests::test_sparse_more_funm_multiply();
+    sparse_more_tests::test_sparse_more_broken_matrix();
     sparse_svds_tests::test_sparse_svds_largest();
     sparse_svds_tests::test_sparse_svds_smallest();
     sparse_svds_tests::test_sparse_svds_small_values();
@@ -603,6 +773,23 @@ fn run_all() {
 
 // run_group runs every test of one group. It tells whether the group exists.
 fn run_group(g: const u8[:]) -> bool {
+    if g == "array_busday" {
+        array_busday_tests::test_busday_count();
+        array_busday_tests::test_busday_count_one();
+        array_busday_tests::test_busday_offset();
+        array_busday_tests::test_busday_offset_one();
+        array_busday_tests::test_is_busday();
+        array_busday_tests::test_is_busday_one();
+        array_busday_tests::test_isnat();
+        array_busday_tests::test_isnat_one();
+        array_busday_tests::test_busdaycalendar();
+        array_busday_tests::test_busdaycalendar_weekmask_named();
+        array_busday_tests::test_datetime_as_string();
+        array_busday_tests::test_datetime_as_string_one();
+        array_busday_tests::test_datetime_data();
+        array_busday_tests::test_datetime_data_one();
+        return true;
+    }
     if g == "array_dtype" {
         array_dtype_tests::test_promote_grid();
         array_dtype_tests::test_can_cast_grid();
@@ -632,6 +819,50 @@ fn run_group(g: const u8[:]) -> bool {
         array_helpers_tests::test_element_limit();
         array_helpers_tests::test_forged_grid();
         array_helpers_tests::test_forged_pieces();
+        return true;
+    }
+    if g == "array_helpers_more" {
+        array_helpers_more_tests::test_array_equiv();
+        array_helpers_more_tests::test_divmod();
+        array_helpers_more_tests::test_real_if_close();
+        array_helpers_more_tests::test_dsplit();
+        array_helpers_more_tests::test_fromfunction_fromiter();
+        array_helpers_more_tests::test_array_helpers_more_forms();
+        return true;
+    }
+    if g == "array_index" {
+        array_index_tests::test_tri_from();
+        array_index_tests::test_diag_from();
+        array_index_tests::test_mask_indices();
+        array_index_tests::test_walks();
+        array_index_tests::test_share_memory();
+        array_index_tests::test_einsum_path();
+        array_index_tests::test_einsum_path_limit();
+        return true;
+    }
+    if g == "array_text" {
+        array_text_tests::test_format_float_positional();
+        array_text_tests::test_format_float_scientific();
+        array_text_tests::test_format_float_limits();
+        array_text_tests::test_base_repr();
+        array_text_tests::test_binary_repr();
+        array_text_tests::test_typename();
+        array_text_tests::test_mintypecode();
+        return true;
+    }
+    if g == "array_textio" {
+        array_textio_tests::test_array_textio_string();
+        array_textio_tests::test_array_textio_repr();
+        array_textio_tests::test_array_textio_str();
+        array_textio_tests::test_array_textio_loadtxt();
+        array_textio_tests::test_array_textio_genfromtxt();
+        array_textio_tests::test_array_textio_savetxt();
+        array_textio_tests::test_array_textio_save();
+        array_textio_tests::test_array_textio_load();
+        array_textio_tests::test_array_textio_savez();
+        array_textio_tests::test_array_textio_savez_compressed();
+        array_textio_tests::test_array_textio_regex();
+        array_textio_tests::test_array_textio_faults();
         return true;
     }
     if g == "assemble" {
@@ -746,6 +977,20 @@ fn run_group(g: const u8[:]) -> bool {
     if g == "dare_singular" {
         dare_singular_tests::test_dare_singular();
         dare_singular_tests::test_dare_singular_hostile();
+        return true;
+    }
+    if g == "date_civil" {
+        date_civil_tests::test_civil_days();
+        date_civil_tests::test_civil_days_outside();
+        date_civil_tests::test_civil_of();
+        date_civil_tests::test_date_weekday();
+        date_civil_tests::test_date_month();
+        date_civil_tests::test_date_in_range();
+        date_civil_tests::test_date_of();
+        date_civil_tests::test_date_days();
+        date_civil_tests::test_date_days_refused();
+        date_civil_tests::test_date_parts();
+        date_civil_tests::test_date_parts_faults();
         return true;
     }
     if g == "dblquad" {
@@ -996,6 +1241,20 @@ fn run_group(g: const u8[:]) -> bool {
         interp1d_kinds_tests::test_interp1d_kinds();
         return true;
     }
+    if g == "interp_more" {
+        interp_more_tests::test_barycentric_interpolate();
+        interp_more_tests::test_krogh_interpolate();
+        interp_more_tests::test_floater_hormann();
+        interp_more_tests::test_lagrange_poly();
+        interp_more_tests::test_pade_approx();
+        interp_more_tests::test_taylor_approximate();
+        interp_more_tests::test_spline_algebra();
+        interp_more_tests::test_make_lsq_spline();
+        interp_more_tests::test_rect_spline();
+        interp_more_tests::test_pchip_interpolate();
+        interp_more_tests::test_spline_broken();
+        return true;
+    }
     if g == "interp_spline" {
         interp_spline_tests::test_interp_spline_bc();
         return true;
@@ -1172,6 +1431,15 @@ fn run_group(g: const u8[:]) -> bool {
         ndimage_tests::test_ndimage_pins10();
         return true;
     }
+    if g == "ndimage_more" {
+        ndimage_more_tests::test_ndimage_more_fourier();
+        ndimage_more_tests::test_ndimage_more_fourier_faults();
+        ndimage_more_tests::test_ndimage_more_bessel();
+        ndimage_more_tests::test_ndimage_more_watershed();
+        ndimage_more_tests::test_ndimage_more_std();
+        ndimage_more_tests::test_watershed_broken_array();
+        return true;
+    }
     if g == "ndimage_pins" {
         ndimage_pins_tests::test_ndimage_pins();
         return true;
@@ -1212,6 +1480,26 @@ fn run_group(g: const u8[:]) -> bool {
     }
     if g == "optimize" {
         optimize_tests::test_optimize();
+        return true;
+    }
+    if g == "optimize_more" {
+        optimize_more_tests::test_rosen_pins();
+        optimize_more_tests::test_check_grad_pins();
+        optimize_more_tests::test_fixed_point_pins();
+        optimize_more_tests::test_line_search_pins();
+        optimize_more_tests::test_bracket_pins();
+        optimize_more_tests::test_brute_pins();
+        optimize_more_tests::test_isotonic_pins();
+        optimize_more_tests::test_hessian_update_pins();
+        optimize_more_tests::test_bounds_and_constraints();
+        optimize_more_tests::test_impulse_pins();
+        optimize_more_tests::test_step_pins();
+        optimize_more_tests::test_lsim_pins();
+        optimize_more_tests::test_freqresp_bode_pins();
+        optimize_more_tests::test_discrete_pins();
+        optimize_more_tests::test_state_form_pins();
+        optimize_more_tests::test_faults();
+        optimize_more_tests::test_optimize_more_broken_matrix();
         return true;
     }
     if g == "order" {
@@ -1278,6 +1566,14 @@ fn run_group(g: const u8[:]) -> bool {
         quad_tests::test_dop853();
         quad_tests::test_bdf();
         quad_tests::test_radau();
+        return true;
+    }
+    if g == "quad_more" {
+        quad_more_tests::test_quad_more_newton_cotes();
+        quad_more_tests::test_quad_more_newton_cotes_apply();
+        quad_more_tests::test_quad_more_nsum();
+        quad_more_tests::test_quad_more_tanhsinh();
+        quad_more_tests::test_quad_more_qmc_quad();
         return true;
     }
     if g == "qz" {
@@ -1481,6 +1777,64 @@ fn run_group(g: const u8[:]) -> bool {
     if g == "signal" {
         signal_tests::test_signal();
         signal_tests::test_spectral();
+        return true;
+    }
+    if g == "signal_design" {
+        signal_design_tests::test_prototypes();
+        signal_design_tests::test_prototype_faults();
+        signal_design_tests::test_order_selection();
+        signal_design_tests::test_order_faults();
+        signal_design_tests::test_iirfilter();
+        signal_design_tests::test_iirdesign();
+        signal_design_tests::test_iir_faults();
+        signal_design_tests::test_notch_peak_comb();
+        signal_design_tests::test_kaiser();
+        signal_design_tests::test_band_transforms();
+        signal_design_tests::test_zpk_transforms();
+        signal_design_tests::test_bilinear();
+        signal_design_tests::test_normalize();
+        signal_design_tests::test_analog_response();
+        signal_design_tests::test_digital_response();
+        signal_design_tests::test_group_delay();
+        signal_design_tests::test_discretize();
+        signal_design_tests::test_discretize_faults();
+        signal_design_tests::test_discretize_broken_matrix();
+        return true;
+    }
+    if g == "signal_spectrum" {
+        signal_spectrum_tests::test_sigspec_czt();
+        signal_spectrum_tests::test_sigspec_czt_default_is_fft();
+        signal_spectrum_tests::test_sigspec_czt_points();
+        signal_spectrum_tests::test_sigspec_zoom_fft();
+        signal_spectrum_tests::test_sigspec_csd();
+        signal_spectrum_tests::test_sigspec_csd_of_one_signal_is_welch();
+        signal_spectrum_tests::test_sigspec_csd_two_sided_and_median();
+        signal_spectrum_tests::test_sigspec_csd_faults();
+        signal_spectrum_tests::test_sigspec_coherence();
+        signal_spectrum_tests::test_sigspec_correlation_lags();
+        signal_spectrum_tests::test_sigspec_envelope();
+        signal_spectrum_tests::test_sigspec_convolve2d_correlate2d();
+        signal_spectrum_tests::test_sigspec_rank_filters_2d();
+        signal_spectrum_tests::test_sigspec_firwin_2d();
+        signal_spectrum_tests::test_sigspec_gauss_spline();
+        signal_spectrum_tests::test_sigspec_hilbert2_and_wiener();
+        signal_spectrum_tests::test_sigspec_check_cola_nola();
+        signal_spectrum_tests::test_sigspec_closest_stft_dual_window();
+        signal_spectrum_tests::test_sigspec_choose_conv_method();
+        signal_spectrum_tests::test_sigspec_deconvolve();
+        signal_spectrum_tests::test_sigspec_lombscargle();
+        signal_spectrum_tests::test_sigspec_minimum_phase();
+        signal_spectrum_tests::test_sigspec_whittaker_henderson();
+        signal_spectrum_tests::test_sigspec_peak_widths();
+        signal_spectrum_tests::test_sigspec_argrelextrema();
+        signal_spectrum_tests::test_sigspec_ricker_cwt_find_peaks_cwt();
+        signal_spectrum_tests::test_sigspec_chirp();
+        signal_spectrum_tests::test_sigspec_gausspulse();
+        signal_spectrum_tests::test_sigspec_sawtooth_sweep_poly();
+        signal_spectrum_tests::test_sigspec_gammatone();
+        signal_spectrum_tests::test_sigspec_vectorstrength();
+        signal_spectrum_tests::test_sigspec_max_len_seq();
+        signal_spectrum_tests::test_sigspec_broken_array();
         return true;
     }
     if g == "sketch_hostile" {
@@ -1691,6 +2045,18 @@ fn run_group(g: const u8[:]) -> bool {
         sparse_lu_tests::test_sparse_lu_more();
         return true;
     }
+    if g == "sparse_more" {
+        sparse_more_tests::test_sparse_more_valid();
+        sparse_more_tests::test_sparse_more_index_dtype();
+        sparse_more_tests::test_sparse_more_random();
+        sparse_more_tests::test_sparse_more_triangular_solve();
+        sparse_more_tests::test_sparse_more_band();
+        sparse_more_tests::test_sparse_more_laplacian();
+        sparse_more_tests::test_sparse_more_eigs();
+        sparse_more_tests::test_sparse_more_funm_multiply();
+        sparse_more_tests::test_sparse_more_broken_matrix();
+        return true;
+    }
     if g == "sparse_svds" {
         sparse_svds_tests::test_sparse_svds_largest();
         sparse_svds_tests::test_sparse_svds_smallest();
@@ -1840,12 +2206,32 @@ fn run_group(g: const u8[:]) -> bool {
 
 // run_test runs one test by name. It tells whether the test exists.
 fn run_test(t: const u8[:]) -> bool {
+    if t == "test_busday_count" { array_busday_tests::test_busday_count(); return true; }
+    if t == "test_busday_count_one" { array_busday_tests::test_busday_count_one(); return true; }
+    if t == "test_busday_offset" { array_busday_tests::test_busday_offset(); return true; }
+    if t == "test_busday_offset_one" { array_busday_tests::test_busday_offset_one(); return true; }
+    if t == "test_is_busday" { array_busday_tests::test_is_busday(); return true; }
+    if t == "test_is_busday_one" { array_busday_tests::test_is_busday_one(); return true; }
+    if t == "test_isnat" { array_busday_tests::test_isnat(); return true; }
+    if t == "test_isnat_one" { array_busday_tests::test_isnat_one(); return true; }
+    if t == "test_busdaycalendar" { array_busday_tests::test_busdaycalendar(); return true; }
+    if t == "test_busdaycalendar_weekmask_named" { array_busday_tests::test_busdaycalendar_weekmask_named(); return true; }
+    if t == "test_datetime_as_string" { array_busday_tests::test_datetime_as_string(); return true; }
+    if t == "test_datetime_as_string_one" { array_busday_tests::test_datetime_as_string_one(); return true; }
+    if t == "test_datetime_data" { array_busday_tests::test_datetime_data(); return true; }
+    if t == "test_datetime_data_one" { array_busday_tests::test_datetime_data_one(); return true; }
     if t == "test_promote_grid" { array_dtype_tests::test_promote_grid(); return true; }
     if t == "test_can_cast_grid" { array_dtype_tests::test_can_cast_grid(); return true; }
     if t == "test_common_type_grid" { array_dtype_tests::test_common_type_grid(); return true; }
     if t == "test_issubdtype_and_isdtype_grid" { array_dtype_tests::test_issubdtype_and_isdtype_grid(); return true; }
     if t == "test_min_scalar_type" { array_dtype_tests::test_min_scalar_type(); return true; }
     if t == "test_dtype_names_and_faults" { array_dtype_tests::test_dtype_names_and_faults(); return true; }
+    if t == "test_array_equiv" { array_helpers_more_tests::test_array_equiv(); return true; }
+    if t == "test_divmod" { array_helpers_more_tests::test_divmod(); return true; }
+    if t == "test_real_if_close" { array_helpers_more_tests::test_real_if_close(); return true; }
+    if t == "test_dsplit" { array_helpers_more_tests::test_dsplit(); return true; }
+    if t == "test_fromfunction_fromiter" { array_helpers_more_tests::test_fromfunction_fromiter(); return true; }
+    if t == "test_array_helpers_more_forms" { array_helpers_more_tests::test_array_helpers_more_forms(); return true; }
     if t == "test_pack_bits" { array_helpers_tests::test_pack_bits(); return true; }
     if t == "test_unpack_bits" { array_helpers_tests::test_unpack_bits(); return true; }
     if t == "test_copy_into_array" { array_helpers_tests::test_copy_into_array(); return true; }
@@ -1865,6 +2251,32 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_element_limit" { array_helpers_tests::test_element_limit(); return true; }
     if t == "test_forged_grid" { array_helpers_tests::test_forged_grid(); return true; }
     if t == "test_forged_pieces" { array_helpers_tests::test_forged_pieces(); return true; }
+    if t == "test_tri_from" { array_index_tests::test_tri_from(); return true; }
+    if t == "test_diag_from" { array_index_tests::test_diag_from(); return true; }
+    if t == "test_mask_indices" { array_index_tests::test_mask_indices(); return true; }
+    if t == "test_walks" { array_index_tests::test_walks(); return true; }
+    if t == "test_share_memory" { array_index_tests::test_share_memory(); return true; }
+    if t == "test_einsum_path" { array_index_tests::test_einsum_path(); return true; }
+    if t == "test_einsum_path_limit" { array_index_tests::test_einsum_path_limit(); return true; }
+    if t == "test_format_float_positional" { array_text_tests::test_format_float_positional(); return true; }
+    if t == "test_format_float_scientific" { array_text_tests::test_format_float_scientific(); return true; }
+    if t == "test_format_float_limits" { array_text_tests::test_format_float_limits(); return true; }
+    if t == "test_base_repr" { array_text_tests::test_base_repr(); return true; }
+    if t == "test_binary_repr" { array_text_tests::test_binary_repr(); return true; }
+    if t == "test_typename" { array_text_tests::test_typename(); return true; }
+    if t == "test_mintypecode" { array_text_tests::test_mintypecode(); return true; }
+    if t == "test_array_textio_string" { array_textio_tests::test_array_textio_string(); return true; }
+    if t == "test_array_textio_repr" { array_textio_tests::test_array_textio_repr(); return true; }
+    if t == "test_array_textio_str" { array_textio_tests::test_array_textio_str(); return true; }
+    if t == "test_array_textio_loadtxt" { array_textio_tests::test_array_textio_loadtxt(); return true; }
+    if t == "test_array_textio_genfromtxt" { array_textio_tests::test_array_textio_genfromtxt(); return true; }
+    if t == "test_array_textio_savetxt" { array_textio_tests::test_array_textio_savetxt(); return true; }
+    if t == "test_array_textio_save" { array_textio_tests::test_array_textio_save(); return true; }
+    if t == "test_array_textio_load" { array_textio_tests::test_array_textio_load(); return true; }
+    if t == "test_array_textio_savez" { array_textio_tests::test_array_textio_savez(); return true; }
+    if t == "test_array_textio_savez_compressed" { array_textio_tests::test_array_textio_savez_compressed(); return true; }
+    if t == "test_array_textio_regex" { array_textio_tests::test_array_textio_regex(); return true; }
+    if t == "test_array_textio_faults" { array_textio_tests::test_array_textio_faults(); return true; }
     if t == "test_assemble" { assemble_tests::test_assemble(); return true; }
     if t == "test_balance" { balance_tests::test_balance(); return true; }
     if t == "test_banded" { banded_tests::test_banded(); return true; }
@@ -1907,6 +2319,17 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_curve_fit" { curve_fit_tests::test_curve_fit(); return true; }
     if t == "test_dare_singular" { dare_singular_tests::test_dare_singular(); return true; }
     if t == "test_dare_singular_hostile" { dare_singular_tests::test_dare_singular_hostile(); return true; }
+    if t == "test_civil_days" { date_civil_tests::test_civil_days(); return true; }
+    if t == "test_civil_days_outside" { date_civil_tests::test_civil_days_outside(); return true; }
+    if t == "test_civil_of" { date_civil_tests::test_civil_of(); return true; }
+    if t == "test_date_weekday" { date_civil_tests::test_date_weekday(); return true; }
+    if t == "test_date_month" { date_civil_tests::test_date_month(); return true; }
+    if t == "test_date_in_range" { date_civil_tests::test_date_in_range(); return true; }
+    if t == "test_date_of" { date_civil_tests::test_date_of(); return true; }
+    if t == "test_date_days" { date_civil_tests::test_date_days(); return true; }
+    if t == "test_date_days_refused" { date_civil_tests::test_date_days_refused(); return true; }
+    if t == "test_date_parts" { date_civil_tests::test_date_parts(); return true; }
+    if t == "test_date_parts_faults" { date_civil_tests::test_date_parts_faults(); return true; }
     if t == "test_dblquad" { dblquad_tests::test_dblquad(); return true; }
     if t == "test_transforms" { dct_tests::test_transforms(); return true; }
     if t == "test_dctn" { dct_tests::test_dctn(); return true; }
@@ -2038,6 +2461,17 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_a_forged_array_gives_a_fault" { inspect_tests::test_a_forged_array_gives_a_fault(); return true; }
     if t == "test_integrate" { integrate_tests::test_integrate(); return true; }
     if t == "test_interp1d_kinds" { interp1d_kinds_tests::test_interp1d_kinds(); return true; }
+    if t == "test_barycentric_interpolate" { interp_more_tests::test_barycentric_interpolate(); return true; }
+    if t == "test_krogh_interpolate" { interp_more_tests::test_krogh_interpolate(); return true; }
+    if t == "test_floater_hormann" { interp_more_tests::test_floater_hormann(); return true; }
+    if t == "test_lagrange_poly" { interp_more_tests::test_lagrange_poly(); return true; }
+    if t == "test_pade_approx" { interp_more_tests::test_pade_approx(); return true; }
+    if t == "test_taylor_approximate" { interp_more_tests::test_taylor_approximate(); return true; }
+    if t == "test_spline_algebra" { interp_more_tests::test_spline_algebra(); return true; }
+    if t == "test_make_lsq_spline" { interp_more_tests::test_make_lsq_spline(); return true; }
+    if t == "test_rect_spline" { interp_more_tests::test_rect_spline(); return true; }
+    if t == "test_pchip_interpolate" { interp_more_tests::test_pchip_interpolate(); return true; }
+    if t == "test_spline_broken" { interp_more_tests::test_spline_broken(); return true; }
     if t == "test_interp_spline_bc" { interp_spline_tests::test_interp_spline_bc(); return true; }
     if t == "test_interp" { interp_tests::test_interp(); return true; }
     if t == "test_spline_mixed_ends" { interp_tests::test_spline_mixed_ends(); return true; }
@@ -2137,6 +2571,12 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_ndimage_pins17" { ndimage_2_tests::test_ndimage_pins17(); return true; }
     if t == "test_ndimage_pins18" { ndimage_2_tests::test_ndimage_pins18(); return true; }
     if t == "test_ndimage_hostile" { ndimage_2_tests::test_ndimage_hostile(); return true; }
+    if t == "test_ndimage_more_fourier" { ndimage_more_tests::test_ndimage_more_fourier(); return true; }
+    if t == "test_ndimage_more_fourier_faults" { ndimage_more_tests::test_ndimage_more_fourier_faults(); return true; }
+    if t == "test_ndimage_more_bessel" { ndimage_more_tests::test_ndimage_more_bessel(); return true; }
+    if t == "test_ndimage_more_watershed" { ndimage_more_tests::test_ndimage_more_watershed(); return true; }
+    if t == "test_ndimage_more_std" { ndimage_more_tests::test_ndimage_more_std(); return true; }
+    if t == "test_watershed_broken_array" { ndimage_more_tests::test_watershed_broken_array(); return true; }
     if t == "test_ndimage_pins" { ndimage_pins_tests::test_ndimage_pins(); return true; }
     if t == "test_ndimage_pins0" { ndimage_tests::test_ndimage_pins0(); return true; }
     if t == "test_ndimage_pins1" { ndimage_tests::test_ndimage_pins1(); return true; }
@@ -2171,6 +2611,23 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_logic_and_math" { ops_tests::test_logic_and_math(); return true; }
     if t == "test_elementwise_math" { ops_tests::test_elementwise_math(); return true; }
     if t == "test_elementwise_rest" { ops_tests::test_elementwise_rest(); return true; }
+    if t == "test_rosen_pins" { optimize_more_tests::test_rosen_pins(); return true; }
+    if t == "test_check_grad_pins" { optimize_more_tests::test_check_grad_pins(); return true; }
+    if t == "test_fixed_point_pins" { optimize_more_tests::test_fixed_point_pins(); return true; }
+    if t == "test_line_search_pins" { optimize_more_tests::test_line_search_pins(); return true; }
+    if t == "test_bracket_pins" { optimize_more_tests::test_bracket_pins(); return true; }
+    if t == "test_brute_pins" { optimize_more_tests::test_brute_pins(); return true; }
+    if t == "test_isotonic_pins" { optimize_more_tests::test_isotonic_pins(); return true; }
+    if t == "test_hessian_update_pins" { optimize_more_tests::test_hessian_update_pins(); return true; }
+    if t == "test_bounds_and_constraints" { optimize_more_tests::test_bounds_and_constraints(); return true; }
+    if t == "test_impulse_pins" { optimize_more_tests::test_impulse_pins(); return true; }
+    if t == "test_step_pins" { optimize_more_tests::test_step_pins(); return true; }
+    if t == "test_lsim_pins" { optimize_more_tests::test_lsim_pins(); return true; }
+    if t == "test_freqresp_bode_pins" { optimize_more_tests::test_freqresp_bode_pins(); return true; }
+    if t == "test_discrete_pins" { optimize_more_tests::test_discrete_pins(); return true; }
+    if t == "test_state_form_pins" { optimize_more_tests::test_state_form_pins(); return true; }
+    if t == "test_faults" { optimize_more_tests::test_faults(); return true; }
+    if t == "test_optimize_more_broken_matrix" { optimize_more_tests::test_optimize_more_broken_matrix(); return true; }
     if t == "test_optimize" { optimize_tests::test_optimize(); return true; }
     if t == "test_order_statistics" { order_tests::test_order_statistics(); return true; }
     if t == "test_ordqz_c" { ordqz_c_tests::test_ordqz_c(); return true; }
@@ -2195,6 +2652,11 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_qrinsert" { qrinsert_tests::test_qrinsert(); return true; }
     if t == "test_qrtools" { qrtools_tests::test_qrtools(); return true; }
     if t == "test_qrupdate" { qrupdate_tests::test_qrupdate(); return true; }
+    if t == "test_quad_more_newton_cotes" { quad_more_tests::test_quad_more_newton_cotes(); return true; }
+    if t == "test_quad_more_newton_cotes_apply" { quad_more_tests::test_quad_more_newton_cotes_apply(); return true; }
+    if t == "test_quad_more_nsum" { quad_more_tests::test_quad_more_nsum(); return true; }
+    if t == "test_quad_more_tanhsinh" { quad_more_tests::test_quad_more_tanhsinh(); return true; }
+    if t == "test_quad_more_qmc_quad" { quad_more_tests::test_quad_more_qmc_quad(); return true; }
     if t == "test_quad" { quad_tests::test_quad(); return true; }
     if t == "test_dop853" { quad_tests::test_dop853(); return true; }
     if t == "test_bdf" { quad_tests::test_bdf(); return true; }
@@ -2322,6 +2784,58 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_select" { select_tests::test_select(); return true; }
     if t == "test_sets" { sets_tests::test_sets(); return true; }
     if t == "test_shape" { shape_tests::test_shape(); return true; }
+    if t == "test_prototypes" { signal_design_tests::test_prototypes(); return true; }
+    if t == "test_prototype_faults" { signal_design_tests::test_prototype_faults(); return true; }
+    if t == "test_order_selection" { signal_design_tests::test_order_selection(); return true; }
+    if t == "test_order_faults" { signal_design_tests::test_order_faults(); return true; }
+    if t == "test_iirfilter" { signal_design_tests::test_iirfilter(); return true; }
+    if t == "test_iirdesign" { signal_design_tests::test_iirdesign(); return true; }
+    if t == "test_iir_faults" { signal_design_tests::test_iir_faults(); return true; }
+    if t == "test_notch_peak_comb" { signal_design_tests::test_notch_peak_comb(); return true; }
+    if t == "test_kaiser" { signal_design_tests::test_kaiser(); return true; }
+    if t == "test_band_transforms" { signal_design_tests::test_band_transforms(); return true; }
+    if t == "test_zpk_transforms" { signal_design_tests::test_zpk_transforms(); return true; }
+    if t == "test_bilinear" { signal_design_tests::test_bilinear(); return true; }
+    if t == "test_normalize" { signal_design_tests::test_normalize(); return true; }
+    if t == "test_analog_response" { signal_design_tests::test_analog_response(); return true; }
+    if t == "test_digital_response" { signal_design_tests::test_digital_response(); return true; }
+    if t == "test_group_delay" { signal_design_tests::test_group_delay(); return true; }
+    if t == "test_discretize" { signal_design_tests::test_discretize(); return true; }
+    if t == "test_discretize_faults" { signal_design_tests::test_discretize_faults(); return true; }
+    if t == "test_discretize_broken_matrix" { signal_design_tests::test_discretize_broken_matrix(); return true; }
+    if t == "test_sigspec_czt" { signal_spectrum_tests::test_sigspec_czt(); return true; }
+    if t == "test_sigspec_czt_default_is_fft" { signal_spectrum_tests::test_sigspec_czt_default_is_fft(); return true; }
+    if t == "test_sigspec_czt_points" { signal_spectrum_tests::test_sigspec_czt_points(); return true; }
+    if t == "test_sigspec_zoom_fft" { signal_spectrum_tests::test_sigspec_zoom_fft(); return true; }
+    if t == "test_sigspec_csd" { signal_spectrum_tests::test_sigspec_csd(); return true; }
+    if t == "test_sigspec_csd_of_one_signal_is_welch" { signal_spectrum_tests::test_sigspec_csd_of_one_signal_is_welch(); return true; }
+    if t == "test_sigspec_csd_two_sided_and_median" { signal_spectrum_tests::test_sigspec_csd_two_sided_and_median(); return true; }
+    if t == "test_sigspec_csd_faults" { signal_spectrum_tests::test_sigspec_csd_faults(); return true; }
+    if t == "test_sigspec_coherence" { signal_spectrum_tests::test_sigspec_coherence(); return true; }
+    if t == "test_sigspec_correlation_lags" { signal_spectrum_tests::test_sigspec_correlation_lags(); return true; }
+    if t == "test_sigspec_envelope" { signal_spectrum_tests::test_sigspec_envelope(); return true; }
+    if t == "test_sigspec_convolve2d_correlate2d" { signal_spectrum_tests::test_sigspec_convolve2d_correlate2d(); return true; }
+    if t == "test_sigspec_rank_filters_2d" { signal_spectrum_tests::test_sigspec_rank_filters_2d(); return true; }
+    if t == "test_sigspec_firwin_2d" { signal_spectrum_tests::test_sigspec_firwin_2d(); return true; }
+    if t == "test_sigspec_gauss_spline" { signal_spectrum_tests::test_sigspec_gauss_spline(); return true; }
+    if t == "test_sigspec_hilbert2_and_wiener" { signal_spectrum_tests::test_sigspec_hilbert2_and_wiener(); return true; }
+    if t == "test_sigspec_check_cola_nola" { signal_spectrum_tests::test_sigspec_check_cola_nola(); return true; }
+    if t == "test_sigspec_closest_stft_dual_window" { signal_spectrum_tests::test_sigspec_closest_stft_dual_window(); return true; }
+    if t == "test_sigspec_choose_conv_method" { signal_spectrum_tests::test_sigspec_choose_conv_method(); return true; }
+    if t == "test_sigspec_deconvolve" { signal_spectrum_tests::test_sigspec_deconvolve(); return true; }
+    if t == "test_sigspec_lombscargle" { signal_spectrum_tests::test_sigspec_lombscargle(); return true; }
+    if t == "test_sigspec_minimum_phase" { signal_spectrum_tests::test_sigspec_minimum_phase(); return true; }
+    if t == "test_sigspec_whittaker_henderson" { signal_spectrum_tests::test_sigspec_whittaker_henderson(); return true; }
+    if t == "test_sigspec_peak_widths" { signal_spectrum_tests::test_sigspec_peak_widths(); return true; }
+    if t == "test_sigspec_argrelextrema" { signal_spectrum_tests::test_sigspec_argrelextrema(); return true; }
+    if t == "test_sigspec_ricker_cwt_find_peaks_cwt" { signal_spectrum_tests::test_sigspec_ricker_cwt_find_peaks_cwt(); return true; }
+    if t == "test_sigspec_chirp" { signal_spectrum_tests::test_sigspec_chirp(); return true; }
+    if t == "test_sigspec_gausspulse" { signal_spectrum_tests::test_sigspec_gausspulse(); return true; }
+    if t == "test_sigspec_sawtooth_sweep_poly" { signal_spectrum_tests::test_sigspec_sawtooth_sweep_poly(); return true; }
+    if t == "test_sigspec_gammatone" { signal_spectrum_tests::test_sigspec_gammatone(); return true; }
+    if t == "test_sigspec_vectorstrength" { signal_spectrum_tests::test_sigspec_vectorstrength(); return true; }
+    if t == "test_sigspec_max_len_seq" { signal_spectrum_tests::test_sigspec_max_len_seq(); return true; }
+    if t == "test_sigspec_broken_array" { signal_spectrum_tests::test_sigspec_broken_array(); return true; }
     if t == "test_signal" { signal_tests::test_signal(); return true; }
     if t == "test_spectral" { signal_tests::test_spectral(); return true; }
     if t == "test_sketch_hostile" { sketch_hostile_tests::test_sketch_hostile(); return true; }
@@ -2454,6 +2968,15 @@ fn run_test(t: const u8[:]) -> bool {
     if t == "test_sparse_lu_pins" { sparse_lu_tests::test_sparse_lu_pins(); return true; }
     if t == "test_sparse_lu_hostile" { sparse_lu_tests::test_sparse_lu_hostile(); return true; }
     if t == "test_sparse_lu_more" { sparse_lu_tests::test_sparse_lu_more(); return true; }
+    if t == "test_sparse_more_valid" { sparse_more_tests::test_sparse_more_valid(); return true; }
+    if t == "test_sparse_more_index_dtype" { sparse_more_tests::test_sparse_more_index_dtype(); return true; }
+    if t == "test_sparse_more_random" { sparse_more_tests::test_sparse_more_random(); return true; }
+    if t == "test_sparse_more_triangular_solve" { sparse_more_tests::test_sparse_more_triangular_solve(); return true; }
+    if t == "test_sparse_more_band" { sparse_more_tests::test_sparse_more_band(); return true; }
+    if t == "test_sparse_more_laplacian" { sparse_more_tests::test_sparse_more_laplacian(); return true; }
+    if t == "test_sparse_more_eigs" { sparse_more_tests::test_sparse_more_eigs(); return true; }
+    if t == "test_sparse_more_funm_multiply" { sparse_more_tests::test_sparse_more_funm_multiply(); return true; }
+    if t == "test_sparse_more_broken_matrix" { sparse_more_tests::test_sparse_more_broken_matrix(); return true; }
     if t == "test_sparse_svds_largest" { sparse_svds_tests::test_sparse_svds_largest(); return true; }
     if t == "test_sparse_svds_smallest" { sparse_svds_tests::test_sparse_svds_smallest(); return true; }
     if t == "test_sparse_svds_small_values" { sparse_svds_tests::test_sparse_svds_small_values(); return true; }
@@ -2561,6 +3084,23 @@ fn run_test(t: const u8[:]) -> bool {
 
 // run_test_in runs one test when it belongs to the group.
 fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
+    if g == "array_busday" {
+        if t == "test_busday_count" { array_busday_tests::test_busday_count(); return true; }
+        if t == "test_busday_count_one" { array_busday_tests::test_busday_count_one(); return true; }
+        if t == "test_busday_offset" { array_busday_tests::test_busday_offset(); return true; }
+        if t == "test_busday_offset_one" { array_busday_tests::test_busday_offset_one(); return true; }
+        if t == "test_is_busday" { array_busday_tests::test_is_busday(); return true; }
+        if t == "test_is_busday_one" { array_busday_tests::test_is_busday_one(); return true; }
+        if t == "test_isnat" { array_busday_tests::test_isnat(); return true; }
+        if t == "test_isnat_one" { array_busday_tests::test_isnat_one(); return true; }
+        if t == "test_busdaycalendar" { array_busday_tests::test_busdaycalendar(); return true; }
+        if t == "test_busdaycalendar_weekmask_named" { array_busday_tests::test_busdaycalendar_weekmask_named(); return true; }
+        if t == "test_datetime_as_string" { array_busday_tests::test_datetime_as_string(); return true; }
+        if t == "test_datetime_as_string_one" { array_busday_tests::test_datetime_as_string_one(); return true; }
+        if t == "test_datetime_data" { array_busday_tests::test_datetime_data(); return true; }
+        if t == "test_datetime_data_one" { array_busday_tests::test_datetime_data_one(); return true; }
+        return false;
+    }
     if g == "array_dtype" {
         if t == "test_promote_grid" { array_dtype_tests::test_promote_grid(); return true; }
         if t == "test_can_cast_grid" { array_dtype_tests::test_can_cast_grid(); return true; }
@@ -2590,6 +3130,50 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_element_limit" { array_helpers_tests::test_element_limit(); return true; }
         if t == "test_forged_grid" { array_helpers_tests::test_forged_grid(); return true; }
         if t == "test_forged_pieces" { array_helpers_tests::test_forged_pieces(); return true; }
+        return false;
+    }
+    if g == "array_helpers_more" {
+        if t == "test_array_equiv" { array_helpers_more_tests::test_array_equiv(); return true; }
+        if t == "test_divmod" { array_helpers_more_tests::test_divmod(); return true; }
+        if t == "test_real_if_close" { array_helpers_more_tests::test_real_if_close(); return true; }
+        if t == "test_dsplit" { array_helpers_more_tests::test_dsplit(); return true; }
+        if t == "test_fromfunction_fromiter" { array_helpers_more_tests::test_fromfunction_fromiter(); return true; }
+        if t == "test_array_helpers_more_forms" { array_helpers_more_tests::test_array_helpers_more_forms(); return true; }
+        return false;
+    }
+    if g == "array_index" {
+        if t == "test_tri_from" { array_index_tests::test_tri_from(); return true; }
+        if t == "test_diag_from" { array_index_tests::test_diag_from(); return true; }
+        if t == "test_mask_indices" { array_index_tests::test_mask_indices(); return true; }
+        if t == "test_walks" { array_index_tests::test_walks(); return true; }
+        if t == "test_share_memory" { array_index_tests::test_share_memory(); return true; }
+        if t == "test_einsum_path" { array_index_tests::test_einsum_path(); return true; }
+        if t == "test_einsum_path_limit" { array_index_tests::test_einsum_path_limit(); return true; }
+        return false;
+    }
+    if g == "array_text" {
+        if t == "test_format_float_positional" { array_text_tests::test_format_float_positional(); return true; }
+        if t == "test_format_float_scientific" { array_text_tests::test_format_float_scientific(); return true; }
+        if t == "test_format_float_limits" { array_text_tests::test_format_float_limits(); return true; }
+        if t == "test_base_repr" { array_text_tests::test_base_repr(); return true; }
+        if t == "test_binary_repr" { array_text_tests::test_binary_repr(); return true; }
+        if t == "test_typename" { array_text_tests::test_typename(); return true; }
+        if t == "test_mintypecode" { array_text_tests::test_mintypecode(); return true; }
+        return false;
+    }
+    if g == "array_textio" {
+        if t == "test_array_textio_string" { array_textio_tests::test_array_textio_string(); return true; }
+        if t == "test_array_textio_repr" { array_textio_tests::test_array_textio_repr(); return true; }
+        if t == "test_array_textio_str" { array_textio_tests::test_array_textio_str(); return true; }
+        if t == "test_array_textio_loadtxt" { array_textio_tests::test_array_textio_loadtxt(); return true; }
+        if t == "test_array_textio_genfromtxt" { array_textio_tests::test_array_textio_genfromtxt(); return true; }
+        if t == "test_array_textio_savetxt" { array_textio_tests::test_array_textio_savetxt(); return true; }
+        if t == "test_array_textio_save" { array_textio_tests::test_array_textio_save(); return true; }
+        if t == "test_array_textio_load" { array_textio_tests::test_array_textio_load(); return true; }
+        if t == "test_array_textio_savez" { array_textio_tests::test_array_textio_savez(); return true; }
+        if t == "test_array_textio_savez_compressed" { array_textio_tests::test_array_textio_savez_compressed(); return true; }
+        if t == "test_array_textio_regex" { array_textio_tests::test_array_textio_regex(); return true; }
+        if t == "test_array_textio_faults" { array_textio_tests::test_array_textio_faults(); return true; }
         return false;
     }
     if g == "assemble" {
@@ -2704,6 +3288,20 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
     if g == "dare_singular" {
         if t == "test_dare_singular" { dare_singular_tests::test_dare_singular(); return true; }
         if t == "test_dare_singular_hostile" { dare_singular_tests::test_dare_singular_hostile(); return true; }
+        return false;
+    }
+    if g == "date_civil" {
+        if t == "test_civil_days" { date_civil_tests::test_civil_days(); return true; }
+        if t == "test_civil_days_outside" { date_civil_tests::test_civil_days_outside(); return true; }
+        if t == "test_civil_of" { date_civil_tests::test_civil_of(); return true; }
+        if t == "test_date_weekday" { date_civil_tests::test_date_weekday(); return true; }
+        if t == "test_date_month" { date_civil_tests::test_date_month(); return true; }
+        if t == "test_date_in_range" { date_civil_tests::test_date_in_range(); return true; }
+        if t == "test_date_of" { date_civil_tests::test_date_of(); return true; }
+        if t == "test_date_days" { date_civil_tests::test_date_days(); return true; }
+        if t == "test_date_days_refused" { date_civil_tests::test_date_days_refused(); return true; }
+        if t == "test_date_parts" { date_civil_tests::test_date_parts(); return true; }
+        if t == "test_date_parts_faults" { date_civil_tests::test_date_parts_faults(); return true; }
         return false;
     }
     if g == "dblquad" {
@@ -2954,6 +3552,20 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_interp1d_kinds" { interp1d_kinds_tests::test_interp1d_kinds(); return true; }
         return false;
     }
+    if g == "interp_more" {
+        if t == "test_barycentric_interpolate" { interp_more_tests::test_barycentric_interpolate(); return true; }
+        if t == "test_krogh_interpolate" { interp_more_tests::test_krogh_interpolate(); return true; }
+        if t == "test_floater_hormann" { interp_more_tests::test_floater_hormann(); return true; }
+        if t == "test_lagrange_poly" { interp_more_tests::test_lagrange_poly(); return true; }
+        if t == "test_pade_approx" { interp_more_tests::test_pade_approx(); return true; }
+        if t == "test_taylor_approximate" { interp_more_tests::test_taylor_approximate(); return true; }
+        if t == "test_spline_algebra" { interp_more_tests::test_spline_algebra(); return true; }
+        if t == "test_make_lsq_spline" { interp_more_tests::test_make_lsq_spline(); return true; }
+        if t == "test_rect_spline" { interp_more_tests::test_rect_spline(); return true; }
+        if t == "test_pchip_interpolate" { interp_more_tests::test_pchip_interpolate(); return true; }
+        if t == "test_spline_broken" { interp_more_tests::test_spline_broken(); return true; }
+        return false;
+    }
     if g == "interp_spline" {
         if t == "test_interp_spline_bc" { interp_spline_tests::test_interp_spline_bc(); return true; }
         return false;
@@ -3130,6 +3742,15 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_ndimage_pins10" { ndimage_tests::test_ndimage_pins10(); return true; }
         return false;
     }
+    if g == "ndimage_more" {
+        if t == "test_ndimage_more_fourier" { ndimage_more_tests::test_ndimage_more_fourier(); return true; }
+        if t == "test_ndimage_more_fourier_faults" { ndimage_more_tests::test_ndimage_more_fourier_faults(); return true; }
+        if t == "test_ndimage_more_bessel" { ndimage_more_tests::test_ndimage_more_bessel(); return true; }
+        if t == "test_ndimage_more_watershed" { ndimage_more_tests::test_ndimage_more_watershed(); return true; }
+        if t == "test_ndimage_more_std" { ndimage_more_tests::test_ndimage_more_std(); return true; }
+        if t == "test_watershed_broken_array" { ndimage_more_tests::test_watershed_broken_array(); return true; }
+        return false;
+    }
     if g == "ndimage_pins" {
         if t == "test_ndimage_pins" { ndimage_pins_tests::test_ndimage_pins(); return true; }
         return false;
@@ -3170,6 +3791,26 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
     }
     if g == "optimize" {
         if t == "test_optimize" { optimize_tests::test_optimize(); return true; }
+        return false;
+    }
+    if g == "optimize_more" {
+        if t == "test_rosen_pins" { optimize_more_tests::test_rosen_pins(); return true; }
+        if t == "test_check_grad_pins" { optimize_more_tests::test_check_grad_pins(); return true; }
+        if t == "test_fixed_point_pins" { optimize_more_tests::test_fixed_point_pins(); return true; }
+        if t == "test_line_search_pins" { optimize_more_tests::test_line_search_pins(); return true; }
+        if t == "test_bracket_pins" { optimize_more_tests::test_bracket_pins(); return true; }
+        if t == "test_brute_pins" { optimize_more_tests::test_brute_pins(); return true; }
+        if t == "test_isotonic_pins" { optimize_more_tests::test_isotonic_pins(); return true; }
+        if t == "test_hessian_update_pins" { optimize_more_tests::test_hessian_update_pins(); return true; }
+        if t == "test_bounds_and_constraints" { optimize_more_tests::test_bounds_and_constraints(); return true; }
+        if t == "test_impulse_pins" { optimize_more_tests::test_impulse_pins(); return true; }
+        if t == "test_step_pins" { optimize_more_tests::test_step_pins(); return true; }
+        if t == "test_lsim_pins" { optimize_more_tests::test_lsim_pins(); return true; }
+        if t == "test_freqresp_bode_pins" { optimize_more_tests::test_freqresp_bode_pins(); return true; }
+        if t == "test_discrete_pins" { optimize_more_tests::test_discrete_pins(); return true; }
+        if t == "test_state_form_pins" { optimize_more_tests::test_state_form_pins(); return true; }
+        if t == "test_faults" { optimize_more_tests::test_faults(); return true; }
+        if t == "test_optimize_more_broken_matrix" { optimize_more_tests::test_optimize_more_broken_matrix(); return true; }
         return false;
     }
     if g == "order" {
@@ -3236,6 +3877,14 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_dop853" { quad_tests::test_dop853(); return true; }
         if t == "test_bdf" { quad_tests::test_bdf(); return true; }
         if t == "test_radau" { quad_tests::test_radau(); return true; }
+        return false;
+    }
+    if g == "quad_more" {
+        if t == "test_quad_more_newton_cotes" { quad_more_tests::test_quad_more_newton_cotes(); return true; }
+        if t == "test_quad_more_newton_cotes_apply" { quad_more_tests::test_quad_more_newton_cotes_apply(); return true; }
+        if t == "test_quad_more_nsum" { quad_more_tests::test_quad_more_nsum(); return true; }
+        if t == "test_quad_more_tanhsinh" { quad_more_tests::test_quad_more_tanhsinh(); return true; }
+        if t == "test_quad_more_qmc_quad" { quad_more_tests::test_quad_more_qmc_quad(); return true; }
         return false;
     }
     if g == "qz" {
@@ -3439,6 +4088,64 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
     if g == "signal" {
         if t == "test_signal" { signal_tests::test_signal(); return true; }
         if t == "test_spectral" { signal_tests::test_spectral(); return true; }
+        return false;
+    }
+    if g == "signal_design" {
+        if t == "test_prototypes" { signal_design_tests::test_prototypes(); return true; }
+        if t == "test_prototype_faults" { signal_design_tests::test_prototype_faults(); return true; }
+        if t == "test_order_selection" { signal_design_tests::test_order_selection(); return true; }
+        if t == "test_order_faults" { signal_design_tests::test_order_faults(); return true; }
+        if t == "test_iirfilter" { signal_design_tests::test_iirfilter(); return true; }
+        if t == "test_iirdesign" { signal_design_tests::test_iirdesign(); return true; }
+        if t == "test_iir_faults" { signal_design_tests::test_iir_faults(); return true; }
+        if t == "test_notch_peak_comb" { signal_design_tests::test_notch_peak_comb(); return true; }
+        if t == "test_kaiser" { signal_design_tests::test_kaiser(); return true; }
+        if t == "test_band_transforms" { signal_design_tests::test_band_transforms(); return true; }
+        if t == "test_zpk_transforms" { signal_design_tests::test_zpk_transforms(); return true; }
+        if t == "test_bilinear" { signal_design_tests::test_bilinear(); return true; }
+        if t == "test_normalize" { signal_design_tests::test_normalize(); return true; }
+        if t == "test_analog_response" { signal_design_tests::test_analog_response(); return true; }
+        if t == "test_digital_response" { signal_design_tests::test_digital_response(); return true; }
+        if t == "test_group_delay" { signal_design_tests::test_group_delay(); return true; }
+        if t == "test_discretize" { signal_design_tests::test_discretize(); return true; }
+        if t == "test_discretize_faults" { signal_design_tests::test_discretize_faults(); return true; }
+        if t == "test_discretize_broken_matrix" { signal_design_tests::test_discretize_broken_matrix(); return true; }
+        return false;
+    }
+    if g == "signal_spectrum" {
+        if t == "test_sigspec_czt" { signal_spectrum_tests::test_sigspec_czt(); return true; }
+        if t == "test_sigspec_czt_default_is_fft" { signal_spectrum_tests::test_sigspec_czt_default_is_fft(); return true; }
+        if t == "test_sigspec_czt_points" { signal_spectrum_tests::test_sigspec_czt_points(); return true; }
+        if t == "test_sigspec_zoom_fft" { signal_spectrum_tests::test_sigspec_zoom_fft(); return true; }
+        if t == "test_sigspec_csd" { signal_spectrum_tests::test_sigspec_csd(); return true; }
+        if t == "test_sigspec_csd_of_one_signal_is_welch" { signal_spectrum_tests::test_sigspec_csd_of_one_signal_is_welch(); return true; }
+        if t == "test_sigspec_csd_two_sided_and_median" { signal_spectrum_tests::test_sigspec_csd_two_sided_and_median(); return true; }
+        if t == "test_sigspec_csd_faults" { signal_spectrum_tests::test_sigspec_csd_faults(); return true; }
+        if t == "test_sigspec_coherence" { signal_spectrum_tests::test_sigspec_coherence(); return true; }
+        if t == "test_sigspec_correlation_lags" { signal_spectrum_tests::test_sigspec_correlation_lags(); return true; }
+        if t == "test_sigspec_envelope" { signal_spectrum_tests::test_sigspec_envelope(); return true; }
+        if t == "test_sigspec_convolve2d_correlate2d" { signal_spectrum_tests::test_sigspec_convolve2d_correlate2d(); return true; }
+        if t == "test_sigspec_rank_filters_2d" { signal_spectrum_tests::test_sigspec_rank_filters_2d(); return true; }
+        if t == "test_sigspec_firwin_2d" { signal_spectrum_tests::test_sigspec_firwin_2d(); return true; }
+        if t == "test_sigspec_gauss_spline" { signal_spectrum_tests::test_sigspec_gauss_spline(); return true; }
+        if t == "test_sigspec_hilbert2_and_wiener" { signal_spectrum_tests::test_sigspec_hilbert2_and_wiener(); return true; }
+        if t == "test_sigspec_check_cola_nola" { signal_spectrum_tests::test_sigspec_check_cola_nola(); return true; }
+        if t == "test_sigspec_closest_stft_dual_window" { signal_spectrum_tests::test_sigspec_closest_stft_dual_window(); return true; }
+        if t == "test_sigspec_choose_conv_method" { signal_spectrum_tests::test_sigspec_choose_conv_method(); return true; }
+        if t == "test_sigspec_deconvolve" { signal_spectrum_tests::test_sigspec_deconvolve(); return true; }
+        if t == "test_sigspec_lombscargle" { signal_spectrum_tests::test_sigspec_lombscargle(); return true; }
+        if t == "test_sigspec_minimum_phase" { signal_spectrum_tests::test_sigspec_minimum_phase(); return true; }
+        if t == "test_sigspec_whittaker_henderson" { signal_spectrum_tests::test_sigspec_whittaker_henderson(); return true; }
+        if t == "test_sigspec_peak_widths" { signal_spectrum_tests::test_sigspec_peak_widths(); return true; }
+        if t == "test_sigspec_argrelextrema" { signal_spectrum_tests::test_sigspec_argrelextrema(); return true; }
+        if t == "test_sigspec_ricker_cwt_find_peaks_cwt" { signal_spectrum_tests::test_sigspec_ricker_cwt_find_peaks_cwt(); return true; }
+        if t == "test_sigspec_chirp" { signal_spectrum_tests::test_sigspec_chirp(); return true; }
+        if t == "test_sigspec_gausspulse" { signal_spectrum_tests::test_sigspec_gausspulse(); return true; }
+        if t == "test_sigspec_sawtooth_sweep_poly" { signal_spectrum_tests::test_sigspec_sawtooth_sweep_poly(); return true; }
+        if t == "test_sigspec_gammatone" { signal_spectrum_tests::test_sigspec_gammatone(); return true; }
+        if t == "test_sigspec_vectorstrength" { signal_spectrum_tests::test_sigspec_vectorstrength(); return true; }
+        if t == "test_sigspec_max_len_seq" { signal_spectrum_tests::test_sigspec_max_len_seq(); return true; }
+        if t == "test_sigspec_broken_array" { signal_spectrum_tests::test_sigspec_broken_array(); return true; }
         return false;
     }
     if g == "sketch_hostile" {
@@ -3649,6 +4356,18 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
         if t == "test_sparse_lu_more" { sparse_lu_tests::test_sparse_lu_more(); return true; }
         return false;
     }
+    if g == "sparse_more" {
+        if t == "test_sparse_more_valid" { sparse_more_tests::test_sparse_more_valid(); return true; }
+        if t == "test_sparse_more_index_dtype" { sparse_more_tests::test_sparse_more_index_dtype(); return true; }
+        if t == "test_sparse_more_random" { sparse_more_tests::test_sparse_more_random(); return true; }
+        if t == "test_sparse_more_triangular_solve" { sparse_more_tests::test_sparse_more_triangular_solve(); return true; }
+        if t == "test_sparse_more_band" { sparse_more_tests::test_sparse_more_band(); return true; }
+        if t == "test_sparse_more_laplacian" { sparse_more_tests::test_sparse_more_laplacian(); return true; }
+        if t == "test_sparse_more_eigs" { sparse_more_tests::test_sparse_more_eigs(); return true; }
+        if t == "test_sparse_more_funm_multiply" { sparse_more_tests::test_sparse_more_funm_multiply(); return true; }
+        if t == "test_sparse_more_broken_matrix" { sparse_more_tests::test_sparse_more_broken_matrix(); return true; }
+        return false;
+    }
     if g == "sparse_svds" {
         if t == "test_sparse_svds_largest" { sparse_svds_tests::test_sparse_svds_largest(); return true; }
         if t == "test_sparse_svds_smallest" { sparse_svds_tests::test_sparse_svds_smallest(); return true; }
@@ -3797,5 +4516,5 @@ fn run_test_in(g: const u8[:], t: const u8[:]) -> bool {
 }
 
 fn print_groups() {
-    print("groups: array_dtype array_helpers assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter filter_forms first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index inspect integrate interp interp1d_kinds interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_pins norms_tensors nquad odeint ops optimize order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad qz qz_c qz_scale qzc random random_discrete random_distributions random_laws random_multi rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
+    print("groups: array_busday array_dtype array_helpers array_helpers_more array_index array_text array_textio assemble balance banded bessel bins bspline bspline_design buffer carray ccholesky_hostile ceig ceig_pair ceigh_hostile cfactor cheby constants cossin cqr_hostile create csvd_hostile cubic_hermite cumulative_simpson curve_fit dare_singular date_civil dblquad dct decimate delaunay differential_evolution dist dist_pins dpss dsp eig eigsh fft fftlog fftn fftn_ex filter filter_forms first_step firwin geneig generic generic_hostile generic_pins geometric geometric_hostile geometric_pins global_minimizers grey grey_pins griddata_columns grids hfftn_ex histogram2d index inspect integrate interp interp1d_kinds interp_more interp_spline interpn interpn_splines interpolate istft ivp_t lfilter_axis lgmres_options linalg lobpcg logic matfun measure measure_pins minimize minimize_grad morph morph_pins moves multi_dot_apply nan nd_interpolator ndimage ndimage_more ndimage_pins norms_tensors nquad odeint ops optimize optimize_more order ordqz ordqz_c pad_hostile pad_stats poly_bases polynomial products programs qrinsert qrtools qrupdate quad quad_more qz qz_c qz_scale qzc random random_discrete random_distributions random_laws random_multi rank rank_pins remez resample_poly residue residue_complex riccati root root_scalar schur_cplx schur_funm schur_stacks scilinalg select sets shape signal signal_design signal_spectrum sketch_hostile solve_ivp sort sos sparse sparse_bicg sparse_bmat sparse_bsr sparse_coo sparse_csc sparse_dia sparse_dok sparse_expm sparse_kronsum sparse_lgmres sparse_lil sparse_lsmr sparse_lu sparse_more sparse_svds spatial special_matrices splrep_smoothing stacks stats stft structured svd svd_wide toms748 tplquad transform transform_pins tridiag_blocks tridiag_tiny ufunc vectorized vectorized_hostile vectorized_pins welch_ex windows\n");
 }

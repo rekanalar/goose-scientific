@@ -23,6 +23,20 @@ fn bs_make(k: i64, t: f64[:], c: f64[:]) -> BSpl {
     return BSpl { k: k, nt: t.len, buf: buf };
 }
 
+// bs_check checks the buffer of a spline. The count of the knots must
+// stand inside the buffer, and the degree must stand below the count of
+// the knots. A spline that a caller built by hand and broke does not
+// pass the check.
+fn bs_check(b, tag: const u8[:]) -> Fault {
+    if b.nt < 1 || b.k < 0 || b.k >= b.nt {
+        return fault(F_SHAPE, tag, "the degree of the spline stands outside its knots");
+    }
+    if b.buf.len < b.nt {
+        return fault(F_SHAPE, tag, "the buffer of the spline holds fewer values than its knots");
+    }
+    return no_fault();
+}
+
 fn bs_knots_of(b) -> f64[>..] {
     var t: f64[>..] = [];
     var i: i64 = 0;

@@ -17,7 +17,7 @@ binds it by reference and copies nothing.
 Add this to the root file of the program that uses it:
 
 ```goose
-import scientific from "rekanalar/goose-scientific@v0.185.0";
+import scientific from "rekanalar/goose-scientific@v0.186.0";
 ```
 
 ## API
@@ -127,9 +127,92 @@ import scientific from "rekanalar/goose-scientific@v0.185.0";
 | Forms of a filter | `zpk2tf`, `tf2zpk`, `tf2ss`, `zpk2ss`, `ss2tf` |
 | Sections of a filter | `butter_sos`, `cheby1_sos`, `cheby2_sos`, `bessel_sos`, `zpk2sos`, `tf2sos`, `sosfilt_zi`, `sosfiltfilt` |
 | Type and faults | `Arr`, `Fault`, `F_NONE`, `F_SHAPE`, `F_RANGE`, `F_LIMIT`, `F_VALUE`, `kind_name`, `numel`, `size` |
+| Text of numbers | `float_format()`, `format_float_positional(x, options)`, `format_float_scientific(x, options)`, `base_repr(number, base=2, padding=0)`, `binary_repr(number, width=-1)`, `typename(code)`, `mintypecode(typechars, typeset="GDFgdf", default='d')` |
+| Text and files | `array2string(a, o, separator, prefix, suffix)`, `array2string(a, o)`, `array2string(a)`, `array_repr(a, o)`, `array_repr(a)`, `array_str(a, o)`, `array_str(a)`, `loadtxt(path, o)`, `genfromtxt(path, o)`, `savetxt(path, a, o)`, `save(path, a)`, `load(path)`, `savez(path, name, a)`, `savez(path, name1, a1, name2, a2)`, `savez_compressed(path, name, a)`, `savez_compressed(path, name1, a1, name2, a2)`, `fromregex(path, pattern)`, `print_options()`, `txt_options()`, `save_options()` |
+| Filter design and transforms | `buttap`, `cheb1ap`, `cheb2ap`, `ellipap`, `besselap`, `buttord`, `cheb1ord`, `cheb2ord`, `ellipord`, `band_stop_obj`, `iirfilter`, `iirfilter_zpk`, `iirdesign`, `iirnotch`, `iirpeak`, `iircomb`, `kaiser_beta`, `kaiser_atten`, `kaiserord`, `lp2lp`, `lp2hp`, `lp2bp`, `lp2bs`, `lp2lp_zpk`, `lp2hp_zpk`, `lp2bp_zpk`, `lp2bs_zpk`, `bilinear`, `bilinear_zpk`, `normalize`, `findfreqs`, `freqs`, `freqs_zpk`, `freqz_zpk`, `freqz_sos`, `group_delay`, `cont2discrete` |
+| Spectrum, windows and waves | `czt`, `czt_points`, `zoom_fft`, `csd_ex`, `coherence`, `correlation_lags`, `envelope`, `check_cola`, `check_nola`, `closest_stft_dual_window`, `choose_conv_method`, `deconvolve`, `lombscargle`, `minimum_phase`, `whittaker_henderson`, `convolve2d`, `correlate2d`, `medfilt2d`, `order_filter`, `sepfir2d`, `firwin_2d`, `gauss_spline`, `hilbert2`, `wiener`, `argrelmax`, `argrelmin`, `argrelextrema`, `peak_widths`, `ricker`, `cwt`, `find_peaks_cwt`, `chirp`, `gausspulse`, `gausspulse_cutoff`, `sawtooth`, `sweep_poly`, `gammatone`, `vectorstrength`, `max_len_seq` |
+| Plain calls of the optimization | `rosen`, `rosen_der`, `rosen_hess`, `rosen_hess_prod`, `check_grad`, `fixed_point`, `line_search`, `bracket`, `brute`, `isotonic_regression`, `bfgs_hessian_update`, `sr1_hessian_update`, `bounds`, `linear_constraint`, `show_options` |
+| Responses of a system | `impulse`, `step`, `lsim`, `freqresp`, `bode`, `dstep`, `dimpulse`, `dfreqresp`, `dbode`, `ss2zpk`, `abcd_normalize` |
+| Polynomial and rational interpolation | `barycentric_interpolate`, `krogh_interpolate`, `floater_hormann`, `lagrange_poly`, `pade_approx`, `taylor_approximate`, `pchip_interpolate`, `splder`, `splantider`, `splint`, `spalde`, `sproot`, `make_lsq_spline`, `rect_spline`, `rect_spline_eval` |
 
 Every function that can fail gives `Arr, Fault` or `f64, Fault`.
 The fault holds a kind, the name of the check and a short detail.
+
+| Call | Result | Note |
+|---|---|---|
+| `array_equiv(a, b)` | `bool, Fault` | True when the shapes broadcast and all values are equal. NaN is never equal. |
+| `asarray_chkfinite(a)` | `Arr, Fault` or `CArr, Fault` | Copy of the array. NaN or infinity gives `F_VALUE`. |
+| `asmatrix(a)` | `Arr, Fault` | Plain 2-D array. A vector becomes one row. More than two dimensions gives `F_SHAPE`. |
+| `block_new`, `block_put`, `block_build` | `Blocks`, `Fault`, `Arr, Fault` | NumPy `block`. The name `block` is a Goose keyword, so the builder fills the grid and `block_build` joins it. |
+| `divmod(a, b)` | `Arr, Arr, Fault` | Floor quotient and remainder with the sign of the divisor. |
+| `dsplit(a, parts)` or `dsplit(a, sections)` | `Parts, Fault` | Cuts along the third axis. Fewer than three dimensions gives `F_SHAPE`. |
+| `empty_like(a)` | `Arr, Fault` | Array of the same shape. Every value is zero. |
+| `fromfunction(shape) { p => ... }` | `Arr, Fault` | The block gets the index of one element as a row of floats. |
+| `fromiter(count) { i => ... }` | `Arr, Fault` | The block gets the place `i` from 0 to count minus 1. |
+| `iterable(x)` | `bool` | True for an array. False for a number. |
+| `real_if_close(c, tol = 100.0)` | `Arr, bool, Fault` | Real parts and true when every imaginary part is below the tolerance. |
+
+| Call | Note |
+|---|---|
+| `diag_indices_from(a)` | Places of the main diagonal of an array with equal axes. Gives one row per axis. |
+| `tril_indices_from(a, k)` | Places of the lower triangle of a matrix. Gives the row numbers, then the column numbers. |
+| `triu_indices_from(a, k)` | Places of the upper triangle of a matrix. Same layout. |
+| `mask_indices(n, mode, k)` | Places that a triangle mask picks in a square matrix. The mode is "triu" or "tril". |
+| `ndindex(shape)` | Every place of a shape in row-major order. One row per place. |
+| `ndenumerate(a)` | The places of an array, one row per element, and the values in the same order. |
+| `may_share_memory(a, b)`, `shares_memory(a, b)` | Always false. See the limits. |
+| `einsum_path(spec, a, b, mode)` | The path of an einsum and the count of its operations. The mode is "greedy", "optimal" or "none". |
+| `einsum_path1(spec, a, mode)`, `einsum_path3(spec, a, b, c, mode)` | The same for one operand and for three operands. |
+| `busday_count(begin, end, cal)` | Count of the business days from `begin` up to `end`. The end date does not count. A reversed pair gives a negative count. |
+| `busday_count_one(begin, end, cal)` | The same for one pair of dates. Gives a whole number. |
+| `busday_offset(dates, offsets, roll, cal)` | The date that stands a count of business days away. The roll is one of the eight names of NumPy. |
+| `busday_offset_one(day, offset, roll_code, cal)` | The same for one date. The roll is a number from 0 to 7. |
+| `busdaycalendar(weekmask, holidays)` | A calendar of the business days. The weekmask is seven signs or day names. The holidays are day numbers. |
+| `buscal_default()` | The calendar of NumPy: Monday to Friday and no holiday. |
+| `buscal_weekmask(cal)`, `buscal_holidays(cal)` | The seven signs of a calendar and its sorted holidays. |
+| `is_busday(dates, cal)`, `is_busday_one(day, cal)` | Tells whether a date is a business day of a calendar. |
+| `isnat(dates)`, `isnat_one(day)` | Tells whether a date is not a time. The value NaN is not a time. |
+| `datetime_as_string(dates)`, `datetime_as_string_one(day)` | The text YYYY-MM-DD of a date. A date that is not a time gives NaT. |
+| `datetime_data(spec)` | The unit and the count of a date type name such as `M8[5ms]`. |
+| `date_days(y, m, d)`, `date_parts(day)` | Converts between a civil date and a count of days since 1970-01-01. |
+| `csr_valid(s)` | True when the buffer of a matrix of compressed rows agrees with its sides. |
+| `csc_valid(s)` | True when the buffer of a matrix of compressed columns agrees with its sides. |
+| `coo_valid(s)` | True when the buffer of a matrix of coordinates agrees with its sides. |
+| `dia_valid(s)` | True when the buffer of a matrix of diagonals agrees with its sides. |
+| `dok_valid(s)` | True when the buffer of a dictionary matrix agrees with its sides. |
+| `lil_valid(s)` | True when the buffer of a list of lists matrix agrees with its sides. |
+| `bsr_valid(s)` | True when the buffer of a matrix of blocks agrees with its sides. |
+| `get_index_dtype(maxval)` | Gives 32 or 64, the count of the bits that holds an index of that size. |
+| `safely_cast_index_arrays(values)` | Checks every index and gives the count of the bits that holds them. |
+| `random_array(shape, density, seed)` | Gives a matrix of chance with the given shape and density. |
+| `random(rows, cols, density, seed)` | Gives a matrix of chance of two sides. |
+| `spsolve_triangular(s, b, lower, unit_diagonal)` | Solves a system whose matrix holds one triangle. |
+| `is_sptriangular(s)` | Gives the two flags that tell whether the matrix holds only one triangle. |
+| `spbandwidth(s)` | Gives the two counts of the rows that separate the values from the diagonal. |
+| `laplacian_nd(shape, boundary)` | Gives the Laplacian of a grid of any count of dimensions. |
+| `laplacian_nd_values(shape, boundary)` | Gives the values of the Laplacian of a grid, sorted. |
+| `eigs(s, k, which, v0)` | Gives the values of a matrix that is not symmetric and the vectors. |
+| `funm_multiply_krylov(s, b, t)` | Gives the product of the function of a matrix and a vector. |
+| `newton_cotes(n)` | Gives the weights of the rule of Newton and Cotes and the factor of the error. |
+| `nsum(a, b, step)` | Sums the terms of a series, with an infinite end allowed. |
+| `tanhsinh(a, b, epsabs, epsrel, maxlevel)` | Integrates by the rule of the double exponential. |
+| `qmc_quad(a, b, n_points, n_estimates, seed)` | Integrates over a box with points of the sequence of Halton. |
+| `fourier_gaussian(a, sigma)` | Multiplies the transform of an array with the response of the Gaussian. |
+| `fourier_uniform(a, size)` | Multiplies the transform of an array with the response of the box. |
+| `fourier_ellipsoid(a, size)` | Multiplies the transform of an array with the response of the ellipsoid. |
+| `fourier_shift(a, shift)` | Shifts an array by the given count of the samples of every dimension. |
+| `watershed_ift(input, markers, structure)` | Labels the regions of an image by the watershed of the distance. |
+| `bessel_j1(x)` | Gives the function of Bessel of the first kind and the order one. |
+
+| Name of SciPy | The fault of this package |
+|---|---|
+| `SparseWarning` | A fault of value with the detail of the condition. |
+| `SparseEfficiencyWarning` | No fault. The package stores no format that it cannot change in place. |
+| `MatrixRankWarning` | A fault of value from the solve of a matrix of rank below its side. |
+| `IntegrationWarning` | A fault of limit from a quadrature that reached its limit. |
+| `ODEintWarning` | A fault from the solver of the initial values, with the kind of the step. |
+| `ArpackError` | A fault of limit or of value from the Krylov calls. |
+| `ArpackNoConvergence` | A fault of limit when the space of the Krylov calls did not settle. |
 
 ## The array type
 
@@ -2341,7 +2424,245 @@ The type calls work on names of types and never touch an array:
   empty array. A call of the package that checks the shape refuses that
   array. The cut of a list of places leaves an empty piece in the same
   way.
-
+- The package has no matrix type. `asmatrix` gives a plain 2-D array.
+- `empty_like` fills the array with zeros. The package holds no uninitialized memory.
+- `fromfunction` calls the block once for each element. NumPy calls its function once with whole index arrays.
+- `fromiter` needs a count. The package has no iterator to read to its end.
+- `block` is a Goose keyword. Use the `Blocks` builder with `block_build`. The package has no nested lists of arrays.
+- `iterable` knows only arrays and numbers. The package has no other sequence.
+- `array_equiv` treats NaN as unequal to NaN, as NumPy 2.5.4 does.
+- `real_if_close` with a tolerance above one counts in machine epsilons. A tolerance of one or less is an absolute size.
+- The prototypes `buttap`, `cheb1ap`, `cheb2ap`, `ellipap` and `besselap` give the zeros and the poles as two arrays each. The first array holds the real parts. The second holds the imaginary parts. The gain is a number. The order of the roots follows SciPy for the first three calls. Compare the other roots as a set.
+- The order selection calls take lists for the edges. They return the order, the natural frequencies and a fault. The argument `fs` stays out. An order of zero or below gives a fault. SciPy warns or fails with a cast error.
+- The order selection for a band stop filter finds the edges of the pass band. It runs the bounded search of Brent. SciPy runs the same search in `fminbound`. The edges agree to about 1e-5.
+- `band_stop_obj` takes the edge, the index, the two edge lists and the two decibel values. The name of the filter is `butter`, `cheby` or `ellip`. A natural frequency of one or below gives a fault. SciPy gives a NaN.
+- `iirfilter` takes the ripple and the attenuation as numbers. Pass zero for a value that the kind does not use. The band is `lowpass`, `highpass`, `bandpass` or `bandstop`. The kind is `butter`, `cheby1`, `cheby2`, `ellip` or `bessel`. The output is the numerator and the denominator. Use `zpk2sos` on the result for sections.
+- `iirfilter_zpk` gives the zeros, the poles and the gain. The arguments `fs` and `output` stay out. The short names of SciPy also work for the band and the kind.
+- `iirfilter` and the other designs take an order from one to 64. The prototypes take an order from zero to 64.
+- `iirdesign` takes the kinds `butter`, `cheby1`, `cheby2` and `ellip`. The kind `bessel` has no order selection, as in SciPy. The argument `fs` stays out.
+- `iirnotch`, `iirpeak` and `iircomb` take plain numbers and the rate `fs`. `iircomb` needs a rate that the frequency divides. A frequency at the Nyquist rate gives a fault for `iircomb`. `iirnotch` and `iirpeak` accept the Nyquist rate, as in SciPy.
+- `kaiserord` gives the count of taps and the shape of the window. A ripple below eight decibels gives a fault, as in SciPy.
+- `lp2lp`, `lp2hp`, `lp2bp` and `lp2bs` take the coefficients as lists. They return the normalized numerator and denominator. The `_zpk` forms take the roots as two lists each.
+- `lp2hp_zpk` and `lp2bs_zpk` fault on a zero or a pole at the origin. SciPy divides by zero and returns an infinite value.
+- `bilinear` takes the rate in hertz. It drops the leading zeros of both lists, as SciPy does. `bilinear_zpk` faults on a root at the point of the map. SciPy gives an infinite value.
+- `normalize` takes one numerator, not a matrix of numerators. It faults on a denominator of zeros. It trims the leading numerator coefficients at or below 1e-14. The call gives no warning.
+- `findfreqs`, `freqs` and `freqs_zpk` take a count of points, not an array of frequencies. The count runs from one to 65536. They return the frequencies, the real parts and the imaginary parts. The grid follows SciPy. The roots come from the method of Durand and Kerner. A root of high multiplicity may move the decade of the grid.
+- `freqz_zpk` and `freqz_sos` take a count of points and the flag `whole`. They return the frequencies in radians per sample. The argument `fs` stays out. `freqz_zpk` agrees with SciPy to 1e-9.
+- `group_delay` takes the numerator, the denominator and a count of points. A singular point gives a delay of zero. The call gives no warning. The argument `fs` stays out.
+- `cont2discrete` takes the matrices of one input and one output. The matrix of the states is square. The column holds the input. The row holds the output. The number is the direct part. The methods are `zoh`, `foh`, `impulse`, `gbt`, `bilinear`, `tustin`, `euler`, `forward_diff` and `backward_diff`.
+- `cont2discrete` takes no transfer function and no zeros-poles-gain input. Convert with `tf2ss` or `zpk2ss` first. It gives no `dt` in the result. The `expm` of the package limits the size of the matrix.
+- The values match SciPy 1.18.1 and NumPy 2.5.4.
+- `czt`, `czt_points` and `zoom_fft` give the values of the call. They
+  return no object. SciPy `CZT`, `ZoomFFT` and `ShortTimeFFT` are
+  classes. The package has no class for them. `stft` and `istft` give
+  the values of `ShortTimeFFT`.
+- A complex `w` or `a` comes as four numbers: `w_re`, `w_im`, `a_re`
+  and `a_im`. A value that is not a number in `w_re` or `a_re` means
+  the default. The default `w` turns by 2 pi over the point count. The
+  default `a` is one.
+- `czt` and `zoom_fft` sum over every input value for every output
+  value. The cost grows with the product of the two counts. SciPy uses
+  a fast transform. The values agree to about 1e-13.
+- `csd_ex` gives the frequencies, the real part and the imaginary part.
+  The cross spectrum is conj(X) times Y, as SciPy 1.18 does.
+- `coherence` gives a value of no meaning at a place where a power
+  spectrum is zero. The place of no frequency of a window without
+  mean holds the ratio of two values of float noise. Do not read it.
+- `csd_ex` and `coherence` take the mean of each part as the trend or no
+  trend. They take no linear trend.
+- `envelope` marks a missing band edge with the number 2147483647. The
+  default band is the one of SciPy: the places from one up.
+- `lombscargle` takes angular frequencies in radians per unit time, as
+  SciPy 1.18 does. Older SciPy versions took the same unit.
+- `minimum_phase` offers the method `homomorphic` only. The method
+  `hilbert` of SciPy is not offered.
+- `whittaker_henderson` needs a number `lamb` from the caller. The search
+  of SciPy for the best number by the REML score is not offered. The
+  search needs a minimizer and a log determinant that cannot match
+  SciPy to the last digits.
+- `find_peaks_cwt` uses the wavelet `ricker` and the ridge line method of
+  SciPy. SciPy 1.18 removed `cwt` and `ricker` from its public API. The
+  package keeps both.
+- `firwin_2d` with `circular` true returns a matrix with the shape
+  `(cols, rows)`, as SciPy does.
+- `hilbert2`, `convolve2d` and `correlate2d` take matrices of two
+  dimensions. `wiener` takes one or two dimensions.
+- `deconvolve` follows SciPy. A divisor longer than the signal gives an
+  empty quotient and the signal as remainder.
+- `max_len_seq` takes 2 to 32 bits. A longer sequence than the limit of
+  the package is a fault.
+- `choose_conv_method` uses the constants that SciPy measured on its own
+  machine. It does not measure the speed of this machine.
+- `check_grad` takes a block that gives the value and the gradient of a
+  function. The step of the difference is the square root of the
+  smallest difference of two numbers, as SciPy uses.
+- `fixed_point` gives the point that the function does not move. The
+  rule is the rule of Steffensen with the second difference, as SciPy
+  uses by default. A call that does not reach the tolerance gives
+  `F_VALUE` and the last point.
+- `line_search` gives the length of the step of the search of the line.
+  The conditions are the strong Wolfe conditions, as SciPy uses. The rule
+  of the search is the rule of Wright and Nocedal, as the call
+  `line_search` of SciPy uses. A search that finds no step gives
+  `F_LIMIT`.
+- `bracket` gives three points that hold the minimum of a function
+  between them. The search goes down the hill from the two points of
+  the caller.
+- `brute` searches the smallest value of a function on a grid. The grid
+  holds at most one million points. A larger grid gives `F_LIMIT`.
+- `isotonic_regression` fits a function that must not fall. The rule is
+  the pool of the neighbours that break the order. The result holds
+  the fitted values and the weight of every block.
+- `bfgs_hessian_update` gives the next estimate of the Hessian. It
+  takes the current Hessian, the step of the point and the step of the
+  gradient. A pair of steps without curvature gives `F_VALUE`.
+- `sr1_hessian_update` gives the next estimate of the Hessian. When
+  the denominator is small against the sizes of the steps the update
+  does not run. The call gives the current Hessian back.
+- `bounds` checks two lists of bounds and gives them back. A lower
+  bound above the upper bound gives `F_VALUE`.
+- `linear_constraint` checks the matrix of a linear constraint with its
+  bounds and gives the three back. SciPy holds them in a type of its
+  own. The package holds the plain values.
+- `show_options` gives the text of the options that the calls of the
+  minimization of the package take. SciPy reads the options of a solver
+  by the name of the method. The package holds one call per method.
+- The calls of the responses hold one input and one output. A system
+  of more inputs or more outputs is out of their reach.
+- `impulse` and `step` need the state space form of a system. The
+  matrix of the states holds at most 64 states on a side.
+- `lsim` takes the times of the output and the input, one value per
+  time. The times must hold one spacing, as SciPy asks.
+- `lsim` runs the input linear between the times when `interp` is
+  true. With `interp` false the input holds its value over each step.
+- The times of `impulse` and `step` hold at most one million points.
+  A larger count gives `F_RANGE`.
+- `freqresp` and `bode` take the coefficients of an analog system, from
+  the highest power to the lowest. The grid of the caller holds at
+  most one million points.
+- `bode` gives the size in decibel and the phase in degrees. The phase
+  is smooth across the turns of the circle.
+- `dfreqresp` and `dbode` take the coefficients of a discrete system,
+  from the highest power of z to the lowest. The answer sits on the
+  unit circle, from zero up to but not including pi.
+- `dbode` divides the frequencies by the step of the sample. A step of
+  zero or below gives `F_VALUE`.
+- `dstep` and `dimpulse` need a numerator that holds no more
+  coefficients than the denominator. A longer numerator gives
+  `F_SHAPE`.
+- `ss2zpk` gives the zeros, the poles and the gain of a system from
+  its state space form. The order of the roots is the order of the
+  package, not the order of SciPy.
+- `abcd_normalize` checks the shapes of the four parts of a state
+  space form. It gives every part back as a matrix of two dimensions.
+  Shapes that do not agree give `F_SHAPE`, as SciPy raises.
+- `barycentric_interpolate` gives the value and one derivative order
+  per call. The class form of SciPy holds every order in one call.
+  The weights use the capacity scaling of SciPy. They do not use its
+  random shuffle of the nodes. The weights differ from the weights of
+  SciPy by one factor over the node range. The values agree.
+- `krogh_interpolate` gives the value and every derivative from zero
+  to `der` in one call. The values of one point come next to each
+  other. A run of equal nodes holds the function value and the
+  derivative values in order, as in SciPy. The nodes must rise or
+  hold their value.
+- `floater_hormann` takes the blending depth `d` from zero to the
+  node count minus one, three by default. It gives the values only.
+  The derivatives of SciPy `FloaterHormannInterpolator` stay out.
+- `lagrange_poly` gives the coefficients from the highest power to
+  the lowest one, as `numpy.poly1d` holds them. The form is not
+  stable above about twenty nodes, as the SciPy function is.
+- `pade_approx` takes the coefficients, the order `m` of the
+  denominator and the order `n` of the numerator. Both results are
+  coefficient lists, from the highest power to the lowest one. The
+  constant term of the denominator stays one.
+- `taylor_approximate` takes the function as a block that holds a row
+  of values for a row of points. The nodes sit on the arc of
+  `scale` around `x`, and the polynomial stands at the origin. The
+  order of the fit may exceed the degree, as in SciPy.
+- `splder`, `splantider`, `splint`, `spalde` and `sproot` work on the
+  type `BSpl`, on the forms that `splrep` and `make_interp_spline`
+  give. `sproot` works on a cubic only, and it finds no root at a
+  repeated inner knot. `splint` needs both ends inside the base
+  interval of the knots. The FITPACK call accepts a wider range.
+- `make_lsq_spline` solves the normal equations of the basis matrix.
+  The coefficients agree with SciPy to the digits of the solve. The
+  method `qr` of SciPy and the periodic form stay out.
+- `rect_spline` follows `RectBivariateSpline` with the smoothing
+  factor zero and the degrees of the two axes. The values hold the
+  rows of the second axis for each row of the first axis. The
+  smoothing of Dierckx, the boxes and the sphere forms stay out.
+- `bspline`, `make_interp_spline`, `splev`, `pchip`, `akima`,
+  `cubic_spline`, `cubic_hermite`, `interp1d` and `griddata` were in
+  the package before this change. `PchipInterpolator`, `CubicSpline`,
+  `Akima1DInterpolator`, `CubicHermiteSpline`,
+  `LinearNDInterpolator`, `NearestNDInterpolator`,
+  `RegularGridInterpolator` and `interpn` map onto them. The object
+  forms of SciPy give the same values as these calls.
+- The formats of the matrices are types of their own. SciPy holds the
+  names `csr_array` and the brothers of the name for the builders of
+  the formats. The names of this package are `csr_from_dense`,
+  `csr_from_triplets`, `csc_from_dense`, `coo_from_triplets`,
+  `dia_from_diagonals`, `dok_new`, `lil_new` and `bsr_from_dense`. The
+  names `csr_matrix` and the brothers of the name of SciPy stand for
+  the same builders.
+- The checks of the formats carry the names `csr_valid` and the
+  brothers of the name. SciPy carries the names `isspmatrix_csr` and
+  the brothers of the name. A check of this package tells whether the
+  buffer of a matrix agrees with its sides.
+- The factorization of SciPy with the name `splu` is the call
+  `sparse_lu` of this package. The call `factorized` of SciPy is
+  `sparse_lu` followed by `splu_solve`. The type `SuperLU` of SciPy is
+  the type `Splu` of this package.
+- The call `solve_ivp` of this package holds the methods RK45, RK23,
+  DOP853, Radau and BDF of SciPy. The calls `ode` and `complex_ode` of
+  SciPy stand for the same calls. The method LSODA of SciPy holds no
+  counterpart, because the method switches its law at run time.
+- The types `OdeSolver`, `OdeSolution` and `DenseOutput` of SciPy hold
+  no counterpart. Goose cannot store a function value, so a caller
+  cannot build a type of its own solver.
+- The call `eigs` of SciPy runs the steps of Arnoldi and restarts them.
+  The call `eigs` of this package builds one space. The space holds the
+  size of the matrix below a side of 256. A greater side gives a fault
+  of limit. A space that the matrix ended gives a fault.
+- The call `aslinearoperator` of SciPy holds no counterpart. Goose
+  cannot store a function value, so the type `LinearOperator` cannot
+  hold the calls of its product.
+- The call `use_solver` of SciPy holds no counterpart. This package
+  holds no settings of the solvers.
+- The call `funm_multiply_krylov` of this package runs the function
+  through the call `funm`. The call `funm` accepts real values only. A
+  matrix of the space that holds a complex pair gives a fault of value.
+- The call `qmc_quad` of SciPy draws its points from a source of
+  chance. The points of this package come from the sequence of Halton
+  with one shift of chance. The values of the two calls differ. The
+  error of both calls follows the spread of the estimates.
+- The call `romb` of SciPy is the call `romberg` of this package. Both
+  calls take the samples of the function.
+- The call `cubature` of SciPy integrates over a box of any count of
+  dimensions. The call `nquad` of this package integrates the same box.
+- The call `lebedev_rule` of SciPy holds no counterpart. The table of
+  the points of the orders runs over many thousand numbers, and the
+  rule serves the sphere only.
+- The calls `save_npz` and `load_npz` of SciPy hold no counterpart.
+  This package holds no reader and no writer of the archive files.
+- The calls `find_best_blas_type`, `get_blas_funcs` and
+  `get_lapack_funcs` of SciPy hold no counterpart. This package writes
+  its own algorithms and holds no library of BLAS or LAPACK.
+- The filters of the transform of SciPy take a size of the transform
+  over the real numbers. The filters of this package transform the
+  whole complex spectrum. Every axis keeps its count of points.
+- The filter `fourier_ellipsoid` of this package holds the response of
+  the ellipsoid for one, two and three dimensions. A count above three
+  gives a fault of range. SciPy holds the same limit.
+- The call `watershed_ift` of this package takes the values and the
+  markers as arrays of the same shape. The values stand from zero up,
+  and the call cuts them to whole numbers.
+- The call `standard_deviation` of SciPy is the call
+  `standard_deviation_labels` of this package. The plain whole-array
+  standard deviation is the call `std`.
+- The call `test` of NumPy and SciPy holds no counterpart. The tests of
+  this package live in the directory of the tests.
 ## Security
 
 - The type calls compare each name with a fixed list of names. No name reaches a path, a command or a format. An unknown name gives `F_VALUE` and no value.
@@ -3050,7 +3371,105 @@ The type calls work on names of types and never touch an array:
 - Every cut checks the array against its own shape before it reads a
   value. A caller that forges an array gets a fault of kind `F_SHAPE`
   and not a crash of the program.
-
+- Every call checks the shape and the buffer of its operands first. A forged array gives a fault and no crash.
+- `fromfunction` and `fromiter` reject a result above the element limit before they call the block.
+- A value from the block passes into the array. NaN and infinity stay. Use `asarray_chkfinite` to reject them.
+- A block that does not stop is not interrupted. The caller must make sure the block ends.
+- Every design call checks the order, the edges, the ripple and the attenuation. A value that is not finite, zero, negative or out of range gives a fault. SciPy lets some of these produce NaN or an overflow.
+- The order of a filter stays at 64 or below. A grid stays at 65536 points. A hostile order or count cannot take unbounded time or memory. SciPy sets no such limit.
+- A division by a zero root gives a fault. A pole at the point of the map gives a fault too. The fault comes instead of an infinite value. A later call cannot read a hidden NaN.
+- `iircomb` makes a list of `fs / w0` taps. The call needs `w0` below half the rate. The check of the divisor stops a bad rate.
+- The search of the band stop order runs at most 500 steps. A hostile edge list cannot start an endless search.
+- Every call checks the count of its input before it allocates memory.
+  A count above the limit of the package is a fault of the kind
+  `F_LIMIT`, not a crash.
+- A value that is not finite is a fault of the kind `F_VALUE`. This
+  holds for a signal, a window and a list of times. SciPy passes such
+  values on. Its result then holds values that are not numbers.
+- `czt_points` and `czt` reject a `w` or an `a` of zero. SciPy gives
+  infinite values.
+- `gammatone` rejects a frequency at or above the half of the rate, as
+  SciPy does. It rejects a count of taps above the limit and an order
+  above 24.
+- `max_len_seq` rejects a tap outside the register. SciPy reads outside
+  the register in that case.
+- `order_filter` rejects a domain with an even side, because the box has
+  no middle.
+- The result of every call that takes a size holds at most
+  `MAX_ELEMENTS` values.
+- Every new call checks the shape of each operand before it reads a
+  value. A forged array gives a fault and not a read outside the shape.
+- The calls of the responses refuse a value that is not finite. NumPy
+  gives a number that is not a number for such a value. The package
+  gives `F_VALUE`.
+- `brute` caps the count of the points of its grid. A caller who wants
+  a big grid gets `F_LIMIT` and not a run of hours.
+- The calls of the responses cap the count of the points of a grid and
+  the count of the samples. A caller who wants more gets `F_RANGE`.
+- `isotonic_regression` refuses a weight of zero or below. A zero
+  weight would divide by zero and give a value that is not a number.
+- `fixed_point` refuses a tolerance of zero or below. The rule of
+  Steffensen would then never stop.
+- `bracket` and `fixed_point` cap the count of the turns of the
+  search. A search that does not stop gives a fault.
+- `bfgs_hessian_update` refuses a pair of steps without curvature. The
+  formula would divide by zero and give a value that is not a number.
+- `sr1_hessian_update` skips the update when the denominator is small.
+  The rule of SciPy skips it too, so the two agree.
+- `lsim` refuses times that do not rise and times that do not hold one
+  spacing. A step of zero would divide by zero.
+- `dbode` refuses a step of the sample of zero or below. The
+  frequencies would grow without a bound.
+- `sproot` and `splder` reject a spline with a repeated knot inside
+  the base interval. The fault names the cause.
+- `taylor_approximate` rejects a scale of zero or below and a
+  function that holds fewer values than nodes.
+- `barycentric_interpolate`, `floater_hormann` and `lagrange_poly`
+  reject a node that repeats or a node that is not finite. They do
+  this before they form a weight.
+- `splint` rejects an end that is not finite. It rejects an end that
+  stands below the other end. It rejects an end outside the base
+  interval of the knots.
+- Every call that takes a list checks the counts and gives a fault
+  for a mismatch. No call reads outside a list.
+- Every check of a format reads the whole buffer of a matrix before a
+  call uses it. A matrix that a caller built by hand and broke gives a
+  fault before any value runs through the arithmetic.
+- The call `safely_cast_index_arrays` rejects an index that is not a
+  whole number of at least zero. An index that stands above the range
+  of the type of 64 bits cannot enter a matrix.
+- The call `random_array` checks the density before it fills the
+  places. A density outside zero to one gives a fault.
+- The call `spsolve_triangular` rejects a zero on the diagonal. A
+  system with a zero on the diagonal holds no solution or holds many.
+- The call `watershed_ift` rejects a value of the input below zero, and
+  it bounds the count of the nodes. The queue of the costs holds one
+  bucket for every whole value of the input.
+- The call `newton_cotes` bounds the order at 1024. A higher order
+  would give weights that lose every digit of accuracy.
+- The call `newton_cotes` holds the exact fractions of the weights up to
+  the order twenty. SciPy 1.18 holds them up to the order fourteen. It
+  solves the system of the samples above that order. The system loses
+  the digits of the fractions. The values of SciPy differ from the
+  exact values at the orders fifteen to twenty.
+- The factor of the error of SciPy differs by five percent at the order
+  twenty. Above the order twenty both calls solve the system, and both
+  lose the same digits.
+- The calls that read the buffer of an array check it against the
+  shape before they read a value. The group holds
+  `convolve2d`, `correlate2d`, `sepfir2d`, `watershed_ift`,
+  `freqz_sos`, `cont2discrete`, `bfgs_hessian_update`,
+  `sr1_hessian_update`, `impulse`, `step` and `lsim`. A shape that
+  lies about its buffer is a fault, so a bad shape cannot read outside
+  the buffer.
+- The calls that read a spline check the knots against the buffer
+  before they read a value. The group holds `splint`, `spalde` and
+  `sproot`. A spline that a caller built by hand and broke gives a
+  fault.
+- The call `einsum_path` checks the count of the operands against the
+  rule. It also checks the count of the places of the set. A set that
+  a caller built by hand and broke gives a fault. A rule of more than
+  eight operands gives `F_LIMIT`.
 ## License
 
 MIT
