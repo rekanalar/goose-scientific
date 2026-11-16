@@ -47,7 +47,7 @@ fn dec_new() -> Dec {
 // dec_at gives the digit at a place, and zero outside the digits.
 fn dec_at(v: Dec&, i: i64) -> i64 {
     if i < 0 || i >= v.n { return 0; }
-    return v.d[i] as i64;
+    return v.d[i];
 }
 
 // dec_strip drops the zeros at the end of the digits.
@@ -60,7 +60,7 @@ fn dec_mul(le: u8[>..]&, f: i64) {
     var carry: i64 = 0;
     var i: i64 = 0;
     while i < le.len {
-        let t = (le[i] as i64) * f + carry;
+        let t = le[i] * f + carry;
         le[i] = (t % 10) as u8;
         carry = t / 10;
         i += 1;
@@ -128,7 +128,7 @@ fn dec_shortest(x: f64, v: Dec&) {
         i += 1;
         var neg = false;
         if i < text.len && text[i] == '-' { neg = true; i += 1; }
-        while i < text.len { ex = ex * 10 + ((text[i] - '0') as i64); i += 1; }
+        while i < text.len { ex = ex * 10 + (text[i] - '0'); i += 1; }
         if neg { ex = -ex; }
     }
     var lead: i64 = 0;
@@ -377,19 +377,19 @@ fn float_text(x: f64, o: FloatFormat, sci: bool, tag: const u8[:]) -> u8[>..], F
     if sci {
         var first: u8 = 0;
         if v.n > 0 { first = v.d[0]; }
-        whole.push((('0' as i64) + (first as i64)) as u8);
+        whole.push((('0' as i64) + first) as u8);
         var i: i64 = 1;
-        while i < v.n { frac.push((('0' as i64) + (v.d[i] as i64)) as u8); i += 1; }
+        while i < v.n { frac.push((('0' as i64) + v.d[i]) as u8); i += 1; }
         exp = v.point - 1;
     } else if v.point > 0 {
         var i: i64 = 0;
         while i < v.point {
-            whole.push((('0' as i64) + dec_at(v, i)) as u8);
+            whole.push((('0') + dec_at(v, i)) as u8);
             i += 1;
         }
         var j = v.point;
         while j < v.n {
-            frac.push((('0' as i64) + (v.d[j] as i64)) as u8);
+            frac.push((('0' as i64) + v.d[j]) as u8);
             j += 1;
         }
     } else {
@@ -397,7 +397,7 @@ fn float_text(x: f64, o: FloatFormat, sci: bool, tag: const u8[:]) -> u8[>..], F
         var z: i64 = 0;
         while z < -v.point { frac.push('0'); z += 1; }
         var i: i64 = 0;
-        while i < v.n { frac.push((('0' as i64) + (v.d[i] as i64)) as u8); i += 1; }
+        while i < v.n { frac.push((('0' as i64) + v.d[i]) as u8); i += 1; }
     }
     // The point and the digits after it. The point falls away in the
     // trim of a minus when no digit stays behind it. The scientific
@@ -438,7 +438,7 @@ fn float_text(x: f64, o: FloatFormat, sci: bool, tag: const u8[:]) -> u8[>..], F
         out.push(if exp < 0 { '-' } else { '+' });
         var e = if exp < 0 { -exp } else { exp };
         var ed: u8[>..] = [];
-        while e > 0 { ed.push((('0' as i64) + (e % 10)) as u8); e = e / 10; }
+        while e > 0 { ed.push((('0') + (e % 10)) as u8); e = e / 10; }
         // The exponent holds two digits by default, and NumPy holds it
         // at five. A count of zero gives the sign alone.
         var width = if o.exp_digits < 0 { 2 } else { o.exp_digits };

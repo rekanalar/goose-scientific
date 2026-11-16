@@ -66,7 +66,7 @@ fn test_qz_c_hostile() {
     // call gives a fault, or all results are finite.
     let hd: f64[>..] = [];
     i = 0;
-    while i < 9 { hd.push(1.0e300 * (1.0 + (i as f64) / 7.0)); hd.push(0.0); i += 1; }
+    while i < 9 { hd.push(1.0e300 * (1.0 + i / 7.0)); hd.push(0.0); i += 1; }
     let h1 = scientific::CArr { ndim: 2, shape: [3, 3], data: copy(hd) };
     let h2 = scientific::CArr { ndim: 2, shape: [3, 3], data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] };
     let ha, hb, hq, hz, hf = scientific::qz_c(copy(h1), copy(h2));
@@ -77,7 +77,7 @@ fn test_qz_c_hostile() {
     }
     let md: f64[>..] = [];
     i = 0;
-    while i < 9 { md.push(1.0e200 * (1.0 + (i as f64) / 7.0)); md.push(0.0); i += 1; }
+    while i < 9 { md.push(1.0e200 * (1.0 + i / 7.0)); md.push(0.0); i += 1; }
     let m1 = scientific::CArr { ndim: 2, shape: [3, 3], data: copy(md) };
     let ma, mb, mq, mz, mf = scientific::qz_c(copy(m1), copy(h2));
     if mf.kind == scientific::F_NONE {

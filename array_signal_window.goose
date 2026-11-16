@@ -271,7 +271,7 @@ fn choose_conv_method(shape_a: i64[:], shape_b: i64[:],
     d = 0;
     while d < shape_a.len {
         var side = shape_a[d] as f64;
-        if mode == "full" { side = shape_a[d] as f64 + shape_b[d] as f64 - 1.0; }
+        if mode == "full" { side = shape_a[d] as f64 + shape_b[d] - 1.0; }
         else if mode == "valid" {
             let da = shape_a[d] as f64;
             let db = shape_b[d] as f64;
@@ -284,7 +284,7 @@ fn choose_conv_method(shape_a: i64[:], shape_b: i64[:],
     var prod_a: f64 = 1.0;
     var prod_b: f64 = 1.0;
     d = 0;
-    while d < shape_a.len { prod_a *= shape_a[d] as f64; prod_b *= shape_b[d] as f64; d += 1; }
+    while d < shape_a.len { prod_a *= shape_a[d]; prod_b *= shape_b[d]; d += 1; }
     var direct: f64 = 0.0;
     if shape_a.len == 1 {
         let a = shape_a[0] as f64;
@@ -307,7 +307,7 @@ fn choose_conv_method(shape_a: i64[:], shape_b: i64[:],
     var full_len: f64 = 1.0;
     d = 0;
     while d < shape_a.len {
-        full_len *= shape_a[d] as f64 + shape_b[d] as f64 - 1.0;
+        full_len *= shape_a[d] as f64 + shape_b[d] - 1.0;
         d += 1;
     }
     let fft_ops = 3.0 * full_len * mathshim::ln(full_len);

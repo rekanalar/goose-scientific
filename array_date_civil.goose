@@ -86,7 +86,7 @@ fn date_of(value: f64, tag: const u8[:]) -> i64, bool, Fault {
     if value != mathshim::trunc_of(value) {
         return 0, false, fault(F_VALUE, tag, "the date is not a whole number of days");
     }
-    if value < DATE_MIN_DAY as f64 || value > DATE_MAX_DAY as f64 {
+    if value < DATE_MIN_DAY || value > DATE_MAX_DAY {
         return 0, false, fault(F_RANGE, tag, "the year of the date stands outside 1 to 9999");
     }
     return value as i64, false, no_fault();
@@ -121,7 +121,7 @@ fn date_days(y: i64, m: i64, d: i64) -> f64, Fault {
     if d < 1 || d > length {
         return 0.0, fault(F_RANGE, tag, "the day of the date stands outside the month");
     }
-    return civil_days(y, m, d) as f64, no_fault();
+    return civil_days(y, m, d), no_fault();
 }
 
 // date_parts gives the year, the month and the day of a date. A date

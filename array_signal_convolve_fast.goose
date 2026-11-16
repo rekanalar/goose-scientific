@@ -19,11 +19,11 @@ fn oa_opt_size(k: i64) -> i64 {
     if k < 1 { return 1; }
     // The root stands where N equals k times the logarithm of two times
     // N times the root of e. The rule of Newton walks to it.
-    var n: f64 = (k as f64) * 4.0;
+    var n: f64 = k * 4.0;
     var i: i64 = 0;
     while i < 60 {
-        let f = n - (k as f64) * mathshim::ln(2.0 * n * 2.718281828459045);
-        let df = 1.0 - (k as f64) / n;
+        let f = n - k * mathshim::ln(2.0 * n * 2.718281828459045);
+        let df = 1.0 - k / n;
         if df == 0.0 { break; }
         let step = f / df;
         n -= step;
@@ -201,13 +201,13 @@ fn upfirdn_ext(x: f64[:], idx: i64, mode: const u8[:], cval: f64, left: bool) ->
         return x[j];
     }
     if mode == "smooth" {
-        if left { return x[0] + idx as f64 * (x[1] - x[0]); }
-        return x[n - 1] + (idx - n + 1) as f64 * (x[n - 1] - x[n - 2]);
+        if left { return x[0] + idx * (x[1] - x[0]); }
+        return x[n - 1] + (idx - n + 1) * (x[n - 1] - x[n - 2]);
     }
     if mode == "line" {
-        let slope = (x[n - 1] - x[0]) / (n - 1) as f64;
-        if left { return x[0] + idx as f64 * slope; }
-        return x[n - 1] + (idx - n + 1) as f64 * slope;
+        let slope = (x[n - 1] - x[0]) / (n - 1);
+        if left { return x[0] + idx * slope; }
+        return x[n - 1] + (idx - n + 1) * slope;
     }
     if mode == "antisymmetric" {
         if left {
@@ -223,7 +223,7 @@ fn upfirdn_ext(x: f64[:], idx: i64, mode: const u8[:], cval: f64, left: bool) ->
     if mode == "antireflect" {
         if left {
             if -idx < n { return x[0] - (x[-idx] - x[0]); }
-            let le = x[0] + (x[0] - x[n - 1]) * ((-idx - 1) / (n - 1)) as f64;
+            let le = x[0] + (x[0] - x[n - 1]) * ((-idx - 1) / (n - 1));
             let j = (-idx - 1) % (2 * (n - 1));
             if j < n - 1 { return le - (x[j + 1] - x[0]); }
             return le - (x[n - 1] - x[n - 2 - (j - (n - 1))]);
@@ -231,7 +231,7 @@ fn upfirdn_ext(x: f64[:], idx: i64, mode: const u8[:], cval: f64, left: bool) ->
         if idx < 2 * n - 1 {
             return x[n - 1] - (x[n - 2 - (idx - n)] - x[n - 1]);
         }
-        let re = x[n - 1] + (x[n - 1] - x[0]) * ((idx / (n - 1)) - 1) as f64;
+        let re = x[n - 1] + (x[n - 1] - x[0]) * ((idx / (n - 1)) - 1);
         let j = idx % (2 * (n - 1));
         if j < n - 1 { return re + (x[j] - x[0]); }
         return re + (x[n - 1] - x[n - 1 - (j - (n - 1))]);

@@ -265,7 +265,7 @@ fn test_lobpcg_faults() {
     let ns = lt_matrix(6, [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 0.0], [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 3.0], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 1.0]);
     var xs: f64[>..] = [];
     i = 0;
-    while i < 6 { xs.push(((i * 7 + 3) % 5) as f64 + 1.0); i += 1; }
+    while i < 6 { xs.push(((i * 7 + 3) % 5) + 1.0); i += 1; }
     let w3, v3, it3, lh3, rh3, f3 = scientific::lobpcg(ns, scientific::mat2(copy(xs), 6, 1));
     assert(f3.kind == scientific::F_VALUE);
     // A B that is not positive definite.
@@ -273,7 +273,7 @@ fn test_lobpcg_faults() {
     var neg: f64[>..] = [];
     var ri: f64[>..] = [];
     i = 0;
-    while i < 60 { ri.push(i as f64); neg.push(1.0); i += 1; }
+    while i < 60 { ri.push(i); neg.push(1.0); i += 1; }
     neg[7] = -1.0;
     let bneg, fb = scientific::csr_from_triplets(60, 60, ri, ri, neg);
     assert(fb.kind == scientific::F_NONE);
@@ -288,8 +288,8 @@ fn lt_diag(n: i64, v: f64, extra: f64) -> scientific::Csr {
     var ci: f64[>..] = [];
     var va: f64[>..] = [];
     var i: i64 = 0;
-    while i < n { ri.push(i as f64); ci.push(i as f64); va.push(v); i += 1; }
-    if extra != 0.0 { ri.push(0.0); ci.push((n - 1) as f64); va.push(extra); }
+    while i < n { ri.push(i); ci.push(i); va.push(v); i += 1; }
+    if extra != 0.0 { ri.push(0.0); ci.push(n - 1); va.push(extra); }
     let s, f = scientific::csr_from_triplets(n, n, ri, ci, va);
     assert(f.kind == scientific::F_NONE);
     return s;
@@ -302,7 +302,7 @@ fn lt_ones(r: i64, c: i64) -> scientific::Arr {
     var i: i64 = 0;
     while i < r {
         var j: i64 = 0;
-        while j < c { d.push(if i == j { 2.0 } else { 0.1 * ((i + j) % 3) as f64 }); j += 1; }
+        while j < c { d.push(if i == j { 2.0 } else { 0.1 * ((i + j) % 3) }); j += 1; }
         i += 1;
     }
     return scientific::mat2(copy(d), r, c);
@@ -369,9 +369,9 @@ fn test_lobpcg_large() {
     var va: f64[>..] = [];
     var i: i64 = 0;
     while i < n {
-        if i > 0 { ri.push(i as f64); ci.push((i - 1) as f64); va.push(-1.0); }
-        ri.push(i as f64); ci.push(i as f64); va.push(2.0);
-        if i < n - 1 { ri.push(i as f64); ci.push((i + 1) as f64); va.push(-1.0); }
+        if i > 0 { ri.push(i); ci.push(i - 1); va.push(-1.0); }
+        ri.push(i); ci.push(i); va.push(2.0);
+        if i < n - 1 { ri.push(i); ci.push(i + 1); va.push(-1.0); }
         i += 1;
     }
     let a = lt_matrix(n, ri, ci, va);
@@ -380,7 +380,7 @@ fn test_lobpcg_large() {
     i = 0;
     while i < n * 3 {
         st = (st * 48271) % 2147483647;
-        x.push(((st % 1000) as f64) / 500.0 - 1.0);
+        x.push((st % 1000) / 500.0 - 1.0);
         i += 1;
     }
     let w, v, it, lh, rh, f = scientific::lobpcg(a, scientific::mat2(copy(x), n, 3), scientific::csr_empty(), scientific::csr_empty(), scientific::empty_arr(), 1.0e-3, 200, false);

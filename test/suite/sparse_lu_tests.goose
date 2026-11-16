@@ -148,7 +148,7 @@ fn test_sparse_lu_hostile() {
     var vv: f64[>..] = [];
     var i: i64 = 0;
     while i < m {
-        ri.push(i); ci.push(i); vv.push(4.0 + i as f64);
+        ri.push(i); ci.push(i); vv.push(4.0 + i);
         if i > 0 {
             ri.push(0); ci.push(i); vv.push(1.0);
             ri.push(i); ci.push(0); vv.push(1.0);

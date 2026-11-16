@@ -219,8 +219,8 @@ fn laplacian_nd(shape: i64[:], boundary: const u8[:] = "neumann") -> Csr, Fault 
             diag += laplace_diag(c[ndim - 1 - d], shape[d], boundary);
             d += 1;
         }
-        ri.push(node as f64);
-        ci.push(node as f64);
+        ri.push(node);
+        ci.push(node);
         vv.push(diag);
         d = 0;
         while d < ndim {
@@ -238,8 +238,8 @@ fn laplacian_nd(shape: i64[:], boundary: const u8[:] = "neumann") -> Csr, Fault 
                         nc = at;
                     }
                     if nc != at {
-                        ri.push(node as f64);
-                        ci.push((node + (nc - at) * step) as f64);
+                        ri.push(node);
+                        ci.push((node + (nc - at) * step));
                         vv.push(1.0);
                     }
                 }
@@ -261,7 +261,7 @@ fn laplace_values_dim(n: i64, boundary: const u8[:]) -> f64[>..] {
     if boundary == "dirichlet" {
         var j: i64 = 0;
         while j < n {
-            let a = mathshim::sine(3.141592653589793 * (j + 1) as f64 / (2.0 * (n + 1) as f64));
+            let a = mathshim::sine(3.141592653589793 * (j + 1) / (2.0 * (n + 1)));
             out.push(-4.0 * a * a);
             j += 1;
         }
@@ -274,7 +274,7 @@ fn laplace_values_dim(n: i64, boundary: const u8[:]) -> f64[>..] {
     if boundary == "neumann" {
         var j: i64 = 0;
         while j < n {
-            let a = mathshim::sine(3.141592653589793 * j as f64 / (2.0 * n as f64));
+            let a = mathshim::sine(3.141592653589793 * j / (2.0 * n));
             out.push(-4.0 * a * a);
             j += 1;
         }
@@ -283,7 +283,7 @@ fn laplace_values_dim(n: i64, boundary: const u8[:]) -> f64[>..] {
     var j: i64 = 0;
     while j < n {
         let k = (j + 1) / 2;
-        let a = mathshim::sine(3.141592653589793 * k as f64 / n as f64);
+        let a = mathshim::sine(3.141592653589793 * k / n);
         out.push(-4.0 * a * a);
         j += 1;
     }

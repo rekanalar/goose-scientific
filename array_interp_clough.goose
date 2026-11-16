@@ -123,7 +123,7 @@ fn ct_neighbors(simp: f64[:], nsimp: i64, n: i64, start: i64[:], eo: i64[:], et:
                 }
                 j += 1;
             }
-            nb.push(found as f64);
+            nb.push(found);
             k += 1;
         }
         t += 1;

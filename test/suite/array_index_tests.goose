@@ -22,7 +22,7 @@ fn same_flat(a: scientific::Arr&, pins: f64[:]) -> bool {
 fn grid(rows: i64, cols: i64) -> scientific::Arr {
     var d: f64[>..] = [];
     var i: i64 = 0;
-    while i < rows * cols { d.push(i as f64); i += 1; }
+    while i < rows * cols { d.push(i); i += 1; }
     var s: i64[..8] = [];
     s.push(rows);
     s.push(cols);
@@ -32,7 +32,7 @@ fn grid(rows: i64, cols: i64) -> scientific::Arr {
 fn grid_shift(rows: i64, cols: i64, shift: f64) -> scientific::Arr {
     var d: f64[>..] = [];
     var i: i64 = 0;
-    while i < rows * cols { d.push(i as f64 + shift); i += 1; }
+    while i < rows * cols { d.push(i + shift); i += 1; }
     var s: i64[..8] = [];
     s.push(rows);
     s.push(cols);
@@ -42,7 +42,7 @@ fn grid_shift(rows: i64, cols: i64, shift: f64) -> scientific::Arr {
 fn cube(n: i64) -> scientific::Arr {
     var d: f64[>..] = [];
     var i: i64 = 0;
-    while i < n * n * n { d.push(i as f64); i += 1; }
+    while i < n * n * n { d.push(i); i += 1; }
     var s: i64[..8] = [];
     s.push(n);
     s.push(n);

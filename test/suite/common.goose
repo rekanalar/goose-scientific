@@ -753,9 +753,9 @@ fn qt_pair(n: i64, seed: i64, kind: i64) -> scientific::Arr, scientific::Arr {
     var i: i64 = 0;
     while i < n * n {
         s = (s * 1103515245 + 12345) % 2147483648;
-        a.push((s as f64) / 1073741824.0 - 1.0);
+        a.push(s / 1073741824.0 - 1.0);
         s = (s * 1103515245 + 12345) % 2147483648;
-        b.push((s as f64) / 1073741824.0 - 1.0);
+        b.push(s / 1073741824.0 - 1.0);
         i += 1;
     }
     if kind == 1 {

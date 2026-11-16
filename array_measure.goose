@@ -259,7 +259,7 @@ fn ms_positions(shape: i64[:], flat: i64[:], ns: i64) -> f64[>..] {
     while s < ns {
         var rem = flat[s];
         var d: i64 = nd - 1;
-        while d >= 0 { out[s * nd + d] = (rem % shape[d]) as f64; rem /= shape[d]; d -= 1; }
+        while d >= 0 { out[s * nd + d] = (rem % shape[d]); rem /= shape[d]; d -= 1; }
         s += 1;
     }
     return out;

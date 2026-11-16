@@ -246,7 +246,7 @@ fn sm_gcv(lam: f64, xd: f64[:], ed: f64[:], xtx: f64[:], xte: f64[:], y: f64[:],
         run += s * s;
         i += 1;
     }
-    let numer = lam * lam * run / (n as f64);
+    let numer = lam * lam * run / n;
     // The denominator: one less the trace of the hat matrix, squared.
     var lhs: f64[>..] = [];
     var xt: f64[>..] = [];
@@ -257,7 +257,7 @@ fn sm_gcv(lam: f64, xd: f64[:], ed: f64[:], xtx: f64[:], xte: f64[:], y: f64[:],
     var trace: f64 = 0.0;
     i = 0;
     while i < n { trace += tr.data[i * n + i]; i += 1; }
-    let denom = (1.0 - trace / (n as f64)) * (1.0 - trace / (n as f64));
+    let denom = (1.0 - trace / n) * (1.0 - trace / n);
     if denom == 0.0 { return 1.0e308; }
     return numer / denom;
 }
@@ -364,7 +364,7 @@ fn make_smoothing_spline_gcv(x: f64[:], y: f64[:], w: f64[:]) -> BSpl, Fault {
     // The factor comes from the bounded search over the interval from
     // zero to the count of the points, with the step 1.0e-5, as the
     // bounded search of SciPy holds.
-    let lam = sm_bounded_min(0.0, n as f64, 1.0e-5, 500, xd, ed, xtx, xte, y, n);
+    let lam = sm_bounded_min(0.0, n, 1.0e-5, 500, xd, ed, xtx, xte, y, n);
     return sm_coefficients(x, y, ww, lam, xd, ed);
 }
 

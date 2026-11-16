@@ -149,7 +149,7 @@ fn test_tridiag_blocks_wide() {
     var e: f64[>..] = [];
     var i: i64 = 0;
     while i < 4096 {
-        d.push(((i % 7) as f64) + 1.0);
+        d.push((i % 7) + 1.0);
         if i < 4095 { e.push(0.0); }
         i += 1;
     }

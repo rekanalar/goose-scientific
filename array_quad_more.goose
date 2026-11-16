@@ -70,7 +70,7 @@ fn nc_ln_gamma(n: i64) -> f64 {
     var t: f64 = 0.0;
     var k: i64 = 2;
     while k <= n {
-        t += mathshim::ln(k as f64);
+        t += mathshim::ln(k);
         k += 1;
     }
     return t;
@@ -91,12 +91,12 @@ fn newton_cotes(n: i64) -> Arr, f64, Fault {
         var i: i64 = 0;
         let count = NC_ROW_AT[n] - at;
         while i < count {
-            w.push(NC_NA[n - 1] as f64 * NC_VI[at + i] / NC_DA[n - 1] as f64);
+            w.push(NC_NA[n - 1] * NC_VI[at + i] / NC_DA[n - 1]);
             i += 1;
         }
         var s: i64[..8] = [];
         s.push(count);
-        return Arr { ndim: 1, shape: s, data: w }, NC_NB[n - 1] as f64 / NC_DB[n - 1] as f64, no_fault();
+        return Arr { ndim: 1, shape: s, data: w }, NC_NB[n - 1] as f64 / NC_DB[n - 1], no_fault();
     }
     // The rule of an order from fifteen to twenty holds the exact
     // fractions of its weights, because the system of the samples loses
@@ -117,7 +117,7 @@ fn newton_cotes(n: i64) -> Arr, f64, Fault {
     while pw <= n {
         var i: i64 = 0;
         while i <= n {
-            let ti = 2.0 * i as f64 / n as f64 - 1.0;
+            let ti = 2.0 * i as f64 / n - 1.0;
             var p: f64 = 1.0;
             var j: i64 = 0;
             while j < pw { p *= ti; j += 1; }
@@ -164,7 +164,7 @@ fn newton_cotes(n: i64) -> Arr, f64, Fault {
     var fac: f64[>..] = [];
     var odd: i64 = 0;
     while odd <= n {
-        fac.push(2.0 / (odd as f64 + 1.0));
+        fac.push(2.0 / (odd + 1.0));
         odd += 2;
     }
     i = 0;
@@ -176,7 +176,7 @@ fn newton_cotes(n: i64) -> Arr, f64, Fault {
             if col % 2 == 0 { sum += ci.data[i * (n + 1) + col] * fac[j]; j += 1; }
             col += 1;
         }
-        w.push(sum * n as f64 / 2.0);
+        w.push(sum * n / 2.0);
         i += 1;
     }
     // The factor of the error. A rule of an even order carries the
@@ -184,24 +184,24 @@ fn newton_cotes(n: i64) -> Arr, f64, Fault {
     var bn: f64 = 0.0;
     var power: i64 = 0;
     if n % 2 == 0 {
-        bn = n as f64 / (n + 3) as f64;
+        bn = n as f64 / (n + 3);
         power = n + 2;
     } else {
-        bn = n as f64 / (n + 2) as f64;
+        bn = n as f64 / (n + 2);
         power = n + 1;
     }
     var dot: f64 = 0.0;
     i = 0;
     while i <= n {
-        var yi = i as f64 / n as f64;
-        dot += mathshim::power(yi, power as f64) * w[i];
+        var yi = i as f64 / n;
+        dot += mathshim::power(yi, power) * w[i];
         i += 1;
     }
     bn -= dot;
     // The factor of the error holds the factorial of the power, as the
     // formula of SciPy holds it. The helper gives the logarithm of the
     // factorial of its argument, and the argument is the power.
-    let lnfac = power as f64 * mathshim::ln(n as f64) - nc_ln_gamma(power);
+    let lnfac = power * mathshim::ln(n) - nc_ln_gamma(power);
     return line_arr(copy(w)), bn * mathshim::power_e(lnfac), no_fault();
 }
 
@@ -360,8 +360,8 @@ fn halton_place(i: i64, base: i64) -> f64 {
     var r: f64 = 0.0;
     var k = i;
     while k > 0 {
-        f /= base as f64;
-        r += f * (k % base) as f64;
+        f /= base;
+        r += f * (k % base);
         k = k / base;
     }
     return r;

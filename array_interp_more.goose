@@ -157,7 +157,7 @@ fn krogh_coef(xi: f64[:], y: f64[:], tag: const u8[:]) -> f64[>..], Fault {
     }
     var fact: f64[>..] = [1.0];
     i = 1;
-    while i <= n { fact.push(fact[i - 1] * (i as f64)); i += 1; }
+    while i <= n { fact.push(fact[i - 1] * i); i += 1; }
     var c: f64[>..] = [];
     i = 0;
     while i <= n { c.push(0.0); i += 1; }
@@ -210,7 +210,7 @@ fn krogh_derivs_at(c: f64[:], xi: f64[:], x: f64, der: i64) -> f64[>..] {
         g[0] = c[i] + (x - xi[i]) * f[0];
         m = 1;
         while m <= der {
-            g[m] = (m as f64) * f[m - 1] + (x - xi[i]) * f[m];
+            g[m] = m * f[m - 1] + (x - xi[i]) * f[m];
             m += 1;
         }
         f = copy(g);

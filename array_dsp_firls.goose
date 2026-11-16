@@ -25,7 +25,7 @@ fn firls_sinc(x: f64) -> f64 {
 // band holds the slope and the offset of the wanted values. The value
 // at a frequency of zero uses the rule of the limit.
 fn firls_val(f: f64, m: f64, c: f64, n: i64) -> f64 {
-    var v = f * (m * f + c) * firls_sinc(f * n as f64);
+    var v = f * (m * f + c) * firls_sinc(f * n);
     if n == 0 {
         v -= m * f * f / 2.0;
     } else {
@@ -112,7 +112,7 @@ fn firls(numtaps: i64, bands: f64[:], desired: f64[:], weight: f64[:] = [], fs: 
         var v: f64 = 0.0;
         i = 0;
         while i < nbands {
-            v += wts[i] * (hi[i] * firls_sinc(hi[i] * n as f64) - lo[i] * firls_sinc(lo[i] * n as f64));
+            v += wts[i] * (hi[i] * firls_sinc(hi[i] * n) - lo[i] * firls_sinc(lo[i] * n));
             i += 1;
         }
         q.push(v);

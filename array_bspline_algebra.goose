@@ -64,7 +64,7 @@ recursive fn splantider(b: BSpl&, n: i64 = 1) -> BSpl, Fault {
         i = 0;
         while i < c.len {
             run += c[i] * dt[i];
-            cc.push(run / ((k + 1) as f64));
+            cc.push(run / (k + 1));
             i += 1;
         }
         var nc: f64[>..] = [0.0];

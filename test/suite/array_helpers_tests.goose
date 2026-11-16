@@ -113,7 +113,7 @@ fn test_roll_axis() {
         let shape = common::shape_of(array_helpers_pins::ROLL_SHAPE_D, array_helpers_pins::ROLL_SHAPE_L, i);
         var values: f64[>..] = [];
         var k: i64 = 0;
-        while k < scientific::numel(shape) { values.push(k as f64); k += 1; }
+        while k < scientific::numel(shape) { values.push(k); k += 1; }
         let a = common::arr_of(shape, values);
         let axis = array_helpers_pins::ROLL_AXIS[i] as i64;
         let start = array_helpers_pins::ROLL_START[i] as i64;
@@ -134,7 +134,7 @@ fn test_split_sections() {
         let shape = common::shape_of(array_helpers_pins::CUT_SHAPE_D, array_helpers_pins::CUT_SHAPE_L, i);
         var values: f64[>..] = [];
         var k: i64 = 0;
-        while k < scientific::numel(shape) { values.push(k as f64); k += 1; }
+        while k < scientific::numel(shape) { values.push(k); k += 1; }
         let a = common::arr_of(shape, values);
         let places = common::shape_of(array_helpers_pins::CUT_PLACES_D, array_helpers_pins::CUT_PLACES_L, i);
         let axis = array_helpers_pins::CUT_AXIS[i] as i64;
@@ -363,7 +363,7 @@ fn test_sort_and_stride_faults() {
 // crash of the program.
 fn forged(values: f64[:]) -> scientific::Arr {
     var s: i64[..8] = [];
-    s.push(values.len as i64);
+    s.push(values.len);
     return scientific::Arr { ndim: 2, shape: s, data: scientific::copy_slice(values) };
 }
 

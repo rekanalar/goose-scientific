@@ -44,7 +44,7 @@ recursive fn bessel_j1(x: f64) -> f64 {
         var one: f64 = 0.0;
         var n = top;
         while n >= 1 {
-            let bjm = 2.0 * (n as f64) / x * bj - bjp;
+            let bjm = 2.0 * n / x * bj - bjp;
             bjp = bj;
             bj = bjm;
             if mathshim::abs_of(bj) > 1.0e100 {
@@ -69,7 +69,7 @@ recursive fn bessel_j1(x: f64) -> f64 {
     var k: i64 = 1;
     while k < 40 {
         let odd = (2 * k - 1) as f64;
-        let nt = t * (4.0 - odd * odd) / ((k as f64) * eight);
+        let nt = t * (4.0 - odd * odd) / (k * eight);
         if mathshim::abs_of(nt) > mathshim::abs_of(t) && k > 2 { break; }
         t = nt;
         if k % 2 == 1 {
@@ -135,8 +135,8 @@ fn ft_response(mode: i64, params: f64[:], shape: i64[..8], ndim: i64, at: i64, t
             let n = shape[d];
             let k = c[ndim - 1 - d];
             var kf = k as f64;
-            if k >= n - n / 2 { kf -= n as f64; }
-            angle += 2.0 * 3.141592653589793 * params[d] * kf / n as f64;
+            if k >= n - n / 2 { kf -= n; }
+            angle += 2.0 * 3.141592653589793 * params[d] * kf / n;
             d += 1;
         }
         return mathshim::cosine(angle), -mathshim::sine(angle), no_fault();
@@ -149,8 +149,8 @@ fn ft_response(mode: i64, params: f64[:], shape: i64[..8], ndim: i64, at: i64, t
         while d < ndim {
             let n = shape[d];
             var ks = c[ndim - 1 - d] as f64;
-            if c[ndim - 1 - d] >= n - n / 2 { ks -= n as f64; }
-            let t = 3.141592653589793 * params[d] * ks / n as f64;
+            if c[ndim - 1 - d] >= n - n / 2 { ks -= n; }
+            let t = 3.141592653589793 * params[d] * ks / n;
             if ndim > 1 { sum += t * t; } else { sum += mathshim::abs_of(t); }
             d += 1;
         }
@@ -165,12 +165,12 @@ fn ft_response(mode: i64, params: f64[:], shape: i64[..8], ndim: i64, at: i64, t
     while d2 < ndim {
         let n = shape[d2];
         var ks = c[ndim - 1 - d2] as f64;
-        if c[ndim - 1 - d2] >= n - n / 2 { ks -= n as f64; }
+        if c[ndim - 1 - d2] >= n - n / 2 { ks -= n; }
         if mode == FT_GAUSSIAN {
-            let p = 3.141592653589793 * params[d2] / n as f64;
+            let p = 3.141592653589793 * params[d2] / n;
             prod *= mathshim::power_e(-2.0 * p * p * ks * ks);
         } else {
-            let t = 3.141592653589793 * params[d2] * ks / n as f64;
+            let t = 3.141592653589793 * params[d2] * ks / n;
             if ks == 0.0 { prod *= 1.0; } else { prod *= mathshim::sine(t) / t; }
         }
         d2 += 1;

@@ -84,7 +84,7 @@ fn bpoly_binom(k: i64, a: i64) -> f64 {
         r = r * (k - i) / (i + 1);
         i += 1;
     }
-    return r as f64;
+    return r;
 }
 
 // bpoly_piece finds the piece that holds the point. The pieces are
@@ -126,7 +126,7 @@ fn bpoly_value(c: f64[:], base: i64, k: i64, t: f64) -> f64 {
 fn bpoly_reduce(c: f64[:], base: i64, k: i64, dx: f64, out: f64[>..]&) {
     var a: i64 = 0;
     while a < k {
-        out.push((k as f64) * (c[base + a + 1] - c[base + a]) / dx);
+        out.push(k * (c[base + a + 1] - c[base + a]) / dx);
         a += 1;
     }
 }
@@ -282,7 +282,7 @@ fn bpoly_antideriv_core(b: BPoly, nu: i64) -> BPoly, Fault {
             var a: i64 = 0;
             nc.push(0.0);
             while a < deg {
-                run += co[i * deg + a] / (deg as f64);
+                run += co[i * deg + a] / deg;
                 nc.push(run * dx);
                 a += 1;
             }

@@ -138,7 +138,7 @@ fn test_dist_hostile() {
     // A checkerboard of 600 by 600 holds too many pairs for the brute force search.
     var cb: f64[>..] = [];
     var q: i64 = 0;
-    while q < 600 * 600 { cb.push(((q / 600 + q % 600) % 2) as f64); q += 1; }
+    while q < 600 * 600 { cb.push(((q / 600 + q % 600) % 2)); q += 1; }
     let r20, h25 = scientific::distance_transform_bf(scientific::arr_of(copy(cb), [600, 600]));
     assert(h25.kind == scientific::F_LIMIT);
     // The indices call gives a position of a background value for every value.

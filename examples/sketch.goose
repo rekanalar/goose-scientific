@@ -5,7 +5,7 @@ import scientific from "..";
 fn main() {
     var data: f64[>..] = [];
     var i: i64 = 0;
-    while i < 200 * 3 { data.push(((i * 7) % 11) as f64 - 5.0); i += 1; }
+    while i < 200 * 3 { data.push(((i * 7) % 11) - 5.0); i += 1; }
     let a, fa = scientific::from_rows(200, 3, data);
     assert(fa.kind == scientific::F_NONE);
     let sk, f = scientific::clarkson_woodruff_transform(a, 40, 7);

@@ -126,7 +126,7 @@ fn expm_parallel(x: f64[:], off_a: i64, off_b: i64, n: i64) -> bool {
     var d: f64 = 0.0;
     var i: i64 = 0;
     while i < n { d += x[off_a + i] * x[off_b + i]; i += 1; }
-    return d == n as f64;
+    return d == n;
 }
 
 // expm_block_product gives the product of the matrix with one column of the
@@ -390,7 +390,7 @@ fn expm_shift(s) -> f64, f64 {
 // the one-norm of the shifted matrix at that time.
 fn expm_scale_of(norm: f64, t: f64, tag: const u8[:]) -> i64, Fault {
     let sc = mathshim::abs_of(t) * norm;
-    if sc > MAX_EXPM_SCALE as f64 { return 0, fault(F_LIMIT, tag, "the scale of the exponential stands above the limit"); }
+    if sc > MAX_EXPM_SCALE { return 0, fault(F_LIMIT, tag, "the scale of the exponential stands above the limit"); }
     var scale: i64 = 1;
     if sc > 1.0 { scale = mathshim::ceil_of(sc) as i64; }
     return scale, no_fault();

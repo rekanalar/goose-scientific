@@ -55,7 +55,7 @@ fn exp_res(p: f64[:]) -> f64[>..] {
     var d: f64[>..] = [];
     var i: i64 = 0;
     while i < 5 {
-        let e = common::mathshim_exp(-p[1] * (i as f64));
+        let e = common::mathshim_exp(-p[1] * i);
         d.push(p[0] * e - y[i]);
         i += 1;
     }
@@ -68,9 +68,9 @@ fn exp_jac(p: f64[:]) -> f64[>..] {
     var d: f64[>..] = [];
     var i: i64 = 0;
     while i < 5 {
-        let e = common::mathshim_exp(-p[1] * (i as f64));
+        let e = common::mathshim_exp(-p[1] * i);
         d.push(e);
-        d.push(-p[0] * (i as f64) * e);
+        d.push(-p[0] * i * e);
         i += 1;
     }
     return d;

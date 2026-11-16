@@ -251,7 +251,7 @@ fn safely_cast_index_arrays(values: f64[:], low_max: i64 = MAX_INDEX32) -> i64, 
         if !whole_index(v) || v < 0.0 {
             return 0, fault(F_VALUE, "safely_cast_index_arrays", "an index is not a whole number of at least zero");
         }
-        if v > low_max as f64 { bits = 64; }
+        if v > low_max { bits = 64; }
         i += 1;
     }
     return bits, no_fault();
@@ -277,7 +277,7 @@ fn random_array(shape: i64[:], density: f64 = 0.01, seed: i64 = 0) -> Csr, Fault
         return csr_empty(), fault(F_VALUE, "random_array", "the density stands outside zero to one");
     }
     let total = rows * cols;
-    var count: i64 = mathshim::round_of(density * total as f64) as i64;
+    var count: i64 = mathshim::round_of(density * total) as i64;
     if count > total { count = total; }
     var r = default_rng(seed);
     var mem, f0 = dok_new(rows, cols);
@@ -299,8 +299,8 @@ fn random_array(shape: i64[:], density: f64 = 0.01, seed: i64 = 0) -> Csr, Fault
         let put = dok_put(mem, i, j, 1.0, "random_array");
         if put.kind != F_NONE { return csr_empty(), put; }
         if dok_nnz(mem) != before {
-            ri.push(i as f64);
-            ci.push(j as f64);
+            ri.push(i);
+            ci.push(j);
             vv.push(uniform(r, 0.0, 1.0));
         }
     }

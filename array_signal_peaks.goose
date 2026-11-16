@@ -27,7 +27,7 @@ fn ricker(points: i64, width: f64) -> Arr, Fault {
     var out: f64[>..] = [];
     var i: i64 = 0;
     while i < points {
-        let x = i as f64 - (points - 1) as f64 / 2.0;
+        let x = i as f64 - (points - 1) / 2.0;
         let xsq = x * x;
         out.push(amp * (1.0 - xsq / wsq) * mathshim::power_e(-xsq / (2.0 * wsq)));
         i += 1;
@@ -124,7 +124,7 @@ fn argrelextrema(x: f64[:], order: i64 = 1, maximum: bool = true) -> Arr, Fault 
             }
             s += 1;
         }
-        if ok { out.push(i as f64); }
+        if ok { out.push(i); }
         i += 1;
     }
     return line_arr(copy(out)), no_fault();
@@ -281,7 +281,7 @@ fn find_peaks_cwt(vector: f64[:], widths: f64[:], min_snr: f64 = 1.0,
         c += 1;
     }
     var gap_thresh = mathshim::trunc_of(widths[0]) as i64;
-    if widths[0] > gap_thresh as f64 { gap_thresh += 1; }
+    if widths[0] > gap_thresh { gap_thresh += 1; }
     r = start_row - 1;
     while r >= 0 {
         // The places of the lines before this row hold the last places
@@ -310,7 +310,7 @@ fn find_peaks_cwt(vector: f64[:], widths: f64[:], min_snr: f64 = 1.0,
                 var best_dist: f64 = 0.0;
                 ln = 0;
                 while ln < prev_col.len {
-                    var d = c as f64 - prev_col[ln] as f64;
+                    var d = c as f64 - prev_col[ln];
                     if d < 0.0 { d = -d; }
                     if best < 0 || d < best_dist {
                         best = ln;
@@ -348,7 +348,7 @@ fn find_peaks_cwt(vector: f64[:], widths: f64[:], min_snr: f64 = 1.0,
     var noise: f64[>..] = [];
     let window = n as f64 / 20.0;
     var wsize = mathshim::trunc_of(window) as i64;
-    if window > wsize as f64 { wsize += 1; }
+    if window > wsize { wsize += 1; }
     let hf = wsize / 2;
     let odd = wsize % 2;
     c = 0;
@@ -367,7 +367,7 @@ fn find_peaks_cwt(vector: f64[:], widths: f64[:], min_snr: f64 = 1.0,
     // peaks.
     let min_length = rows as f64 / 4.0;
     var min_len = mathshim::trunc_of(min_length) as i64;
-    if min_length > min_len as f64 { min_len += 1; }
+    if min_length > min_len { min_len += 1; }
     var out: f64[>..] = [];
     var ln: i64 = 0;
     while ln < line_count.len {
@@ -376,7 +376,7 @@ fn find_peaks_cwt(vector: f64[:], widths: f64[:], min_snr: f64 = 1.0,
             let col0 = line_col[ln];
             var snr = cw.data[row0 * n + col0] / noise[col0];
             if snr < 0.0 { snr = -snr; }
-            if snr >= min_snr { out.push(col0 as f64); }
+            if snr >= min_snr { out.push(col0); }
         }
         ln += 1;
     }
@@ -401,9 +401,9 @@ fn sig_percentile(v: f64[>..], part: f64) -> f64 {
         s[j + 1] = key;
         i += 1;
     }
-    let pos = part / 100.0 * ((s.len - 1) as f64);
+    let pos = part / 100.0 * (s.len - 1);
     let lo = mathshim::trunc_of(pos) as i64;
     let hi = lo + 1;
     if hi > s.len - 1 { return s[s.len - 1]; }
-    return s[lo] + (pos - lo as f64) * (s[hi] - s[lo]);
+    return s[lo] + (pos - lo) * (s[hi] - s[lo]);
 }

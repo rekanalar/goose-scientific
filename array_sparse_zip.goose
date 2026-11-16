@@ -27,7 +27,7 @@ const NPZ_MAX_NAME: i64 = 64;
 // npz_get_u16 gives the whole number of two bytes, least significant
 // first.
 fn npz_get_u16(b: const u8[:], at: i64) -> i64 {
-    return (b[at] as i64) | ((b[at + 1] as i64) << 8);
+    return b[at] | ((b[at + 1] as i64) << 8);
 }
 
 // npz_get_u32 gives the whole number of four bytes, least significant
@@ -224,7 +224,7 @@ fn npz_npy_meta(b: const u8[:], tag: const u8[:]) -> i64, i64[>..], i64, Fault {
         var n: i64 = 0;
         var digits: i64 = 0;
         while p < h.len && h[p] >= '0' && h[p] <= '9' {
-            n = n * 10 + ((h[p] - '0') as i64);
+            n = n * 10 + (h[p] - '0');
             if n > MAX_ELEMENTS {
                 return 0, shape, 0, fault(F_LIMIT, tag, "a length is above the limit");
             }
@@ -276,7 +276,7 @@ fn npz_vals_i64(b: const u8[:], body: i64, count: i64, kind: i64, tag: const u8[
         } else {
             v = npz_get_u32(b, body + i * 8) | (npz_get_u32(b, body + i * 8 + 4) << 32);
         }
-        out.push(v as f64);
+        out.push(v);
         i += 1;
     }
     return out, no_fault();

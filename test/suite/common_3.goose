@@ -48,8 +48,8 @@ fn check_eig(a: scientific::CArr&, w: scientific::CArr&, v: scientific::CArr&) {
             var ei = si - (lr * vi + li * vr);
             if er < 0.0 { er = -er; }
             if ei < 0.0 { ei = -ei; }
-            assert(er <= 1.0e-10 * (1.0 + norm * (n as f64)));
-            assert(ei <= 1.0e-10 * (1.0 + norm * (n as f64)));
+            assert(er <= 1.0e-10 * (1.0 + norm * n));
+            assert(ei <= 1.0e-10 * (1.0 + norm * n));
             len2 += vr * vr + vi * vi;
             if vr * vr + vi * vi > best {
                 best = vr * vr + vi * vi;
@@ -470,7 +470,7 @@ fn grange(w: f64[:]) -> f64 {
 fn gwt(w: f64[:]) -> f64 {
     var s: f64 = 0.0;
     var i: i64 = 0;
-    while i < w.len { s += w[i] * ((i + 1) as f64); i += 1; }
+    while i < w.len { s += w[i] * (i + 1); i += 1; }
     return s;
 }
 

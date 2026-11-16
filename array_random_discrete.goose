@@ -107,7 +107,7 @@ fn hypergeometric(r: Rng&, ngood: i64, nbad: i64, nsample: i64) -> i64, Fault {
     if ngood < 0 || nbad < 0 {
         return 0, fault(F_VALUE, "hypergeometric", "a count of items is below zero");
     }
-    if (ngood as f64) > DISC_URN_MAX || (nbad as f64) > DISC_URN_MAX {
+    if ngood > DISC_URN_MAX || nbad > DISC_URN_MAX {
         return 0, fault(F_LIMIT, "hypergeometric", "a side of the urn stands above 1.0e15");
     }
     let total = ngood + nbad;
@@ -116,7 +116,7 @@ fn hypergeometric(r: Rng&, ngood: i64, nbad: i64, nsample: i64) -> i64, Fault {
     }
     let flip = nsample > total - nsample;
     let k = if flip { total - nsample } else { nsample };
-    if (k as f64) > DISC_COST_MAX {
+    if k > DISC_COST_MAX {
         return 0, fault(F_LIMIT, "hypergeometric", "the smaller side of the sample stands above 1.0e6");
     }
     var good = ngood;
@@ -125,7 +125,7 @@ fn hypergeometric(r: Rng&, ngood: i64, nbad: i64, nsample: i64) -> i64, Fault {
     var i: i64 = 0;
     while i < k {
         let u = random_uniform(r);
-        if u * (left as f64) < (good as f64) {
+        if u * left < (good) {
             hit += 1;
             good -= 1;
         }

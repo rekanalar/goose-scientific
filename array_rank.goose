@@ -134,7 +134,7 @@ fn nd_rank_of(kind: i64, rank: i64, percentile: f64, t: i64) -> i64 {
         var p = percentile;
         if p < 0.0 { p += 100.0; }
         if !(p >= 0.0 && p <= 100.0) { return -1; }
-        if p == 100.0 { r = t - 1; } else { r = (((t as f64) * p / 100.0) as i64); }
+        if p == 100.0 { r = t - 1; } else { r = ((t * p / 100.0) as i64); }
     }
     if r < 0 { r += t; }
     if r < 0 || r >= t { return -1; }

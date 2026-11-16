@@ -210,16 +210,16 @@ fn firwin_2d(rows: i64, cols: i64, fc: f64, window: const u8[:] = "hamming",
     if f1.kind != F_NONE { return empty_arr(), f1; }
     var grid: f64[>..] = [];
     var g: i64 = 0;
-    while g < n_r { grid.push((g as f64) / ((n_r - 1) as f64)); g += 1; }
+    while g < n_r { grid.push((g as f64) / (n_r - 1)); g += 1; }
     var f1v: f64[>..] = [];
     var r: i64 = 0;
     while r < cols {
         var y: f64 = -1.0;
-        if cols > 1 { y = -1.0 + 2.0 * (r as f64) / ((cols - 1) as f64); }
+        if cols > 1 { y = -1.0 + 2.0 * r / (cols - 1); }
         var c: i64 = 0;
         while c < rows {
             var x: f64 = -1.0;
-            if rows > 1 { x = -1.0 + 2.0 * (c as f64) / ((rows - 1) as f64); }
+            if rows > 1 { x = -1.0 + 2.0 * c / (rows - 1); }
             let rad = mathshim::root(x * x + y * y);
             f1v.push(sig_interp1(wr.data, grid, rad));
             c += 1;

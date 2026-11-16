@@ -175,7 +175,7 @@ fn lombscargle(times: f64[:], y: f64[:], freqs: f64[:],
         let b = ys / ss;
         var p = 2.0 * (a * yc + b * ys);
         if normalize == "power" {
-            p *= n as f64 / 4.0;
+            p *= n / 4.0;
         } else {
             var yy2 = y2;
             if floating_mean { yy2 -= yy * yy; }
@@ -255,7 +255,7 @@ fn minimum_phase(h: f64[:], n_fft: i64 = 0) -> Arr, Fault {
     let stop = nf / 2;
     i = 1;
     while i < stop { wr[i] = 2.0; i += 1; }
-    wr[stop] = 1.0 + (nf % 2) as f64;
+    wr[stop] = 1.0 + (nf % 2);
     var hr: f64[>..] = [];
     var hi: f64[>..] = [];
     i = 0;
@@ -417,7 +417,7 @@ fn sig_binom(n: i64, k: i64) -> f64 {
     var r: f64 = 1.0;
     var i: i64 = 0;
     while i < k {
-        r = r * ((n - i) as f64) / ((i + 1) as f64);
+        r = r * (n - i) / (i + 1);
         i += 1;
     }
     return r;
@@ -428,13 +428,13 @@ fn sig_binom(n: i64, k: i64) -> f64 {
 fn polyfit_places(signal: f64[:], deg: i64) -> Arr, Fault {
     var x: f64[>..] = [];
     var i: i64 = 0;
-    while i < signal.len { x.push(i as f64); i += 1; }
+    while i < signal.len { x.push(i); i += 1; }
     let coeffs, f = polyfit(copy(x), copy_slice(signal), deg);
     if f.kind != F_NONE { return empty_arr(), f; }
     var out: f64[>..] = [];
     i = 0;
     while i < signal.len {
-        out.push(polyval(coeffs.data, i as f64));
+        out.push(polyval(coeffs.data, i));
         i += 1;
     }
     return line_arr(copy(out)), no_fault();

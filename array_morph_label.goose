@@ -201,7 +201,7 @@ fn mo_edt_axis(f: f64[>..]&, feat: i64[>..]&, shape: i64[:], axis: i64, s: f64, 
             q = 0;
             while q < n {
                 if line[q] != inf {
-                    let xq = s * (q as f64);
+                    let xq = s * q;
                     if top < 0 {
                         top = 0;
                         v[0] = q;
@@ -211,7 +211,7 @@ fn mo_edt_axis(f: f64[>..]&, feat: i64[>..]&, shape: i64[:], axis: i64, s: f64, 
                         var sx: f64 = 0.0;
                         var again = true;
                         while again {
-                            let xv = s * (v[top] as f64);
+                            let xv = s * v[top];
                             sx = ((line[q] + xq * xq) - (line[v[top]] + xv * xv)) / (2.0 * (xq - xv));
                             if sx <= z[top] && top > 0 { top -= 1; } else { again = false; }
                         }
@@ -231,9 +231,9 @@ fn mo_edt_axis(f: f64[>..]&, feat: i64[>..]&, shape: i64[:], axis: i64, s: f64, 
                 var j: i64 = 0;
                 q = 0;
                 while q < n {
-                    let xq = s * (q as f64);
+                    let xq = s * q;
                     while z[j + 1] < xq { j += 1; }
-                    let xv = s * (v[j] as f64);
+                    let xv = s * v[j];
                     res[q] = (xq - xv) * (xq - xv) + line[v[j]];
                     from[q] = v[j];
                     q += 1;

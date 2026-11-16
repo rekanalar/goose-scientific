@@ -140,9 +140,9 @@ fn zoom_fft(x: f64[:], band: f64[:], m: i64 = 0, fs: f64 = 2.0,
         return empty_arr(), empty_arr(), fault(F_LIMIT, "zoom_fft", "the point count is out of range");
     }
     var scale = (f2 - f1) / fs;
-    if endpoint { scale = (f2 - f1) * (mm as f64) / (fs * ((mm - 1) as f64)); }
+    if endpoint { scale = (f2 - f1) * mm / (fs * (mm - 1)); }
     // The step turns by the scale over the count of the points.
-    let ang = -6.283185307179586 * scale / (mm as f64);
+    let ang = -6.283185307179586 * scale / mm;
     let w = Cplx { re: mathshim::cosine(ang), im: mathshim::sine(ang) };
     let aang = 6.283185307179586 * f1 / fs;
     let a = Cplx { re: mathshim::cosine(aang), im: mathshim::sine(aang) };
@@ -179,8 +179,8 @@ fn csd_avg(x: f64[:], y: f64[:], fs: f64, w: f64[:], nperseg: i64, noverlap: i64
         if detrend {
             k = 0;
             while k < nperseg { mx += x[st + k]; my += y[st + k]; k += 1; }
-            mx = mx / (nperseg as f64);
-            my = my / (nperseg as f64);
+            mx = mx / nperseg;
+            my = my / nperseg;
         }
         var px: f64[>..] = [];
         var py: f64[>..] = [];
@@ -220,8 +220,8 @@ fn csd_avg(x: f64[:], y: f64[:], fs: f64, w: f64[:], nperseg: i64, noverlap: i64
         if average == "mean" {
             s = 0;
             while s < nseg { rr += acc_r[k * nseg + s]; ii += acc_i[k * nseg + s]; s += 1; }
-            rr /= nseg as f64;
-            ii /= nseg as f64;
+            rr /= nseg;
+            ii /= nseg;
         } else {
             var cr: f64[>..] = [];
             var ci: f64[>..] = [];
@@ -368,7 +368,7 @@ fn coherence(x: f64[:], y: f64[:], fs: f64 = 1.0, window: const u8[:] = "hann",
     var fr: f64[>..] = [];
     var j: i64 = 0;
     while j < bins {
-        fr.push(j as f64 * fs / nf as f64);
+        fr.push(j * fs / nf);
         j += 1;
     }
     return line_arr(copy(fr)), line_arr(copy(out)), no_fault();
@@ -410,7 +410,7 @@ fn correlation_lags(in1_len: i64, in2_len: i64, mode: const u8[:] = "full") -> A
     }
     var d: f64[>..] = [];
     var k = lo;
-    while k <= hi { d.push(k as f64); k += 1; }
+    while k <= hi { d.push(k); k += 1; }
     return line_arr(copy(d)), no_fault();
 }
 
@@ -438,7 +438,7 @@ fn envelope(z: f64[:], bp_lo: i64 = 1, bp_hi: i64 = 2147483647,
     if n_out_v < 1 || n_out_v > MAX_DSP_LENGTH {
         return empty_arr(), empty_arr(), fault(F_LIMIT, tag, "the output count is out of range");
     }
-    let fak = (n_out_v as f64) / (n as f64);
+    let fak = (n_out_v as f64) / n;
     var start = bp_lo;
     if start == 2147483647 { start = -(n / 2); }
     var stop = bp_hi;

@@ -420,7 +420,7 @@ fn test_qz_hostile() {
     // fault, or all results are finite. A NaN never comes back.
     var hd: f64[>..] = [];
     i = 0;
-    while i < 9 { hd.push(1.0e300 * (1.0 + (i as f64) / 7.0)); i += 1; }
+    while i < 9 { hd.push(1.0e300 * (1.0 + i / 7.0)); i += 1; }
     hd[1] = -1.0e300;
     hd[5] = 3.0e300;
     let h1 = scientific::Arr { ndim: 2, shape: [3, 3], data: copy(hd) };

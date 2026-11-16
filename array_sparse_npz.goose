@@ -84,7 +84,7 @@ fn save_npz(path: const u8[:], m: Csr) -> bool, Fault {
 fn npz_body_wide(vals: f64[:]) -> bool {
     var i: i64 = 0;
     while i < vals.len {
-        if vals[i] > MAX_INDEX32 as f64 { return true; }
+        if vals[i] > MAX_INDEX32 { return true; }
         i += 1;
     }
     return false;
@@ -165,7 +165,11 @@ fn npz_index_member(b: const u8[:], ns: i64[:], nl: i64[:], me: i64[:], us: i64[
     if s[0] > MAX_SPARSE_NNZ {
         return out, fault(F_LIMIT, tag, "a member holds more indices than the limit");
     }
-    return npz_vals_i64(mb, body, s[0], k, tag);
+    let v, f3 = npz_vals_i64(mb, body, s[0], k, tag);
+    if f3.kind != F_NONE { return out, f3; }
+    var i: i64 = 0;
+    while i < v.len { out.push(v[i]); i += 1; }
+    return out, no_fault();
 }
 
 // npz_data_member gives the values of a member of values and its
@@ -263,7 +267,7 @@ fn npz_check_indexed(ptr: f64[:], idx: f64[:], vals: f64[:], shp: i64[:],
         }
         i += 1;
     }
-    if !whole_index(ptr[seg]) || ptr[seg] != idx.len as f64 {
+    if !whole_index(ptr[seg]) || ptr[seg] != idx.len {
         return fault(F_SHAPE, tag, "the last pointer differs from the count of the values");
     }
     i = 0;
@@ -273,7 +277,7 @@ fn npz_check_indexed(ptr: f64[:], idx: f64[:], vals: f64[:], shp: i64[:],
         let e = ptr[i + 1] as i64;
         while k < e {
             let c = idx[k];
-            if !whole_index(c) || c < 0.0 || c >= other as f64 {
+            if !whole_index(c) || c < 0.0 || c >= other {
                 return fault(F_RANGE, tag, "an index stands outside the matrix");
             }
             if (c as i64) <= prev {
@@ -331,13 +335,13 @@ fn npz_read_bsr(b: const u8[:], ns: i64[:], nl: i64[:], me: i64[:], us: i64[:],
         }
         i += 1;
     }
-    if !whole_index(ptr[brows]) || ptr[brows] != nblocks as f64 {
+    if !whole_index(ptr[brows]) || ptr[brows] != nblocks {
         return csr_empty(), fault(F_SHAPE, tag, "the last pointer differs from the count of the blocks");
     }
     i = 0;
     while i < nblocks {
         let c = idx[i];
-        if !whole_index(c) || c < 0.0 || c >= bcols as f64 {
+        if !whole_index(c) || c < 0.0 || c >= bcols {
             return csr_empty(), fault(F_RANGE, tag, "a block stands outside the matrix");
         }
         i += 1;

@@ -422,7 +422,7 @@ fn lil_resize(l: Lil&, rows: i64, cols: i64) -> Fault {
                 e += 1;
             }
         }
-        ptr.push((body.len / 2) as f64);
+        ptr.push(body.len / 2);
         r += 1;
     }
     var i: i64 = 0;

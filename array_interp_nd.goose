@@ -82,9 +82,9 @@ fn nd_bspline(t: f64[:], nts: i64[:], ks: i64[:], c: f64[:]) -> NdSpl, Fault {
     if f.kind != F_NONE { return ndspl_empty(), f; }
     var buf: f64[>..] = [];
     var i: i64 = 0;
-    while i < ks.len { buf.push(ks[i] as f64); i += 1; }
+    while i < ks.len { buf.push(ks[i]); i += 1; }
     i = 0;
-    while i < nts.len { buf.push(nts[i] as f64); i += 1; }
+    while i < nts.len { buf.push(nts[i]); i += 1; }
     i = 0;
     while i < t.len { buf.push(t[i]); i += 1; }
     i = 0;
@@ -224,9 +224,9 @@ fn nd_poly(x: f64[:], nbs: i64[:], ks: i64[:], c: f64[:]) -> NdPoly, Fault {
     if f.kind != F_NONE { return ndpoly_empty(), f; }
     var buf: f64[>..] = [];
     var i: i64 = 0;
-    while i < ks.len { buf.push(ks[i] as f64); i += 1; }
+    while i < ks.len { buf.push(ks[i]); i += 1; }
     i = 0;
-    while i < nbs.len { buf.push(nbs[i] as f64); i += 1; }
+    while i < nbs.len { buf.push(nbs[i]); i += 1; }
     i = 0;
     while i < x.len { buf.push(x[i]); i += 1; }
     i = 0;

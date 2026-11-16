@@ -9,7 +9,7 @@ fn main() {
     var t: f64[>..] = [];
     var i: i64 = 0;
     while i < 64 {
-        t.push(i as f64 * 0.000125);
+        t.push(i * 0.000125);
         i += 1;
     }
     let wave, wf = scientific::chirp(t, 30.0, 0.008, 10.0, "linear");
@@ -34,7 +34,7 @@ fn main() {
         let tri, tf = scientific::sawtooth([i as f64 * 0.1], 0.5);
         assert(tf.kind == scientific::F_NONE);
         x.push(tri.data[0]);
-        y.push(tri.data[0] * 0.5 + (i % 7) as f64 * 0.01);
+        y.push(tri.data[0] * 0.5 + (i % 7) * 0.01);
         i += 1;
     }
     let cf, cc, cf2 = scientific::coherence(x, y, 1.0, "hann", 0.0 / 0.0, [], 64, 32);

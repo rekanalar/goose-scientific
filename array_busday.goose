@@ -165,7 +165,7 @@ fn bus_sort_holidays(holidays: Arr&, mask: i64[..7], tag: const u8[:]) -> Arr, F
         let day, nat, df = date_of(holidays.data[i], tag);
         if df.kind != F_NONE { return empty_arr(), df; }
         if !nat {
-            if mask[date_weekday(day)] == 1 { days.push(day as f64); }
+            if mask[date_weekday(day)] == 1 { days.push(day); }
         }
         i += 1;
     }

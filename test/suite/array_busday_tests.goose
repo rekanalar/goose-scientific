@@ -114,10 +114,10 @@ fn test_busday_count() {
         } else {
             assert(f.kind == scientific::F_NONE);
             assert(out.data.len == 1);
-            if out.data[0] != want as f64 {
+            if out.data[0] != want {
                 print("count case ", i, " got ", out.data[0], " want ", want, "\n");
             }
-            assert(out.data[0] == want as f64);
+            assert(out.data[0] == want);
         }
         i += 1;
     }
@@ -148,7 +148,7 @@ fn test_busday_offset() {
         var dd: f64[>..] = [];
         dd.push(d);
         var oo: f64[>..] = [];
-        oo.push(o as f64);
+        oo.push(o);
         let out, f = scientific::busday_offset(one(dd), one(oo), roll_at(code), cal);
         if want <= ERR && !want_nat {
             assert(f.kind == scientific::F_VALUE || f.kind == scientific::F_RANGE
@@ -248,7 +248,7 @@ fn test_busdaycalendar() {
         let mask = scientific::buscal_weekmask(c);
         var k: i64 = 0;
         while k < 7 {
-            let digit = (want_mask[k] as i64) - ('0' as i64);
+            let digit = (want_mask[k] as i64) - ('0');
             assert(mask[k] == digit);
             k += 1;
         }
@@ -302,7 +302,7 @@ fn test_datetime_as_string() {
         assert(out.len == len);
         var k: i64 = 0;
         while k < len {
-            assert(out[k] as i64 == array_busday_pins::TEXT_BYTES[at + k] as i64);
+            assert(out[k] == array_busday_pins::TEXT_BYTES[at + k] as i64);
             k += 1;
         }
         i += 1;

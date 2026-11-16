@@ -9,9 +9,9 @@ fn main() {
     var va: f64[>..] = [];
     var i: i64 = 0;
     while i < n {
-        if i > 0 { ri.push(i as f64); ci.push((i - 1) as f64); va.push(-1.0); }
-        ri.push(i as f64); ci.push(i as f64); va.push(2.0);
-        if i < n - 1 { ri.push(i as f64); ci.push((i + 1) as f64); va.push(-1.0); }
+        if i > 0 { ri.push(i); ci.push(i - 1); va.push(-1.0); }
+        ri.push(i); ci.push(i); va.push(2.0);
+        if i < n - 1 { ri.push(i); ci.push(i + 1); va.push(-1.0); }
         i += 1;
     }
     let a, fa = scientific::csr_from_triplets(n, n, ri, ci, va);
@@ -23,7 +23,7 @@ fn main() {
     i = 0;
     while i < n * 3 {
         st = (st * 48271) % 2147483647;
-        x.push(((st % 1000) as f64) / 500.0 - 1.0);
+        x.push((st % 1000) / 500.0 - 1.0);
         i += 1;
     }
 

@@ -92,7 +92,7 @@ fn mb_balance(a: f64[:], n: i64, permute: bool, scale: bool) -> f64[>..], f64[>.
                     j += 1;
                 }
                 if canswap {
-                    ps[l] = r as f64;
+                    ps[l] = r;
                     if r != l {
                         // The columns r and l swap for the rows of the
                         // block.
@@ -133,7 +133,7 @@ fn mb_balance(a: f64[:], n: i64, permute: bool, scale: bool) -> f64[>..], f64[>.
                     i2 += 1;
                 }
                 if canswap {
-                    ps[k] = c as f64;
+                    ps[k] = c;
                     if c != k {
                         var i3: i64 = 0;
                         while i3 <= l {
@@ -257,7 +257,7 @@ fn mb_perm(ps: f64[:], k: i64, l: i64, n: i64) -> f64[>..], f64[>..] {
     while i <= l { scaling[i] = ps[i]; i += 1; }
     var perm: f64[>..] = [];
     i = 0;
-    while i < n { perm.push(i as f64); i += 1; }
+    while i < n { perm.push(i); i += 1; }
     // The rows that move to the end.
     i = n - 1;
     while i > l {

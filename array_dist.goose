@@ -95,7 +95,7 @@ fn dc_positions(shape: i64[:], flat: i64[:]) -> Arr {
     while d >= 0 {
         var p: i64 = 0;
         while p < n {
-            out[d * n + p] = ((flat[p] / div) % shape[d]) as f64;
+            out[d * n + p] = ((flat[p] / div) % shape[d]);
             p += 1;
         }
         div *= shape[d];

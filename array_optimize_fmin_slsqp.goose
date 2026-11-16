@@ -20,7 +20,7 @@ import mathshim;
 fn sq_active_arr(active: i64[:]) -> Arr {
     var out: f64[>..] = [];
     var i: i64 = 0;
-    while i < active.len { out.push(active[i] as f64); i += 1; }
+    while i < active.len { out.push(active[i]); i += 1; }
     return line_arr(copy(out));
 }
 

@@ -20,7 +20,7 @@ fn lo_diag(d: f64[:]) -> scientific::Csr {
     var ri: f64[>..] = [];
     var ci: f64[>..] = [];
     var i: i64 = 0;
-    while i < n { ri.push(i as f64); ci.push(i as f64); i += 1; }
+    while i < n { ri.push(i); ci.push(i); i += 1; }
     let c, f = scientific::csr_from_triplets(n, n, ri, ci, d);
     assert(f.kind == scientific::F_NONE);
     return c;

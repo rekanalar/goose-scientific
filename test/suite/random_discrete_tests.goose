@@ -31,26 +31,26 @@ const D_ZIPF: i64 = 5;
 fn disc_draw(law: i64, r: scientific::Rng&, p1: f64, p2: f64, p3: f64) -> f64, scientific::Fault {
     if law == D_BIN {
         let x, f = scientific::binomial(r, p1 as i64, p2);
-        return x as f64, f;
+        return x, f;
     }
     if law == D_GEO {
         let x, f = scientific::geometric(r, p1);
-        return x as f64, f;
+        return x, f;
     }
     if law == D_HYP {
         let x, f = scientific::hypergeometric(r, p1 as i64, p2 as i64, p3 as i64);
-        return x as f64, f;
+        return x, f;
     }
     if law == D_LOG {
         let x, f = scientific::logseries(r, p1);
-        return x as f64, f;
+        return x, f;
     }
     if law == D_NBIN {
         let x, f = scientific::negative_binomial(r, p1, p2);
-        return x as f64, f;
+        return x, f;
     }
     let x, f = scientific::zipf(r, p1);
-    return x as f64, f;
+    return x, f;
 }
 
 // check_set draws many numbers of one parameter set. It compares the
@@ -89,7 +89,7 @@ fn check_set(law: i64, seed: i64, p1: f64, p2: f64, p3: f64,
 // the distribution function. The tolerance is five standard errors.
 fn share_ok(count: i64, n: f64, c: f64) -> bool {
     let se = common::mathshim_sqrt(c * (1.0 - c) / n);
-    return common::mathshim_abs(count as f64 / n - c) <= 5.0 * se + 1.0e-9;
+    return common::mathshim_abs(count / n - c) <= 5.0 * se + 1.0e-9;
 }
 
 fn test_binomial_law() {

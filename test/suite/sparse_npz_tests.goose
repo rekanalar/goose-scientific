@@ -15,7 +15,7 @@ var NPZ_BAD: i64 = 0;
 
 // u16_at and u32_at give the whole numbers of the bytes of an archive.
 fn u16_at(b: const u8[:], at: i64) -> i64 {
-    return (b[at] as i64) | ((b[at + 1] as i64) << 8);
+    return b[at] | ((b[at + 1] as i64) << 8);
 }
 
 fn u32_at(b: const u8[:], at: i64) -> i64 {

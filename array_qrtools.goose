@@ -24,9 +24,9 @@ fn dft(n: i64, scale: const u8[:] = "") -> CArr, Fault {
     }
     var factor: f64 = 1.0;
     if scale == "sqrtn" {
-        factor = 1.0 / mathshim::root(n as f64);
+        factor = 1.0 / mathshim::root(n);
     } else if scale == "n" {
-        factor = 1.0 / (n as f64);
+        factor = 1.0 / n;
     } else if scale != "" {
         return carr_empty(), fault(F_VALUE, "dft", "the scale is not empty, sqrtn or n");
     }
@@ -37,7 +37,7 @@ fn dft(n: i64, scale: const u8[:] = "") -> CArr, Fault {
         while k < n {
             // The product reduced by n keeps the angle exact.
             let t = ((j * k) % n) as f64;
-            let ang = -2.0 * 3.141592653589793 * t / (n as f64);
+            let ang = -2.0 * 3.141592653589793 * t / n;
             d.push(factor * mathshim::cosine(ang));
             d.push(factor * mathshim::sine(ang));
             k += 1;

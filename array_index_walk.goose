@@ -15,7 +15,7 @@ fn walk_rows(shape: i64[:], d: f64[>..]&) {
     var cell: i64 = 0;
     while cell < n {
         i = 0;
-        while i < shape.len { d.push(pos[i] as f64); i += 1; }
+        while i < shape.len { d.push(pos[i]); i += 1; }
         var q = shape.len - 1;
         while q >= 0 {
             pos[q] += 1;

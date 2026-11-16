@@ -642,11 +642,11 @@ fn lil_is(l: scientific::Lil&, r: f64[:], c: f64[:], v: f64[:]) -> bool {
     var p: i64 = 0;
     var i: i64 = 0;
     while i < l.rows {
-        let cc, vv, f = scientific::lil_row(l, i as f64);
+        let cc, vv, f = scientific::lil_row(l, i);
         if f.kind != scientific::F_NONE { return false; }
         var q: i64 = 0;
         while q < cc.data.len {
-            if p >= r.len || r[p] != i as f64 || c[p] != cc.data[q] || !common::near(vv.data[q], v[p]) { return false; }
+            if p >= r.len || r[p] != i || c[p] != cc.data[q] || !common::near(vv.data[q], v[p]) { return false; }
             p += 1;
             q += 1;
         }

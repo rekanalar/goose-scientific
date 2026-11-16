@@ -6,7 +6,7 @@ import scientific from "..";
 fn main() {
     var d: f64[>..] = [];
     var i: i64 = 0;
-    while i < 6 { d.push(i as f64); i += 1; }
+    while i < 6 { d.push(i); i += 1; }
     var s: i64[..8] = [];
     s.push(2);
     s.push(3);

@@ -41,14 +41,14 @@ fn spline_ic1(z1: f64, x: f64[:], p: f64) -> f64, Fault {
 fn spline_hc(k: i64, cs: f64, r: f64, omega: f64) -> f64 {
     if k < 0 { return 0.0; }
     if omega == 0.0 {
-        return cs * mathshim::power(r, k as f64) * (k + 1) as f64;
+        return cs * mathshim::power(r, k) * (k + 1);
     }
     if omega == SPLINE_PI {
         var sgn: f64 = 1.0;
         if k % 2 == 1 { sgn = -1.0; }
-        return cs * mathshim::power(r, k as f64) * (k + 1) as f64 * sgn;
+        return cs * mathshim::power(r, k) * (k + 1) * sgn;
     }
-    return cs * mathshim::power(r, k as f64) * mathshim::sine(omega * (k + 1) as f64)
+    return cs * mathshim::power(r, k) * mathshim::sine(omega * (k + 1))
         / mathshim::sine(omega);
 }
 
@@ -57,18 +57,18 @@ fn spline_hc(k: i64, cs: f64, r: f64, omega: f64) -> f64 {
 fn spline_hs(k: i64, cs: f64, rsq: f64, omega: f64) -> f64 {
     var ak = k;
     if ak < 0 { ak = -ak; }
-    let rsupk = mathshim::power(rsq, ak as f64 / 2.0);
+    let rsupk = mathshim::power(rsq, ak / 2.0);
     if omega == 0.0 || omega == SPLINE_PI {
         let c0 = (1.0 + rsq) / ((1.0 - rsq) * (1.0 - rsq) * (1.0 - rsq)) * cs * cs;
         var gamma = (1.0 - rsq) / (1.0 + rsq);
         if omega == SPLINE_PI && ak % 2 == 1 { gamma = -gamma; }
-        return c0 * rsupk * (1.0 + gamma * ak as f64);
+        return c0 * rsupk * (1.0 + gamma * ak);
     }
     let c0 = cs * cs * (1.0 + rsq) / (1.0 - rsq)
         / (1.0 - 2.0 * rsq * mathshim::cosine(2.0 * omega) + rsq * rsq);
     let gamma = (1.0 - rsq) / (1.0 + rsq) / mathshim::tan_of(omega);
-    return c0 * rsupk * (mathshim::cosine(omega * ak as f64)
-        + gamma * mathshim::sine(omega * ak as f64));
+    return c0 * rsupk * (mathshim::cosine(omega * ak)
+        + gamma * mathshim::sine(omega * ak));
 }
 
 // spline_ic2_fwd gives the two start values of the second order
@@ -464,9 +464,9 @@ fn spline_eval_core(cj: f64[:], newx: f64[:], dx: f64, x0: f64, quad: bool,
             if indj < 0 { indj = 0; }
             if indj > n - 1 { indj = n - 1; }
             if quad {
-                v += cj[indj] * spline_quad_basis(t - thisj as f64);
+                v += cj[indj] * spline_quad_basis(t - thisj);
             } else {
-                v += cj[indj] * spline_cubic_basis(t - thisj as f64);
+                v += cj[indj] * spline_cubic_basis(t - thisj);
             }
             i += 1;
         }

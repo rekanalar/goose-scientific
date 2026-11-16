@@ -42,13 +42,11 @@ fn curfit_fit(x: f64[:], y: f64[:], w: f64[:], k: i64, s: f64) -> f64[>..], f64[
     let nest = m + k1;
     let n, t, c, fp, ier, f = fpcurf(x, y, w, k, s, nest, x[0], x[m-1]);
     if f.kind != F_NONE { return et, ec, 0.0, 10, f; }
-    var tt: f64[>..] = [];
-    var cc: f64[>..] = [];
     i = 0;
-    while i < n { tt.push(t[i]); i += 1; }
+    while i < n { et.push(t[i]); i += 1; }
     i = 0;
-    while i < n - k1 { cc.push(c[i]); i += 1; }
-    return tt, cc, fp, ier, no_fault();
+    while i < n - k1 { ec.push(c[i]); i += 1; }
+    return et, ec, fp, ier, no_fault();
 }
 
 // fpcurf is the port of fpcurf in the computation mode iopt is zero.
@@ -182,7 +180,7 @@ fn fpcurf(x: f64[:], y: f64[:], w: f64[:], k: i64, s: f64, nest: i64, xb: f64, x
         } else {
             let npl1a = nplus * 2;
             var npl1 = npl1a;
-            if fpold - fp > acc { npl1 = ((nplus as f64) * fpms / (fpold - fp)) as i64; }
+            if fpold - fp > acc { npl1 = (nplus * fpms / (fpold - fp)) as i64; }
             var mx = npl1;
             if nplus / 2 > mx { mx = nplus / 2; }
             if 1 > mx { mx = 1; }
@@ -260,7 +258,7 @@ fn fpcurf(x: f64[:], y: f64[:], w: f64[:], k: i64, s: f64, nest: i64, xb: f64, x
     var p: f64 = 0.0;
     i = 0;
     while i < nk1 { p = p + a[i]; i += 1; }
-    p = (nk1 as f64) / p;
+    p = nk1 / p;
     var ich1 = false;
     var ich3 = false;
     iter = 0;
@@ -450,7 +448,7 @@ fn fpdisc_of(t: f64[:], n: i64, k2: i64, b: f64[>..]&, nest: i64) {
     let k = k1 - 1;
     let nk1 = n - k1;
     let nrint = nk1 - k;
-    let fac = nrint as f64 / (t[nk1] - t[k1 - 1]);
+    let fac = nrint / (t[nk1] - t[k1 - 1]);
     var h: f64[>..] = [];
     var i: i64 = 0;
     while i < 14 { h.push(0.0); i += 1; }

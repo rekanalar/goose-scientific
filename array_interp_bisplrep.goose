@@ -184,7 +184,7 @@ fn biv_basis_int(t: f64[:], k: i64, j: i64, a: f64, b: f64) -> f64 {
     var nc: f64[>..] = [];
     i = 0;
     while i < n + 1 {
-        if i > j { nc.push((t[j + k + 1] - t[j]) / ((k + 1) as f64)); } else { nc.push(0.0); }
+        if i > j { nc.push((t[j + k + 1] - t[j]) / (k + 1)); } else { nc.push(0.0); }
         i += 1;
     }
     let up = bs_value(nt, nc, k + 1, b);

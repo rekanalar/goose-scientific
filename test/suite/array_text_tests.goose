@@ -15,7 +15,7 @@ fn same(got: const u8[:], bytes: f64[:], spans: f64[:], i: i64) -> bool {
     if got.len != n { return false; }
     var k: i64 = 0;
     while k < n {
-        if got[k] as i64 != bytes[at + k] as i64 { return false; }
+        if got[k] != bytes[at + k] as i64 { return false; }
         k += 1;
     }
     return true;
@@ -277,7 +277,7 @@ fn test_mintypecode() {
             assert(f.kind == scientific::F_VALUE);
         } else {
             let want = array_text_pins::MT_OUT_BYTES[array_text_pins::MT_OUT_SPANS[2 * i] as i64] as i64;
-            assert(f.kind == scientific::F_NONE && c as i64 == want);
+            assert(f.kind == scientific::F_NONE && c == want);
         }
         i += 1;
     }

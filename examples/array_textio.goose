@@ -44,10 +44,10 @@ fn main() {
 
     // A text file holds one row of the array on each line.
     var so = scientific::save_options();
-    let ok, fs = scientific::savetxt("sci_textio_example.txt", b, &so);
+    let ok, fs = scientific::savetxt("sci_textio_example.txt", b, so);
     assert(ok && fs.kind == scientific::F_NONE);
     var to = scientific::txt_options();
-    let c, fc = scientific::loadtxt("sci_textio_example.txt", &to);
+    let c, fc = scientific::loadtxt("sci_textio_example.txt", to);
     assert(fc.kind == scientific::F_NONE);
     print("the file holds ", c.shape[0], " rows of ", c.shape[1], " columns\n");
     print("the first value of the file: ", c.data[0], "\n");

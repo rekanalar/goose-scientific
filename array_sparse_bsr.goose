@@ -63,9 +63,9 @@ fn bsr_from_entries(rows: i64, cols: i64, br: i64, bc: i64, ri: f64[:], ci: f64[
     i = 0;
     while i < n { keys.push(ri[i]); i += 1; }
     i = 0;
-    while i < n { keys.push(((ci[i] as i64) / bc) as f64); i += 1; }
+    while i < n { keys.push(((ci[i] as i64) / bc)); i += 1; }
     i = 0;
-    while i < n { keys.push(((ri[i] as i64) / br) as f64); i += 1; }
+    while i < n { keys.push(((ri[i] as i64) / br)); i += 1; }
     var ord: i64[>..] = [];
     if n > 0 { ord = order_places(keys, 4, n); }
     // The blocks: the block row, the block column and the range of the
@@ -86,8 +86,8 @@ fn bsr_from_entries(rows: i64, cols: i64, br: i64, bc: i64, ri: f64[:], ci: f64[
             if ((ri[f] as i64) / br) != bi || ((ci[f] as i64) / bc) != bj { break; }
             m += 1;
         }
-        gbi.push(bi as f64);
-        gbj.push(bj as f64);
+        gbi.push(bi);
+        gbj.push(bj);
         gbeg.push(k);
         gend.push(m);
         k = m;

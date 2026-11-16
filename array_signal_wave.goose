@@ -196,7 +196,7 @@ fn sweep_poly(t: f64[:], poly: f64[:], phi: f64 = 0.0) -> Arr, Fault {
     let n = poly.len;
     var i: i64 = 0;
     while i < n {
-        k.push(poly[i] / (n - i) as f64);
+        k.push(poly[i] / (n - i));
         i += 1;
     }
     k.push(0.0);
@@ -239,13 +239,13 @@ fn gammatone(freq: f64, ftype: const u8[:] = "fir", order: i64 = 4,
         let bw = 1.019 * (freq / 9.26449 + 24.7);
         var fact: f64 = 1.0;
         var j: i64 = 2;
-        while j <= order - 1 { fact *= j as f64; j += 1; }
-        let scale = 2.0 * mathshim::power(WAVE_TAU * bw, order as f64) / fact / fs;
+        while j <= order - 1 { fact *= j; j += 1; }
+        let scale = 2.0 * mathshim::power(WAVE_TAU * bw, order) / fact / fs;
         var b: f64[>..] = [];
         var i: i64 = 0;
         while i < nt {
-            let tt = i as f64 / fs;
-            let tt2 = mathshim::power(tt, (order - 1) as f64);
+            let tt = i / fs;
+            let tt2 = mathshim::power(tt, (order - 1));
             b.push(tt2 * mathshim::power_e(-WAVE_TAU * bw * tt) * mathshim::cosine(WAVE_TAU * freq * tt) * scale);
             i += 1;
         }
@@ -337,8 +337,8 @@ fn vectorstrength(events: f64[:], period: f64[:]) -> Arr, Arr, Fault {
             sum_im += mathshim::sine(a);
             e += 1;
         }
-        sum_re /= events.len as f64;
-        sum_im /= events.len as f64;
+        sum_re /= events.len;
+        sum_im /= events.len;
         str_d.push(mathshim::root(sum_re * sum_re + sum_im * sum_im));
         ph_d.push(mathshim::arctangent2_of(sum_im, sum_re));
         p += 1;
@@ -372,7 +372,7 @@ fn max_len_seq(nbits: i64, length: i64 = -1, taps: f64[:] = []) -> Arr, Arr, Fau
         var i: i64 = 0;
         while i < taps.len {
             let tv = taps[i];
-            if tv != mathshim::trunc_of(tv) || tv < 0.0 || tv > nbits as f64 {
+            if tv != mathshim::trunc_of(tv) || tv < 0.0 || tv > nbits {
                 return empty_arr(), empty_arr(), fault(F_VALUE, "max_len_seq", "a tap must be a place of the register");
             }
             let ti = tv as i64;
@@ -420,7 +420,7 @@ fn max_len_seq(nbits: i64, length: i64 = -1, taps: f64[:] = []) -> Arr, Arr, Fau
     var i5: i64 = 0;
     while i5 < n {
         var fb = state[idx2];
-        seq.push(fb as f64);
+        seq.push(fb);
         var t3: i64 = 0;
         while t3 < tl.len {
             fb ^= state[(tl[t3] + idx2) % nbits];
@@ -433,7 +433,7 @@ fn max_len_seq(nbits: i64, length: i64 = -1, taps: f64[:] = []) -> Arr, Arr, Fau
     var out: f64[>..] = [];
     var b2: i64 = 0;
     while b2 < nbits {
-        out.push(state[(idx2 + b2) % nbits] as f64);
+        out.push(state[(idx2 + b2) % nbits]);
         b2 += 1;
     }
     return line_arr(copy(seq)), line_arr(copy(out)), no_fault();

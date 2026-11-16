@@ -567,7 +567,7 @@ fn dstep(num: f64[:], den: f64[:], n: i64 = 100, dt: f64 = 1.0) -> Arr, Arr, Fau
     if f.kind != F_NONE { return empty_arr(), empty_arr(), f; }
     var t: f64[>..] = [];
     i = 0;
-    while i < n { t.push(i as f64 * dt); i += 1; }
+    while i < n { t.push(i * dt); i += 1; }
     return flt_arr(copy(t)), flt_arr(copy(y)), no_fault();
 }
 
@@ -592,6 +592,6 @@ fn dimpulse(num: f64[:], den: f64[:], n: i64 = 100, dt: f64 = 1.0) -> Arr, Arr, 
     if f.kind != F_NONE { return empty_arr(), empty_arr(), f; }
     var t: f64[>..] = [];
     i = 0;
-    while i < n { t.push(i as f64 * dt); i += 1; }
+    while i < n { t.push(i * dt); i += 1; }
     return flt_arr(copy(t)), flt_arr(copy(y)), no_fault();
 }

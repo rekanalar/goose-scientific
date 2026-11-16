@@ -71,7 +71,7 @@ fn npy_put_int(out: u8[>..]&, v: i64) {
     var le: u8[>..] = [];
     var n = v;
     if n == 0 { le.push('0'); }
-    while n > 0 { le.push((('0' as i64) + n % 10) as u8); n = n / 10; }
+    while n > 0 { le.push((('0') + n % 10) as u8); n = n / 10; }
     var k = le.len - 1;
     while k >= 0 { out.push(le[k]); k -= 1; }
 }
@@ -169,7 +169,7 @@ fn npy_read(b: const u8[:], tag: const u8[:]) -> Arr, Fault {
         return empty_arr(), fault(F_VALUE, tag, "the bytes hold no magic of a .npy file");
     }
     var hstart: i64 = 10;
-    var hlen: i64 = (b[8] as i64) | ((b[9] as i64) << 8);
+    var hlen: i64 = b[8] | ((b[9] as i64) << 8);
     if b[6] == 2 || b[6] == 3 {
         if b.len < 12 { return empty_arr(), fault(F_VALUE, tag, "the header is cut"); }
         hlen = hlen | ((b[10] as i64) << 16) | ((b[11] as i64) << 24);
@@ -203,7 +203,7 @@ fn npy_read(b: const u8[:], tag: const u8[:]) -> Arr, Fault {
         var n: i64 = 0;
         var digits: i64 = 0;
         while at < h.len && h[at] >= '0' && h[at] <= '9' {
-            n = n * 10 + ((h[at] - '0') as i64);
+            n = n * 10 + (h[at] - '0');
             if n > MAX_ELEMENTS { return empty_arr(), fault(F_LIMIT, tag, "a length is above the limit"); }
             digits += 1;
             at += 1;
@@ -246,7 +246,7 @@ fn npz_crc(b: const u8[:]) -> i64 {
     var crc: u32 = 4294967295;
     var i: i64 = 0;
     while i < b.len {
-        crc = crc ^ (b[i] as u32);
+        crc = crc ^ b[i];
         var k: i64 = 0;
         while k < 8 {
             if (crc & 1) == 1 { crc = (crc >> 1) ^ 3988292384; } else { crc = crc >> 1; }
@@ -254,7 +254,7 @@ fn npz_crc(b: const u8[:]) -> i64 {
         }
         i += 1;
     }
-    return (crc ^ 4294967295) as i64;
+    return (crc ^ 4294967295);
 }
 
 // npz_name_ok holds the rule for a member name: one to 64 letters,

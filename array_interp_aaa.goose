@@ -99,7 +99,7 @@ fn aaa_run(x: f64[:], y: f64[:], xs: f64[:], rtol: f64, max_terms: i64) -> Arr, 
     var mean: f64 = 0.0;
     i = 0;
     while i < m { mean += fu[i]; i += 1; }
-    mean /= m as f64;
+    mean /= m;
     // The columns of the Cauchy matrix and of the Loewner matrix.
     var cmat: f64[>..] = [];
     var amat: f64[>..] = [];
@@ -239,7 +239,7 @@ fn aaa_run(x: f64[:], y: f64[:], xs: f64[:], rtol: f64, max_terms: i64) -> Arr, 
             if nm < 1 { nm = 1; }
             i = 0;
             while i < cols { wnew.push(0.0); i += 1; }
-            let rootn = mathshim::root(nm as f64);
+            let rootn = mathshim::root(nm);
             var j = cols - nm;
             if j < 0 { j = 0; }
             while j < cols {

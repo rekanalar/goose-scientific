@@ -168,7 +168,10 @@ fn bvp_bc_jac<B: fn(f64[:], f64[:], f64[:]) -> f64[:]>(mode: i64, ya: f64[:], yb
         }
         c += 1;
     }
-    return mat, no_fault();
+    out.clear();
+    var m: i64 = 0;
+    while m < mat.len { out.push(mat[m]); m += 1; }
+    return out, no_fault();
 }
 
 // bvp_spline_eval gives the values of the spline of the answer, or

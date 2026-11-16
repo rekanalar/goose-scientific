@@ -14,8 +14,8 @@ fn main() {
     while i < 10 {
         var j: i64 = 0;
         while j < 10 {
-            x.push(0.05 + 0.09 * (i as f64) + 0.004 * (j as f64));
-            y.push(0.1 + 0.08 * (j as f64) + 0.003 * (i as f64));
+            x.push(0.05 + 0.09 * i + 0.004 * j);
+            y.push(0.1 + 0.08 * j + 0.003 * i);
             z.push(sin(3.0 * x[i * 10 + j] + 2.0 * y[i * 10 + j]));
             j += 1;
         }
@@ -25,9 +25,9 @@ fn main() {
     var tx: f64[>..] = [];
     var ty: f64[>..] = [];
     i = 0;
-    while i < 5 { tx.push(0.15 + 0.15 * (i as f64)); i += 1; }
+    while i < 5 { tx.push(0.15 + 0.15 * i); i += 1; }
     i = 0;
-    while i < 4 { ty.push(0.2 + 0.18 * (i as f64)); i += 1; }
+    while i < 4 { ty.push(0.2 + 0.18 * i); i += 1; }
     let g, f = scientific::lsq_bivariate_spline(x, y, z, tx, ty, [], 3, 3);
     if f.kind != scientific::F_NONE {
         print("the fit holds a fault ", scientific::kind_name(f.kind), "\n");
@@ -47,7 +47,7 @@ fn main() {
     var sy: f64[>..] = [];
     i = 0;
     while i < 20 {
-        sx.push(0.15 * (i as f64));
+        sx.push(0.15 * i);
         sy.push(sin(sx[i]) + 0.1 * (sx[i] * sx[i]));
         i += 1;
     }
@@ -73,7 +73,7 @@ fn main() {
     var ks: i64[>..] = [3, 3];
     var cc: f64[>..] = [];
     i = 0;
-    while i < 16 { cc.push(0.1 * (i as f64) - 0.5); i += 1; }
+    while i < 16 { cc.push(0.1 * i - 0.5); i += 1; }
     let nd, f9 = scientific::nd_bspline(t, nts, ks, cc);
     let nv, f10 = scientific::ndspl_eval(nd, [0.4, 0.7], 1, [], true);
     print("the value of the spline of two axes ", nv.data, "\n");

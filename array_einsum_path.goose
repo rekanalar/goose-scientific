@@ -24,7 +24,7 @@ fn ep_flops(contract: i64, inner: bool, terms: i64, dsz: f64[:]) -> f64 {
     var factor = terms - 1;
     if factor < 1 { factor = 1; }
     if inner { factor += 1; }
-    return ep_size(contract, dsz) * (factor as f64);
+    return ep_size(contract, dsz) * factor;
 }
 
 // ep_step contracts the operands that the bits of pos name. It gives the
@@ -495,7 +495,7 @@ fn ep_core(spec: const u8[:], mode: const u8[:], s: ESet&) -> Arr, f64, Fault {
     while st < plen.len {
         var t: i64 = 0;
         while t < width {
-            if t < plen[st] { d.push(pl[at + t] as f64); } else { d.push(-1.0); }
+            if t < plen[st] { d.push(pl[at + t]); } else { d.push(-1.0); }
             t += 1;
         }
         at += plen[st];

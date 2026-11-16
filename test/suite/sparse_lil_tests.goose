@@ -202,7 +202,7 @@ fn test_sparse_lil_hostile() {
         let c = (seed / 65536) % 50;
         var v = ((seed / 7) % 5) as f64;
         mirror[r * 50 + c] = v;
-        assert(scientific::lil_set(many, r as f64, c as f64, v).kind == scientific::F_NONE);
+        assert(scientific::lil_set(many, r, c, v).kind == scientific::F_NONE);
         n += 1;
     }
     var cnt: i64 = 0;
@@ -211,7 +211,7 @@ fn test_sparse_lil_hostile() {
     assert(scientific::lil_nnz(many) == cnt);
     var ri: i64 = 0;
     while ri < 20 {
-        let rc, rv, hr = scientific::lil_row(many, ri as f64);
+        let rc, rv, hr = scientific::lil_row(many, ri);
         assert(hr.kind == scientific::F_NONE);
         var q: i64 = 0;
         while q < rc.data.len {

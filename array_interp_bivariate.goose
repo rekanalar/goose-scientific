@@ -31,7 +31,7 @@ fn lsq_calc_b(data: f64[:], knots: f64[:]) -> f64 {
     let val2 = min_of(knots);
     if val2 > val1 { return val1; }
     let val_max = max_of(knots);
-    return val2 - (val_max - val2) / (knots.len as f64);
+    return val2 - (val_max - val2) / knots.len;
 }
 
 // lsq_calc_e gives the upper boundary of the fit by the same rule.
@@ -40,7 +40,7 @@ fn lsq_calc_e(data: f64[:], knots: f64[:]) -> f64 {
     let val2 = max_of(knots);
     if val2 < val1 { return val1; }
     let val_min = min_of(knots);
-    return val2 + (val2 - val_min) / (knots.len as f64);
+    return val2 + (val2 - val_min) / knots.len;
 }
 
 // min_of gives the smallest value of a buffer.

@@ -103,11 +103,11 @@ fn test_quad_more_newton_cotes_apply() {
     var total: f64 = 0.0;
     var i: i64 = 0;
     while i < n {
-        let x = 3.141592653589793 * i as f64 / (n - 1) as f64;
+        let x = 3.141592653589793 * i as f64 / (n - 1);
         total += w.data[i] * mathshim::sine(x);
         i += 1;
     }
-    total *= 3.141592653589793 / (n - 1) as f64;
+    total *= 3.141592653589793 / (n - 1);
     // Three samples of the sine give 2.0943951023931953, and the rule
     // of SciPy gives the same number. The exact integral is two.
     assert(common::mathshim_abs(total - 2.0943951023931953) < 1.0e-12);

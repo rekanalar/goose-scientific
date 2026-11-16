@@ -276,7 +276,7 @@ fn nd_gauss_kernel(sigma: f64, order: i64, radius: i64, out: f64[>..]&) {
     var sum: f64 = 0.0;
     var x: i64 = -radius;
     while x <= radius {
-        let p = mathshim::power_e(-0.5 / s2 * ((x * x) as f64));
+        let p = mathshim::power_e(-0.5 / s2 * (x * x));
         phi.push(p);
         sum += p;
         x += 1;
@@ -289,7 +289,7 @@ fn nd_gauss_kernel(sigma: f64, order: i64, radius: i64, out: f64[>..]&) {
         var j: i64 = 0;
         while j <= order {
             var v: f64 = 0.0;
-            if j + 1 <= order { v += ((j + 1) as f64) * q[j + 1]; }
+            if j + 1 <= order { v += (j + 1) * q[j + 1]; }
             if j >= 1 { v -= q[j - 1] / s2; }
             nq[j] = v;
             j += 1;

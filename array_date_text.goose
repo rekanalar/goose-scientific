@@ -19,7 +19,7 @@ fn date_digits(out: u8[>..]&, value: i64, width: i64) {
     var v = value;
     var tmp: u8[>..] = [];
     while tmp.len < width {
-        tmp.push(('0' as i64 + v % 10) as u8);
+        tmp.push(('0' + v % 10) as u8);
         v = v / 10;
     }
     var k = tmp.len - 1;
@@ -167,7 +167,7 @@ fn datetime_data(spec: const u8[:]) -> const u8[:], i64, Fault {
     var count: i64 = 0;
     var digits: i64 = 0;
     while i < stop && spec[i] >= '0' && spec[i] <= '9' {
-        count = count * 10 + (spec[i] - '0') as i64;
+        count = count * 10 + (spec[i] - '0');
         digits += 1;
         if count > 2147483647 {
             return "", 0, fault(F_LIMIT, tag, "the count of the unit stands above 2147483647");
@@ -190,7 +190,7 @@ fn datetime_data(spec: const u8[:]) -> const u8[:], i64, Fault {
     var den: i64 = 0;
     var dd: i64 = 0;
     while i < stop && spec[i] >= '0' && spec[i] <= '9' {
-        den = den * 10 + (spec[i] - '0') as i64;
+        den = den * 10 + (spec[i] - '0');
         dd += 1;
         if den > 2147483647 {
             return "", 0, fault(F_LIMIT, tag, "the divisor stands above 2147483647");

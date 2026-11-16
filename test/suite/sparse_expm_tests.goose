@@ -166,8 +166,8 @@ fn test_sparse_expm_overflow() {
     var vv: f64[>..] = [];
     var i: i64 = 0;
     while i < 9 {
-        ri.push(i as f64); ci.push(i as f64); vv.push(1.0 + i as f64);
-        if i + 1 < 9 { ri.push(i as f64); ci.push((i + 1) as f64); vv.push(-1.0); }
+        ri.push(i); ci.push(i); vv.push(1.0 + i);
+        if i + 1 < 9 { ri.push(i); ci.push(i + 1); vv.push(-1.0); }
         i += 1;
     }
     let a = common_12::expm_csr(9, ri, ci, vv);
@@ -235,9 +235,9 @@ fn test_sparse_expm_more() {
     var vv: f64[>..] = [];
     var i: i64 = 0;
     while i < 12 {
-        ri.push(i as f64); ci.push(i as f64); vv.push(3.0 + i as f64);
-        if i + 1 < 12 { ri.push(i as f64); ci.push((i + 1) as f64); vv.push(-1.0); }
-        if i + 2 < 12 { ri.push(i as f64); ci.push((i + 2) as f64); vv.push(0.5); }
+        ri.push(i); ci.push(i); vv.push(3.0 + i);
+        if i + 1 < 12 { ri.push(i); ci.push(i + 1); vv.push(-1.0); }
+        if i + 2 < 12 { ri.push(i); ci.push(i + 2); vv.push(0.5); }
         i += 1;
     }
     let a = common_12::expm_csr(12, ri, ci, vv);

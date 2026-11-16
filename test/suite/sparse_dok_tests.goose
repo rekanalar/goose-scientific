@@ -160,7 +160,7 @@ fn test_sparse_dok_hostile() {
     var many, h14 = scientific::dok_new(1000, 1000);
     var n: i64 = 0;
     while n < 100000 {
-        assert(scientific::dok_set(many, (n % 1000) as f64, (n / 1000 * 7 % 1000) as f64, 1.0 + (n % 5) as f64).kind == scientific::F_NONE);
+        assert(scientific::dok_set(many, (n % 1000), (n / 1000 * 7 % 1000), 1.0 + (n % 5)).kind == scientific::F_NONE);
         n += 1;
     }
     assert(scientific::dok_nnz(many) == 100000);
@@ -170,7 +170,7 @@ fn test_sparse_dok_hostile() {
     var line2, h16 = scientific::dok_new(1073741824, 1073741824);
     n = 0;
     while n < 100000 {
-        assert(scientific::dok_set(line2, (n * 8192) as f64, (n * 8192) as f64, 1.0).kind == scientific::F_NONE);
+        assert(scientific::dok_set(line2, (n * 8192), (n * 8192), 1.0).kind == scientific::F_NONE);
         n += 1;
     }
     assert(scientific::dok_nnz(line2) == 100000);
@@ -208,11 +208,11 @@ fn test_sparse_dok_hostile() {
     var t0 = clock();
     var ta, ha = scientific::dok_new(1000, 1000);
     n = 0;
-    while n < 50000 { scientific::dok_set(ta, (n % 1000) as f64, (n / 1000 * 7 % 1000) as f64, 1.0); n += 1; }
+    while n < 50000 { scientific::dok_set(ta, (n % 1000), (n / 1000 * 7 % 1000), 1.0); n += 1; }
     var t1 = clock();
     var tb, hb = scientific::dok_new(1000, 1000);
     n = 0;
-    while n < 100000 { scientific::dok_set(tb, (n % 1000) as f64, (n / 1000 * 7 % 1000) as f64, 1.0); n += 1; }
+    while n < 100000 { scientific::dok_set(tb, (n % 1000), (n / 1000 * 7 % 1000), 1.0); n += 1; }
     var t2 = clock();
     assert(t2 - t1 < 4.0 * (t1 - t0) + 1.0);
 }

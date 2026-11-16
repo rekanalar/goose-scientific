@@ -23,9 +23,9 @@ fn law_var_ok(sum: f64, sumsq: f64, n: f64, v: f64) -> bool {
 // The count never sorts the numbers.
 fn law_quartiles_ok(n: f64, b1: i64, b2: i64, b3: i64) -> bool {
     let se = common::mathshim_sqrt(0.1875 / n);
-    if common::mathshim_abs(b1 as f64 / n - 0.25) > 5.0 * se { return false; }
-    if common::mathshim_abs(b2 as f64 / n - 0.50) > 5.0 * common::mathshim_sqrt(0.25 / n) { return false; }
-    if common::mathshim_abs(b3 as f64 / n - 0.75) > 5.0 * se { return false; }
+    if common::mathshim_abs(b1 / n - 0.25) > 5.0 * se { return false; }
+    if common::mathshim_abs(b2 / n - 0.50) > 5.0 * common::mathshim_sqrt(0.25 / n) { return false; }
+    if common::mathshim_abs(b3 / n - 0.75) > 5.0 * se { return false; }
     return true;
 }
 

@@ -124,7 +124,7 @@ fn svds_fixed(n: i64, state: i64&) -> f64[>..] {
     var i: i64 = 0;
     while i < n {
         state = (state * EXPM_RNG_MUL) % EXPM_RNG_MOD;
-        out.push((state as f64) / (EXPM_RNG_MOD as f64) - 0.5);
+        out.push((state as f64) / EXPM_RNG_MOD - 0.5);
         i += 1;
     }
     return out;

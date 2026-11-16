@@ -325,9 +325,9 @@ fn test_sparse_svds_limits() {
     var vv: f64[>..] = [];
     var i: i64 = 0;
     while i < 600 {
-        ri.push(i as f64);
-        ci.push(i as f64);
-        vv.push(1.0 + (i as f64) * 0.01);
+        ri.push(i);
+        ci.push(i);
+        vv.push(1.0 + i * 0.01);
         i += 1;
     }
     let s, f0 = scientific::csr_from_triplets(600, 600, ri, ci, vv);

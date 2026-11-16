@@ -250,26 +250,26 @@ fn tr_bspline(n: i64, t: f64) -> f64 {
     var binom: f64 = 1.0;
     var k: i64 = 0;
     while k <= n + 1 {
-        let v = t + ((n + 1) as f64) / 2.0 - (k as f64);
+        let v = t + (n + 1) / 2.0 - k;
         if v > 0.0 {
             var pw: f64 = 1.0;
             var e: i64 = 0;
             while e < n { pw *= v; e += 1; }
             if k % 2 == 0 { s += binom * pw; } else { s -= binom * pw; }
         }
-        binom = binom * ((n + 1 - k) as f64) / ((k + 1) as f64);
+        binom = binom * (n + 1 - k) / (k + 1);
         k += 1;
     }
     var fact: f64 = 1.0;
     k = 2;
-    while k <= n { fact *= k as f64; k += 1; }
+    while k <= n { fact *= k; k += 1; }
     return s / fact;
 }
 
 // tr_trunc gives the integer part of x as a float.
 fn tr_trunc(x: f64) -> f64 {
     let i = x as i64;
-    return i as f64;
+    return i;
 }
 
 // tr_fold_coord maps a coordinate into the array by the rule of the mode.
@@ -381,7 +381,7 @@ fn tr_run(flt: f64[:], fshape: i64[:], npad: i64, order: i64, mode: i64, cval: f
             if kind == 0 {
                 c = cbuf[d * npts + p];
             } else if kind == 1 {
-                c = ix[d] as f64;
+                c = ix[d];
                 if sh.len > 0 { c += sh[d]; }
                 if zs.len > 0 {
                     if grid { c = (c + 0.5) * zs[d] - 0.5; } else { c *= zs[d]; }
@@ -389,15 +389,15 @@ fn tr_run(flt: f64[:], fshape: i64[:], npad: i64, order: i64, mode: i64, cval: f
             } else {
                 c = off[d];
                 var j: i64 = 0;
-                while j < nout { c += mat[d * nout + j] * (ix[j] as f64); j += 1; }
+                while j < nout { c += mat[d * nout + j] * ix[j]; j += 1; }
             }
-            c += npad as f64;
+            c += npad;
             if !(c >= -TR_COORD && c <= TR_COORD) {
                 return fault(F_VALUE, tag, "a coordinate is not finite or reaches beyond 4.0e15");
             }
             let n = fshape[d];
             if mode == 5 {
-                if c < 0.0 || c > (n as f64) - 1.0 { outside = true; }
+                if c < 0.0 || c > n - 1.0 { outside = true; }
             } else if mode != 6 {
                 c = tr_fold_coord(c, n, mode);
             }
@@ -413,7 +413,7 @@ fn tr_run(flt: f64[:], fshape: i64[:], npad: i64, order: i64, mode: i64, cval: f
                 var j: i64 = 0;
                 while j < ntap {
                     var w: f64 = 1.0;
-                    if order > 0 { w = tr_bspline(order, c - ((start + j) as f64)); }
+                    if order > 0 { w = tr_bspline(order, c - (start + j)); }
                     tw[d * ntap + j] = w;
                     if mode == 6 { tidx[d * ntap + j] = start + j; } else { tidx[d * ntap + j] = tr_fold_idx(start + j, n, mode, order); }
                     j += 1;

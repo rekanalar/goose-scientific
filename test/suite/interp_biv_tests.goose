@@ -79,7 +79,7 @@ fn test_smoothing_spline() {
     assert(buf_near(c, interp_biv_pins::SM_C, 1.0e-6));
     let q: f64[>..] = [];
     var i: i64 = 0;
-    while i < 7 { q.push(0.2 + (i * 13) as f64 / 30.0); i += 1; }
+    while i < 7 { q.push(0.2 + (i * 13) / 30.0); i += 1; }
     let v, f2 = scientific::bspline_eval(b, q);
     assert(f2.kind == scientific::F_NONE);
     assert(buf_near(v.data, interp_biv_pins::SM_V, 1.0e-6));
@@ -102,7 +102,7 @@ fn test_smoothing_spline_gcv() {
     assert(buf_near(c, interp_biv_pins::SMG_C, 1.0e-3));
     let q: f64[>..] = [];
     var i: i64 = 0;
-    while i < 7 { q.push(0.2 + (i * 13) as f64 / 30.0); i += 1; }
+    while i < 7 { q.push(0.2 + (i * 13) / 30.0); i += 1; }
     let v, f2 = scientific::bspline_eval(b, q);
     assert(f2.kind == scientific::F_NONE);
     assert(buf_near(v.data, interp_biv_pins::SMG_V, 1.0e-3));

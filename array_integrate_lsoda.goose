@@ -47,7 +47,7 @@ fn lsoda_basis(u: f64[:]) -> f64[>..] {
         }
         var s: f64 = 0.0;
         var q: i64 = 0;
-        while q < p.len { s += p[q] / (q as f64 + 1.0); q += 1; }
+        while q < p.len { s += p[q] / (q + 1.0); q += 1; }
         out.push(s / den);
         j += 1;
     }

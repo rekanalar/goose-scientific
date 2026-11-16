@@ -740,10 +740,10 @@ fn lg_tri(n: i64) -> scientific::Csr {
     var v: f64[>..] = [];
     var i: i64 = 0;
     while i < n {
-        ri.push(i as f64); ci.push(i as f64); v.push(4.0);
+        ri.push(i); ci.push(i); v.push(4.0);
         if i + 1 < n {
-            ri.push(i as f64); ci.push((i + 1) as f64); v.push(-1.0);
-            ri.push((i + 1) as f64); ci.push(i as f64); v.push(-1.0);
+            ri.push(i); ci.push(i + 1); v.push(-1.0);
+            ri.push(i + 1); ci.push(i); v.push(-1.0);
         }
         i += 1;
     }
@@ -755,7 +755,7 @@ fn lg_diag(n: i64, d: f64) -> scientific::Csr {
     var ri: f64[>..] = [];
     var v: f64[>..] = [];
     var i: i64 = 0;
-    while i < n { ri.push(i as f64); v.push(d); i += 1; }
+    while i < n { ri.push(i); v.push(d); i += 1; }
     return common_12::expm_csr(n, ri, ri, v);
 }
 

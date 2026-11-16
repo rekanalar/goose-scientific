@@ -30,7 +30,7 @@ fn bits_of(mag: u64) -> u8[>..] {
     var out: u8[>..] = [];
     var i = bit_length(mag) - 1;
     while i >= 0 {
-        out.push((('0' as i64) + (((mag >> (i as u64)) & 1) as i64)) as u8);
+        out.push((('0') + (((mag >> (i as u64)) & 1) as i64)) as u8);
         i -= 1;
     }
     return out;

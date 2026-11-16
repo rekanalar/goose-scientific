@@ -40,7 +40,7 @@ fn place_gen_ok(dx: f64, scale: f64, side: i64) -> bool {
     if dx == 0.0 { return false; }
     let ad = mathshim::abs_of(dx);
     let ld = mathshim::ln(ad);
-    let th = mathshim::ln(1.0e-13) + side as f64 * mathshim::ln(scale);
+    let th = mathshim::ln(1.0e-13) + side * mathshim::ln(scale);
     return ld > th;
 }
 
